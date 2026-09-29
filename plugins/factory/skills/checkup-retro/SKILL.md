@@ -13,7 +13,7 @@ The checkup of the checkups. It turns what the other checkups found into lasting
 
 ## In scope
 
-1. **Read** the checkup reports since the previous retro (`docs/checkups/*/`), and the schedule.
+1. **Read** the checkup reports since the previous retro (`docs/checkups/*/`), the reports on unmerged checkup branches (list them yourself with `git branch --list 'checkup/*'`), and the schedule.
 2. **Recurring findings**: the same finding in two or more runs without being fixed. For each, propose one of:
    - a fix;
    - a convention, lint rule or test that prevents it;
@@ -24,6 +24,10 @@ The checkup of the checkups. It turns what the other checkups found into lasting
 4. **About the checkups**: collect the "About this checkup" feedback from the reports. Propose concrete changes to the checkup skills or the protocol. For the factory plugin's own checkups and protocol, these go to the owner, since the plugin lives in another repository.
 5. **Patterns**: the same kind of problem found by different checkups (e.g. missing parsing at several boundaries) points to a missing convention or helper. Propose it.
 6. **Coverage**: parts of the project no checkup looks at (see the runner's suggestions).
+
+## Your report
+
+- Under "About this checkup", write about this retro's own instructions. The other checkups' feedback goes under "Needs a human" as concrete proposals.
 
 ## Fixes you may make yourself
 

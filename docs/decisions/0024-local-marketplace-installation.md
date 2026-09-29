@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Its update procedure was superseded by [ADR-0026](0026-updating-a-locally-installed-plugin.md): the local plugin loads in place; commit and restart are enough.
 
 ## Context
 

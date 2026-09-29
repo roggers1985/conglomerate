@@ -1,6 +1,6 @@
 {
     "checkups": [
-        { "name": "security", "intervalDays": 30, "priority": false },
+        { "name": "security", "intervalDays": 30, "priority": true },
         { "name": "outdated-packages", "intervalDays": 30, "priority": false },
         { "name": "docs-drift", "intervalDays": 30, "priority": false },
         { "name": "model-routing", "intervalDays": 30, "priority": false },

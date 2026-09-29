@@ -33,6 +33,10 @@ Makes sure the behaviour that matters is tested, and that the tests are good. A 
 - Prefer a few tests for important behaviour over many trivial ones.
 - When a test finds a bug, fix it only when the fix is small and clearly correct; otherwise it goes under "Needs a human" (see below).
 
+## Reading coverage numbers
+
+- Coverage tools only see code that runs in the test process. Code tested by spawning it as a subprocess (command-line entry points) and code run by documentation examples (doctest) shows as uncovered even when it is tested. Check for such tests before reporting a gap.
+
 ## Fixes you may make yourself
 
 - Add tests for the most important untested behaviour, and improve weak tests, without weakening what they check.

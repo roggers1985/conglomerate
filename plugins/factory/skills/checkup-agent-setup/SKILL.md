@@ -15,16 +15,16 @@ The agent's instructions decay like code. This checkup keeps them short, correct
 
 1. **`CLAUDE.md`** (and nested ones, `AGENTS.md`):
    - concise, with long procedures moved into skills;
-   - no contradictions with each other, with the factory plugin's conventions, or with the owner's global `~/.claude/CLAUDE.md` (read it; report duplicates that could be removed now the plugin provides them).
+   - no contradictions with each other, with the factory plugin's conventions, or with the owner's global `~/.claude/CLAUDE.md`. Read that file from disk (your context may hold an outdated copy), and report duplicates that could be removed now the plugin provides them.
 2. **Skills** (`.claude/skills/`):
    - descriptions that say *when* to use them ("Use when …"), so they trigger;
    - no overlapping skills, and none unused for a long time;
    - old `.claude/commands/` files that should become skills.
-3. **Settings** (`.claude/settings.json`):
+3. **Settings** (`.claude/settings.json`; a project without one is fine, not a finding):
    - permission rules no broader than needed (no blanket `Bash(*)`), and deny rules for dangerous commands;
    - hooks that point at existing scripts and still work (run them);
    - configured MCP servers that are still used.
-4. **Checkup schedule**: checkups that no longer fit, missing ones (see the runner's suggestions), and intervals that seem wrong given past reports.
+4. **Checkup schedule**: checkups that no longer fit, missing ones (make the same judgement the runner makes in its step 2: UI, public site, personal data, database, …), and intervals that seem wrong given past reports.
 5. **New Claude Code features**: read the Claude Code changelog since the previous report. List features relevant to this project (hook events, skill options, settings).
 
 ## Fixes you may make yourself

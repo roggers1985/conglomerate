@@ -26,6 +26,11 @@ Less code is less to read, test and update. This checkup removes what nothing us
 4. **Assets**: public files nothing references. Check the code *and* seed data or content before removing.
 5. **Leftovers**: commented-out code, and feature flags that are always on.
 
+## Not unused
+
+- Exports that exist so the doctest enforces documentation and tested examples on them, or so tests can reach them (common in command-line entry points), are used.
+- Helpers the owner asked for explicitly are kept, even while nothing uses them yet (see the protocol).
+
 ## Fixes you may make yourself
 
 - Remove what is clearly unused, in small commits per category, running the full checks after each.

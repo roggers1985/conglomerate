@@ -2,7 +2,7 @@
 name: checkup
 description: Run the project's recurring checkups (dependencies, security, code and frontend quality, tests, docs, accessibility, and project-specific ones like legal). Shows which are due according to docs/checkups/checkups.json and runs the chosen ones, priority first. Use when asked to "run the checkups", "do a checkup", or to see which checkups are due or overdue.
 argument-hint: "[due | all | <name>…]"
-allowed-tools: Bash(bun "${CLAUDE_PLUGIN_ROOT}/dist/checkups.js" *)
+allowed-tools: Bash(bun "${CLAUDE_PLUGIN_ROOT}/dist/checkups.js" *), Bash(git branch --list *)
 ---
 
 # Checkup runner
@@ -14,6 +14,10 @@ You coordinate the project's recurring checkups (see ADR 0010 in the factory plu
 !`bun "${CLAUDE_PLUGIN_ROOT}/dist/checkups.js" status "${CLAUDE_PROJECT_DIR}"`
 
 This status is computed from `docs/checkups/checkups.json` and the report dates. Don't recompute it.
+
+Unmerged checkup branches (their reports don't count yet):
+
+!`git branch --list 'checkup/*' --format='%(refname:short)'`
 
 ## Steps
 
@@ -33,7 +37,9 @@ This status is computed from `docs/checkups/checkups.json` and the report dates.
 6. Run the checkups **one at a time, each in its own subagent** (Agent tool), so each starts with a clean context. Use the task agent `factory:tasks:checkup`, which defaults to the `checkup` model and effort from `models.json`. Override the model only when the user asks for one (e.g. "run the checkups with opus"). Tell each subagent:
    - to invoke the checkup's skill;
    - to follow the protocol in `${CLAUDE_PLUGIN_ROOT}/checkups/protocol.md`;
-   - today's date, so the branch and report are named consistently.
+   - today's date, so the branch and report are named consistently;
+   - the unmerged checkup branches listed above, copied exactly, never retyped or counted by hand;
+   - whether the repository has a remote, and whether `gh` is logged in (for the protocol's hand-over step).
 7. When all are done, reply with one line per checkup: branch or PR link, and the single most important finding.
 
 ## Rules

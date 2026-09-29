@@ -27,6 +27,10 @@ Finds security problems before someone else does. Plain version updates are the 
 6. **Headers and cookies**: Content-Security-Policy, HSTS, `frame-ancestors`, referrer policy; cookies `Secure`, `HttpOnly` and `SameSite` where they apply.
 7. **LLM and agent features**: untrusted content (web pages, emails, user text) that reaches a model with tools or privileges (prompt injection), and model output that is used without being parsed (see `code-parsing`).
 
+## How to work
+
+- A project with a small attack surface (no server, no user input) gets a short report: say which scope items don't apply and why, and check the rest. This checkup never proposes its own removal from the schedule: the surface can grow at any time.
+
 ## Fixes you may make yourself
 
 - Patch and minor updates that fix an advisory, with the full checks.

@@ -5,20 +5,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 ## Checkups (ADR 0010, 0023)
 
-- [ ] First runs still to do: `todos`, `licenses`, `retro` (done: security, claude-code-platform, code-quality, test-coverage, new-features, agent-setup, repo-health, unused-code)
-- [ ] Merge the report-only branches still open: `checkup/security-…` (also adds `.env*` to `.gitignore`), `checkup/claude-code-platform-…`, `checkup/new-features-…`, `checkup/agent-setup-…`, `checkup/repo-health-…`
-- [ ] Refinement round from the first runs' "About this checkup" sections:
-  - protocol: read files from disk, never trust what the session context says a file contains (agent-setup judged the global CLAUDE.md from a stale copy)
-  - protocol: removing or undoing something the owner explicitly asked for always goes under "Needs a human" (unused-code deleted the requested `lib/predicates.ts`)
-  - `security`: a small attack surface is reported briefly; this checkup never proposes its own removal
-  - `claude-code-platform`: the changelog pages only show ~10 days; read older history by version range or GitHub releases
-  - `code-quality`: add *conceptual* consistency (one problem solved two ways, one concept under two names, inconsistent folder layouts), and turn recurring findings into lint rules or validator checks; the "riskiest modules" heuristic needs a fallback for tooling repos
-  - `test-coverage`: coverage percentages miss subprocess tests (CLIs run with `Bun.spawn`) and doctest examples
-  - `new-features`: merge the two overlapping "revisit what an ADR deferred" scope items
-  - `agent-setup`: a missing `.claude/settings.json` is not a finding; "the runner's suggestions" means redoing that judgement, not reading a stored file
-  - `unused-code`: exports kept so the doctest enforces docs and tests (entry-point helpers) are not unused
-  - dispatch prompts: count branches correctly (the repo-health prompt said "three" and listed four)
-- [ ] Decide: should `security` (and maybe `outdated-packages`) be `priority: true` in this repo's schedule? (agent-setup)
 - [ ] Test-coverage leftovers: two untested error paths in `validateRepository` (invalid `plugin.json`, name mismatch); the `!result.success` branch in `scripts/bundles.ts` seems unreachable because `Bun.build` throws instead
 - [ ] Move the jobs project to the plugin's checkups (plugin installed, ADR 0024). Plan:
   - keep its project-specific checkups (legal, content-freshness, backfill, stale-data, seo, analytics) and any generic ones whose jobs version holds project knowledge, as overrides (ADR 0023);
@@ -29,7 +15,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 - [ ] Decide: push checkup branches and open PRs now that there is a (private) GitHub remote? Opening PRs needs the `gh` CLI (not installed) and `gh auth login`.
 - [ ] CI: a minimal GitHub Actions workflow running `bun run check` on pushes and PRs to `main` (repo-health; ADR 0006 already expected it)
-- [ ] Correct ADR 0024's update procedure with a new ADR: a plugin from a *local* marketplace loads from its source folder at every session start or `/reload-plugins`, whatever its `version`; `claude plugin update` isn't needed (claude-code-platform)
 
 ## Conventions
 

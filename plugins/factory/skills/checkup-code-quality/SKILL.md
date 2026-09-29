@@ -13,7 +13,7 @@ Keeps the code readable and correct, and in line with the owner's conventions fr
 
 ## In scope
 
-1. **Where to look**: the files changed since the previous report (`git log --since`), plus the riskiest modules (money, data writes, security, concurrency).
+1. **Where to look**: the files changed since the previous report (`git log --since`), plus the riskiest modules (money, data writes, security, concurrency). In a tooling project without such modules, take the most-used modules and the entry points instead.
 2. **Conventions**:
    - readability and declarative style;
    - one named condition per `if`, early returns;
@@ -27,7 +27,14 @@ Keeps the code readable and correct, and in line with the owner's conventions fr
    - swallowed exceptions (`catch {}` without a reason);
    - unsafe casts (`as`, `any`, non-null `!`);
    - off-by-one errors, time zones, races, transactions that aren't atomic.
-4. **Structure**:
+4. **Consistency** (what tools can't see):
+   - the same problem solved in two ways (two kinds of error results, two ways to read files);
+   - one concept under different names in different modules;
+   - different folder or file layouts for the same kind of thing;
+   - inconsistent wording in docs and messages.
+
+   For each recurring kind of inconsistency, propose a lint rule or validator check that prevents it, not only a fix.
+5. **Structure**:
    - circular dependencies;
    - exports only used inside their module;
    - duplicated logic that should be a helper;

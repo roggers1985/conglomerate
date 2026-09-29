@@ -19,11 +19,8 @@ Keeps the codebase using its tools well. It adopts *features*; updating versions
    - language features such as `Object.groupBy`, `Array.prototype.toSorted`, `using` declarations, `Promise.withResolvers`;
    - runtime APIs that replace a dependency or a helper;
    - framework features that replace workarounds.
-4. **Settings and rules**:
-   - new strictness flags in the type checker;
-   - new lint rules that match the owner's conventions;
-   - rules that were turned off because of tool bugs (look for ADRs or comments that say so), and whether they work now.
-5. **The schema library and other deliberate choices** recorded in ADRs "for now" (e.g. Zod in ADR 0020): is the choice still the recommended one? Report only; changing it is a decision.
+4. **Settings and rules**: new strictness flags in the type checker, and new lint rules that match the owner's conventions.
+5. **Deferred decisions**: everything an ADR or a comment deferred until later: rules turned off because of tool bugs, and choices made "for now" (e.g. Zod in ADR 0020). Check whether the reason still holds. Changing a choice is a decision for the owner.
 
 ## Fixes you may make yourself
 

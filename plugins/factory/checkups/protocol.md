@@ -1,6 +1,6 @@
 # Checkup protocol
 
-Every checkup follows this protocol. A checkup skill only defines its scope; this file defines how to run it. Paths are relative to the project root.
+Every checkup follows this protocol. A checkup skill only defines its scope; this file defines how to run it. Paths are relative to the project root. `${CLAUDE_PLUGIN_ROOT}` means the factory plugin's folder: the folder that contains this `checkups/` folder. When you read a skill or this file directly and the variable isn't filled in, use that folder (or the mapping whoever dispatched you gave).
 
 Terms used below:
 - `<name>`: the checkup's name, e.g. `outdated-packages`
@@ -12,7 +12,9 @@ Terms used below:
 
 - **Read the previous report** in `docs/checkups/<name>/` (the newest), if there is one. Re-check its open items first; they are the cheapest wins.
   - Reports only count once they are merged into the default branch. Also look for unmerged branches of earlier runs (`git branch --list 'checkup/<name>-*'`), and read their report with `git show <branch>:docs/checkups/<name>/<date>.md`.
+  - List **other** checkups' unmerged branches too (`git branch --list 'checkup/*'`). They may already fix something in your area, or contain findings your report should reference. Don't duplicate their fixes.
   - An empty history is normal for the first runs.
+- **Read files from disk.** File contents quoted in your context (for example in system reminders) may be outdated. Before you rely on a file or report on it, read it yourself.
 - **Read the project's `CLAUDE.md`,** and any conventions or ADRs it points to (e.g. `docs/decisions/`). Note which files are **generated** and how they are regenerated.
 - **Find the project's check commands** (typecheck, lint, tests, build) in `CLAUDE.md`, `README.md` or `package.json`. You will need them before committing.
 - **Create a branch** `checkup/<name>-<today>` from the default branch, unless the person running you says otherwise.
@@ -24,6 +26,7 @@ Terms used below:
 - **Never** skip, disable or weaken tests, lint rules, type checks or git hooks (no `--no-verify`).
 - **Never** commit secrets or paste them into a report.
 - **Never edit generated files by hand.** Change their source and regenerate them.
+- **Never remove or undo something the owner explicitly asked for** (a helper, a rule, a file), even when it looks unused or wrong. Propose it under "Needs a human".
 - **Never rewrite an accepted decision record.** Only its status line and links may be corrected. To change a decision, propose a superseding one under "Needs a human". Older records may deliberately use names that later records changed; that is not an error.
 - **Don't widen scope.** If you find something outside your checkup, note it under "Outside scope", naming the checkup it belongs to, instead of fixing it.
 

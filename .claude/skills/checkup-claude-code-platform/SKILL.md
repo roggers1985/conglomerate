@@ -22,6 +22,8 @@ The factory is built on Claude Code's plugin platform. This checkup keeps the pl
 
 If a page has moved, find it through https://code.claude.com/docs/llms.txt, and note the new URL under "Next time".
 
+The changelog pages only show the last week or two. For older versions, read the release history by version range: `gh release list -R anthropics/claude-code` and `gh release view <tag> -R anthropics/claude-code`, or the `CHANGELOG.md` at a given tag.
+
 ## In scope
 
 1. **What changed**: read the changelog since the Claude Code version in the previous report (on a first run, the last three months). List changes that affect plugins: manifest fields, hook events and output fields, skill and subagent frontmatter, environment variables (`CLAUDE_PLUGIN_ROOT`, …), marketplace behaviour.
