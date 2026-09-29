@@ -52,23 +52,27 @@ export async function readGeneratedFiles(
 /**
  * Compares generated files on disk with what their sources produce now.
  *
- * @param label - How the folder is named in messages, e.g. `agents/tasks`.
  * @param expected - The files the sources produce.
  * @param actual - The files on disk.
+ * @param options.label - How the folder is named in messages, e.g. `agents/tasks`.
  * @returns One problem per missing, stale (edited or outdated) or orphaned file; empty when they match.
  *
  * @example
  * ```ts
  * const expected = new Map([["review.md", "current"]]);
  *
- * expect(generatedFileErrors("agents/tasks", expected, expected)).toEqual([]);
- * expect(generatedFileErrors("agents/tasks", expected, new Map([["old.md", "orphan"]]))).toEqual([
+ * expect(generatedFileErrors(expected, expected, { label: "agents/tasks" })).toEqual([]);
+ * expect(generatedFileErrors(expected, new Map([["old.md", "orphan"]]), { label: "agents/tasks" })).toEqual([
  *     "agents/tasks/review.md is missing or out of date: run `bun run generate`",
  *     "agents/tasks/old.md is no longer generated: run `bun run generate`",
  * ]);
  * ```
  */
-export function generatedFileErrors(label: string, expected: GeneratedFiles, actual: GeneratedFiles): string[] {
+export function generatedFileErrors(
+    expected: GeneratedFiles,
+    actual: GeneratedFiles,
+    { label }: { readonly label: string },
+): string[] {
     const missingOrStale = [...expected]
         .filter(([fileName, content]) => actual.get(fileName) !== content)
         .map(([fileName]) => `${label}/${fileName} is missing or out of date: run \`bun run generate\``);

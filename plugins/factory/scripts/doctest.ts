@@ -210,24 +210,23 @@ const indent = (code: string, spaces: string): string =>
  * Each example runs in its own async test, in a block of its own, with all of the module's runtime exports and
  * `expect` in scope. Bun strips types without checking them, so type names in examples need no import.
  *
- * @param modulePath - Absolute path of the module the examples belong to.
- * @param label - How the module is named in test titles, e.g. its path relative to the project.
  * @param exports - The module's exports, as found by {@link findDocumentedExports}.
+ * @param options.modulePath - Absolute path of the module the examples belong to.
+ * @param options.label - How the module is named in test titles, e.g. its path relative to the project.
  * @returns The test file's source, or `null` when the module has no runnable examples.
  *
  * @example
  * ```ts
  * const add = { name: "add", kind: "function", line: 1, summary: "Adds.", problems: [], examples: [{ code: "add(1, 2);", run: true }] } as const;
- * const file = renderDoctestFile("/src/math.ts", "src/math.ts", [add]);
+ * const file = renderDoctestFile([add], { modulePath: "/src/math.ts", label: "src/math.ts" });
  *
  * expect(file).toContain('import * as __module from "/src/math.ts";');
  * expect(file).toContain('test("src/math.ts › add › example 1", async () => {');
  * ```
  */
 export function renderDoctestFile(
-    modulePath: string,
-    label: string,
     exports: readonly DocumentedExport[],
+    { modulePath, label }: { readonly modulePath: string; readonly label: string },
 ): string | null {
     const values = exports.filter((entry) => entry.kind !== "type").map((entry) => entry.name);
     const tests = exports.flatMap((entry) =>
@@ -303,7 +302,7 @@ async function main(): Promise<void> {
     }
 
     const doctests = modules.flatMap(({ file, label, exports }) => {
-        const content = renderDoctestFile(file, label, exports);
+        const content = renderDoctestFile(exports, { modulePath: file, label });
 
         return content === null ? [] : [content];
     });

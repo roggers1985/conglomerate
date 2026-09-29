@@ -130,20 +130,25 @@ export function latestReportDate(fileNames: readonly string[]): string | null {
 /**
  * Decides whether a checkup is due.
  *
- * @param lastRun - The date of its newest report as `YYYY-MM-DD`, or `null` when it never ran.
- * @param intervalDays - How often it should run.
- * @param today - Today's date as `YYYY-MM-DD`.
+ * @param schedule.lastRun - The date of its newest report as `YYYY-MM-DD`, or `null` when it never ran.
+ * @param schedule.intervalDays - How often it should run.
+ * @param options.today - Today's date as `YYYY-MM-DD`.
  * @returns `true` when it never ran, or when at least `intervalDays` have passed since `lastRun`.
  * @throws Error (an `assert` invariant) when `today` is not a valid date.
  *
  * @example
  * ```ts
- * expect(isDue(null, 30, "2026-09-29")).toBe(true);
- * expect(isDue("2026-08-30", 30, "2026-09-29")).toBe(true);
- * expect(isDue("2026-08-31", 30, "2026-09-29")).toBe(false);
+ * const today = "2026-09-29";
+ *
+ * expect(isDue({ lastRun: null, intervalDays: 30 }, { today })).toBe(true);
+ * expect(isDue({ lastRun: "2026-08-30", intervalDays: 30 }, { today })).toBe(true);
+ * expect(isDue({ lastRun: "2026-08-31", intervalDays: 30 }, { today })).toBe(false);
  * ```
  */
-export function isDue(lastRun: string | null, intervalDays: number, today: string): boolean {
+export function isDue(
+    { lastRun, intervalDays }: Pick<CheckupStatus, "lastRun" | "intervalDays">,
+    { today }: { readonly today: string },
+): boolean {
     assert(!Number.isNaN(Date.parse(today)), `today must be a YYYY-MM-DD date, got "${today}"`);
 
     if (lastRun === null) {
@@ -158,12 +163,13 @@ export function isDue(lastRun: string | null, intervalDays: number, today: strin
  *
  * @param checkup - The checkup's entry in the schedule.
  * @param reportFileNames - The file names in its report folder.
- * @param today - Today's date as `YYYY-MM-DD`.
+ * @param options.today - Today's date as `YYYY-MM-DD`.
  * @returns The settings plus `lastRun` and `due`.
  *
  * @example
  * ```ts
- * const status = checkupStatus({ name: "legal", intervalDays: 30, priority: true }, ["2026-09-27.md"], "2026-09-29");
+ * const legal = { name: "legal", intervalDays: 30, priority: true };
+ * const status = checkupStatus(legal, ["2026-09-27.md"], { today: "2026-09-29" });
  *
  * expect(status).toEqual({ name: "legal", intervalDays: 30, priority: true, lastRun: "2026-09-27", due: false });
  * ```
@@ -171,11 +177,11 @@ export function isDue(lastRun: string | null, intervalDays: number, today: strin
 export function checkupStatus(
     checkup: CheckupConfig,
     reportFileNames: readonly string[],
-    today: string,
+    { today }: { readonly today: string },
 ): CheckupStatus {
     const lastRun = latestReportDate(reportFileNames);
 
-    return { ...checkup, lastRun, due: isDue(lastRun, checkup.intervalDays, today) };
+    return { ...checkup, lastRun, due: isDue({ lastRun, intervalDays: checkup.intervalDays }, { today }) };
 }
 
 /**
@@ -278,19 +284,19 @@ export function reminderOutput(project: ProjectCheckups): ReminderOutput | null 
  * Renders the status table that the `/factory:checkup` runner shows.
  *
  * @param project - The project's checkups.
- * @param today - Today's date as `YYYY-MM-DD`.
+ * @param options.today - Today's date as `YYYY-MM-DD`.
  * @returns A markdown table with due checkups in bold, or an explanation when nothing is scheduled.
  *
  * @example
  * ```ts
  * const legal = { name: "legal", intervalDays: 30, priority: true, lastRun: null, due: true };
  *
- * expect(statusReport({ kind: "scheduled", statuses: [legal] }, "2026-09-29")).toContain(
+ * expect(statusReport({ kind: "scheduled", statuses: [legal] }, { today: "2026-09-29" })).toContain(
  *     "| legal | yes | 30 days | never | **due** |",
  * );
  * ```
  */
-export function statusReport(project: ProjectCheckups, today: string): string {
+export function statusReport(project: ProjectCheckups, { today }: { readonly today: string }): string {
     if (project.kind === "unscheduled") {
         return `No checkups are scheduled: ${SCHEDULE_PATH} does not exist.`;
     }
@@ -372,7 +378,7 @@ async function loadProjectCheckups(projectDir: string, today: string): Promise<P
 
     const statuses = await Promise.all(
         schedule.value.map(async (checkup) =>
-            checkupStatus(checkup, await readReportFileNames(projectDir, checkup.name), today),
+            checkupStatus(checkup, await readReportFileNames(projectDir, checkup.name), { today }),
         ),
     );
 
@@ -401,7 +407,7 @@ async function main(): Promise<void> {
     const project = await loadProjectCheckups(projectDir, today);
 
     if (command === "status") {
-        console.log(statusReport(project, today));
+        console.log(statusReport(project, { today }));
         return;
     }
 

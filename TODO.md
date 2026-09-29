@@ -27,7 +27,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 ## Conventions
 
-- [ ] Apply the API design convention (ADR 0017) to this repo's scripts: e.g. `isDue(lastRun, intervalDays, today)`, `checkupStatus(checkup, reportFileNames, today)`, `renderDoctestFile(modulePath, label, exports)` take three positional parameters
 - [ ] Apply the cancellation convention (ADR 0012) to this repo's scripts where it makes sense (`checkups.ts` loaders, `validate-plugin.ts`): required `{ signal }` on I/O functions, a signal from `main`
 
 ## Factory stages

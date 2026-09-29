@@ -109,9 +109,9 @@ function skillSchema(directory: string, routes: Routes) {
 /**
  * Parses a skill's frontmatter against the naming rules (ADR 0013) and task types (ADR 0015).
  *
- * @param directory - The skill's folder name, which must equal its `name`.
  * @param frontmatter - The skill's parsed frontmatter, not yet trusted.
- * @param routes - The task types from `models.json`, to check `metadata.task` against.
+ * @param options.directory - The skill's folder name, which must equal its `name`.
+ * @param options.routes - The task types from `models.json`, to check `metadata.task` against.
  * @returns The skill, or every problem found.
  *
  * @example
@@ -119,7 +119,7 @@ function skillSchema(directory: string, routes: Routes) {
  * const routes = { checkup: { model: "sonnet", effort: "high", use: "Audits" } } as const;
  * const frontmatter = { name: "checkup-seo", description: "SEO checkup.", metadata: { task: "checkup" } };
  *
- * expect(parseSkill("checkup-seo", frontmatter, routes)).toEqual({
+ * expect(parseSkill(frontmatter, { directory: "checkup-seo", routes })).toEqual({
  *     kind: "valid",
  *     value: { name: "checkup-seo", description: "SEO checkup.", task: "checkup" },
  * });
@@ -127,7 +127,7 @@ function skillSchema(directory: string, routes: Routes) {
  *
  * @example
  * ```ts
- * expect(parseSkill("seo", { name: "seo", description: "SEO.", model: "opus" }, {})).toEqual({
+ * expect(parseSkill({ name: "seo", description: "SEO.", model: "opus" }, { directory: "seo", routes: {} })).toEqual({
  *     kind: "invalid",
  *     errors: [
  *         "name: must start with a known domain (code, checkup, writing, marketing, factory)",
@@ -136,7 +136,10 @@ function skillSchema(directory: string, routes: Routes) {
  * });
  * ```
  */
-export function parseSkill(directory: string, frontmatter: unknown, routes: Routes): ParsedSkill {
+export function parseSkill(
+    frontmatter: unknown,
+    { directory, routes }: { readonly directory: string; readonly routes: Routes },
+): ParsedSkill {
     if (frontmatter === null) {
         return { kind: "invalid", errors: ["SKILL.md must start with a YAML frontmatter block"] };
     }
@@ -192,18 +195,19 @@ function renderDomain(domain: Domain, skills: readonly Skill[], routes: Routes):
  * Renders the plugin's skills catalog: every domain with its skills, followed by the model routing table.
  *
  * @param skills - The plugin's validated skills.
- * @param routes - The routes from `models.json`, to show each skill's task type and the routing table.
+ * @param options.routes - The routes from `models.json`, to show each skill's task type and the routing table.
  * @returns The contents of `CATALOG.md`.
  *
  * @example
  * ```ts
- * const catalog = renderCatalog([{ name: "code-react", description: "React conventions. Use for UI.", task: null }], {});
+ * const skills = [{ name: "code-react", description: "React conventions. Use for UI.", task: null }];
+ * const catalog = renderCatalog(skills, { routes: {} });
  *
  * expect(catalog).toContain("| `code-react` | React conventions. |  |");
  * expect(catalog).toContain("## marketing: Marketing plans, positioning and communication\n\n_No skills yet._");
  * ```
  */
-export function renderCatalog(skills: readonly Skill[], routes: Routes): string {
+export function renderCatalog(skills: readonly Skill[], { routes }: { readonly routes: Routes }): string {
     return [
         "# Skills catalog",
         "",
@@ -228,7 +232,7 @@ export type PluginSkills = {
  * Reads and validates every skill in a plugin's `skills/` folder.
  *
  * @param pluginDir - The plugin's root folder.
- * @param routes - The task types from `models.json`.
+ * @param options.routes - The task types from `models.json`.
  * @returns The valid skills, and every problem prefixed with `skills/<folder>: `.
  * @throws Error when the plugin has no `skills/` folder, or a skill folder has no `SKILL.md`.
  *
@@ -239,7 +243,7 @@ export type PluginSkills = {
  * const pluginDir = await mkdtemp(`${tmpdir()}/plugin-`);
  * await Bun.write(`${pluginDir}/skills/code-go/SKILL.md`, "---\nname: code-go\ndescription: Go.\n---\n");
  *
- * expect(await readPluginSkills(pluginDir, {})).toEqual({
+ * expect(await readPluginSkills(pluginDir, { routes: {} })).toEqual({
  *     skills: [{ name: "code-go", description: "Go.", task: null }],
  *     errors: [],
  * });
@@ -247,7 +251,10 @@ export type PluginSkills = {
  * await rm(pluginDir, { recursive: true });
  * ```
  */
-export async function readPluginSkills(pluginDir: string, routes: Routes): Promise<PluginSkills> {
+export async function readPluginSkills(
+    pluginDir: string,
+    { routes }: { readonly routes: Routes },
+): Promise<PluginSkills> {
     const skillsDir = path.join(pluginDir, "skills");
     const entries = await readdir(skillsDir, { withFileTypes: true });
     const parsed = await Promise.all(
@@ -256,7 +263,10 @@ export async function readPluginSkills(pluginDir: string, routes: Routes): Promi
             .map(async (entry) => {
                 const markdown = await Bun.file(path.join(skillsDir, entry.name, "SKILL.md")).text();
 
-                return { directory: entry.name, result: parseSkill(entry.name, parseFrontmatter(markdown), routes) };
+                return {
+                    directory: entry.name,
+                    result: parseSkill(parseFrontmatter(markdown), { directory: entry.name, routes }),
+                };
             }),
     );
 

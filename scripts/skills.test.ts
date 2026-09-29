@@ -36,28 +36,33 @@ describe("parseFrontmatter", () => {
 
 describe("parseSkill", () => {
     it("accepts a well-named skill", () => {
-        expect(parseSkill("code-react", { name: "code-react", description: "React." }, routes)).toEqual({
+        expect(parseSkill({ name: "code-react", description: "React." }, { directory: "code-react", routes })).toEqual({
             kind: "valid",
             value: { name: "code-react", description: "React.", task: null },
         });
     });
 
     it("rejects a name without a known domain", () => {
-        expect(parseSkill("react-conventions", { name: "react-conventions", description: "React." }, routes)).toEqual({
+        expect(
+            parseSkill(
+                { name: "react-conventions", description: "React." },
+                { directory: "react-conventions", routes },
+            ),
+        ).toEqual({
             kind: "invalid",
             errors: ["name: must start with a known domain (code, checkup, writing, marketing, factory)"],
         });
     });
 
     it("rejects a name that differs from its directory", () => {
-        expect(parseSkill("code-react", { name: "code-vue", description: "Vue." }, routes)).toEqual({
+        expect(parseSkill({ name: "code-vue", description: "Vue." }, { directory: "code-react", routes })).toEqual({
             kind: "invalid",
             errors: ['name: must match its directory "code-react"'],
         });
     });
 
     it("rejects a skill without frontmatter", () => {
-        expect(parseSkill("code-react", null, routes)).toEqual({
+        expect(parseSkill(null, { directory: "code-react", routes })).toEqual({
             kind: "invalid",
             errors: ["SKILL.md must start with a YAML frontmatter block"],
         });
@@ -68,21 +73,25 @@ describe("parseSkill with a task type", () => {
     const checkupSkill = { name: "checkup-seo", description: "SEO.", metadata: { task: "checkup" } };
 
     it("accepts a skill with a known task type", () => {
-        expect(parseSkill("checkup-seo", checkupSkill, routes)).toEqual({
+        expect(parseSkill(checkupSkill, { directory: "checkup-seo", routes })).toEqual({
             kind: "valid",
             value: { name: "checkup-seo", description: "SEO.", task: "checkup" },
         });
     });
 
     it("rejects an unknown task type", () => {
-        expect(parseSkill("checkup-seo", { ...checkupSkill, metadata: { task: "gardening" } }, routes)).toEqual({
+        expect(
+            parseSkill({ ...checkupSkill, metadata: { task: "gardening" } }, { directory: "checkup-seo", routes }),
+        ).toEqual({
             kind: "invalid",
             errors: ["metadata.task: must be one of checkup"],
         });
     });
 
     it("rejects a skill that pins its own model or effort", () => {
-        expect(parseSkill("checkup-seo", { ...checkupSkill, model: "sonnet", effort: "high" }, routes)).toEqual({
+        expect(
+            parseSkill({ ...checkupSkill, model: "sonnet", effort: "high" }, { directory: "checkup-seo", routes }),
+        ).toEqual({
             kind: "invalid",
             errors: [
                 "model: skills don't set this: model and effort come from the task agent (ADR 0015)",
@@ -99,7 +108,7 @@ describe("renderCatalog", () => {
             { name: "code-react", description: "React | UI conventions. Use for components.", task: null },
             { name: "checkup-seo", description: "SEO checkup. Use for SEO.", task: "checkup" },
         ],
-        routes,
+        { routes },
     );
 
     it("groups skills under their domain, sorted, with the first sentence of their description", () => {
@@ -133,7 +142,7 @@ describe("readPluginSkills", () => {
         await Bun.write(path.join(pluginDir, "skills/code-go/SKILL.md"), "---\nname: code-go\ndescription: Go.\n---\n");
         await Bun.write(path.join(pluginDir, "skills/go/SKILL.md"), "---\nname: go\ndescription: Go.\n---\n");
 
-        expect(await readPluginSkills(pluginDir, routes)).toEqual({
+        expect(await readPluginSkills(pluginDir, { routes })).toEqual({
             skills: [{ name: "code-go", description: "Go.", task: null }],
             errors: ["skills/go: name: must start with a known domain (code, checkup, writing, marketing, factory)"],
         });

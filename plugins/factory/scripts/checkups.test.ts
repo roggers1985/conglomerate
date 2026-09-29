@@ -69,25 +69,25 @@ describe("latestReportDate", () => {
 
 describe("isDue", () => {
     it("is due when the checkup never ran", () => {
-        expect(isDue(null, 30, "2026-09-29")).toBe(true);
+        expect(isDue({ lastRun: null, intervalDays: 30 }, { today: "2026-09-29" })).toBe(true);
     });
 
     it("is due once the interval has passed", () => {
-        expect(isDue("2026-08-30", 30, "2026-09-29")).toBe(true);
+        expect(isDue({ lastRun: "2026-08-30", intervalDays: 30 }, { today: "2026-09-29" })).toBe(true);
     });
 
     it("is not due before the interval has passed", () => {
-        expect(isDue("2026-08-31", 30, "2026-09-29")).toBe(false);
+        expect(isDue({ lastRun: "2026-08-31", intervalDays: 30 }, { today: "2026-09-29" })).toBe(false);
     });
 
     it("refuses a malformed date", () => {
-        expect(() => isDue(null, 30, "yesterday")).toThrow(/YYYY-MM-DD/);
+        expect(() => isDue({ lastRun: null, intervalDays: 30 }, { today: "yesterday" })).toThrow(/YYYY-MM-DD/);
     });
 });
 
 describe("checkupStatus", () => {
     it("takes the last run from the newest report", () => {
-        expect(checkupStatus(legal, ["2026-09-27.md"], "2026-09-29")).toEqual({
+        expect(checkupStatus(legal, ["2026-09-27.md"], { today: "2026-09-29" })).toEqual({
             ...legal,
             lastRun: "2026-09-27",
             due: false,
@@ -138,7 +138,7 @@ describe("statusReport", () => {
                 kind: "scheduled",
                 statuses: [status({ ...legal, lastRun: "2026-09-27", due: false }), status({ due: true })],
             },
-            "2026-09-29",
+            { today: "2026-09-29" },
         );
 
         expect(report).toContain("| legal | yes | 30 days | 2026-09-27 |  |");
@@ -146,7 +146,7 @@ describe("statusReport", () => {
     });
 
     it("explains when nothing is scheduled", () => {
-        expect(statusReport({ kind: "unscheduled" }, "2026-09-29")).toContain("does not exist");
+        expect(statusReport({ kind: "unscheduled" }, { today: "2026-09-29" })).toContain("does not exist");
     });
 });
 

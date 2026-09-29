@@ -39,7 +39,7 @@ describe("generatedFileErrors", () => {
     ]);
 
     it("finds nothing when the files match", () => {
-        expect(generatedFileErrors("agents/tasks", expected, expected)).toEqual([]);
+        expect(generatedFileErrors(expected, expected, { label: "agents/tasks" })).toEqual([]);
     });
 
     it("reports missing, stale and orphaned files", () => {
@@ -48,7 +48,7 @@ describe("generatedFileErrors", () => {
             ["c.md", "no longer generated"],
         ]);
 
-        expect(generatedFileErrors("agents/tasks", expected, actual)).toEqual([
+        expect(generatedFileErrors(expected, actual, { label: "agents/tasks" })).toEqual([
             "agents/tasks/a.md is missing or out of date: run `bun run generate`",
             "agents/tasks/b.md is missing or out of date: run `bun run generate`",
             "agents/tasks/c.md is no longer generated: run `bun run generate`",

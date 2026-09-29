@@ -27,7 +27,7 @@ async function syncFolder(dir: string, expected: GeneratedFiles, extension: stri
 
 async function main(): Promise<void> {
     const routes = await readRoutes();
-    const { skills, errors } = await readPluginSkills(FACTORY_DIR, routes);
+    const { skills, errors } = await readPluginSkills(FACTORY_DIR, { routes });
 
     if (errors.length > 0) {
         console.error(errors.map((error) => `✗ ${error}`).join("\n"));
@@ -39,7 +39,7 @@ async function main(): Promise<void> {
     const bundles = await renderBundles(FACTORY_DIR);
 
     await Promise.all([
-        Bun.write(path.join(FACTORY_DIR, CATALOG_FILE), renderCatalog(skills, routes)),
+        Bun.write(path.join(FACTORY_DIR, CATALOG_FILE), renderCatalog(skills, { routes })),
         syncFolder(path.join(FACTORY_DIR, TASK_AGENTS_DIR), agents, ".md"),
         syncFolder(path.join(FACTORY_DIR, BUNDLE_DIR), bundles, ".js"),
     ]);

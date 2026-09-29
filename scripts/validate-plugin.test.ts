@@ -74,6 +74,6 @@ describe("validateRepository", () => {
     it("finds no errors in this repository's manifests", async () => {
         const root = path.resolve(import.meta.dir, "..");
 
-        expect(await validateRepository(root)).toEqual([]);
+        expect(await validateRepository(root)).toEqual({ errors: [] });
     });
 });

@@ -40,6 +40,11 @@ export type MarketplaceEntry = Readonly<z.infer<typeof MarketplaceEntrySchema>>;
 /** The fields of `.claude-plugin/marketplace.json` that this repository requires. */
 export type Marketplace = Readonly<z.infer<typeof MarketplaceSchema>>;
 
+/** The outcome of validating the whole repository; an object so it can gain warnings later (ADR 0017). */
+export type RepositoryValidation = {
+    readonly errors: readonly string[];
+};
+
 /**
  * Parses a plugin manifest.
  *
@@ -102,9 +107,9 @@ async function validateManifest(pluginDir: string, entry: MarketplaceEntry): Pro
 
 async function validateGenerated(pluginDir: string): Promise<string[]> {
     const routes = await readRoutes();
-    const { skills, errors } = await readPluginSkills(pluginDir, routes);
+    const { skills, errors } = await readPluginSkills(pluginDir, { routes });
     const catalog = Bun.file(path.join(pluginDir, CATALOG_FILE));
-    const catalogIsCurrent = (await catalog.exists()) && (await catalog.text()) === renderCatalog(skills, routes);
+    const catalogIsCurrent = (await catalog.exists()) && (await catalog.text()) === renderCatalog(skills, { routes });
     const catalogErrors = catalogIsCurrent ? [] : [`${CATALOG_FILE} is out of date: run \`bun run generate\``];
     const [agents, bundles, currentBundles] = await Promise.all([
         readGeneratedFiles(path.join(pluginDir, TASK_AGENTS_DIR), { extension: ".md" }),
@@ -115,8 +120,8 @@ async function validateGenerated(pluginDir: string): Promise<string[]> {
     return [
         ...errors,
         ...catalogErrors,
-        ...generatedFileErrors(TASK_AGENTS_DIR, renderTaskAgents(routes), agents),
-        ...generatedFileErrors(BUNDLE_DIR, currentBundles, bundles),
+        ...generatedFileErrors(renderTaskAgents(routes), agents, { label: TASK_AGENTS_DIR }),
+        ...generatedFileErrors(currentBundles, bundles, { label: BUNDLE_DIR }),
     ];
 }
 
@@ -132,29 +137,29 @@ async function validatePlugin(root: string, entry: MarketplaceEntry): Promise<st
  * catalog and task agents.
  *
  * @param root - The repository's root folder.
- * @returns Every problem found, prefixed with the file it concerns; empty when everything is valid.
+ * @returns Every problem found, prefixed with the file it concerns; `errors` is empty when everything is valid.
  *
  * @example
  * ```ts
  * // The doctest runs from the repository root.
- * expect(await validateRepository(process.cwd())).toEqual([]);
+ * expect(await validateRepository(process.cwd())).toEqual({ errors: [] });
  * ```
  */
-export async function validateRepository(root: string): Promise<string[]> {
+export async function validateRepository(root: string): Promise<RepositoryValidation> {
     const marketplace = parseMarketplace(await readJson(path.join(root, ".claude-plugin", "marketplace.json")));
 
     if (marketplace.kind === "invalid") {
-        return marketplace.errors.map((error) => `marketplace.json: ${error}`);
+        return { errors: marketplace.errors.map((error) => `marketplace.json: ${error}`) };
     }
 
     const pluginErrors = await Promise.all(marketplace.value.plugins.map((entry) => validatePlugin(root, entry)));
 
-    return pluginErrors.flat();
+    return { errors: pluginErrors.flat() };
 }
 
 async function main(): Promise<void> {
     const root = path.resolve(import.meta.dir, "..");
-    const errors = await validateRepository(root);
+    const { errors } = await validateRepository(root);
 
     if (errors.length > 0) {
         console.error(errors.map((error) => `✗ ${error}`).join("\n"));

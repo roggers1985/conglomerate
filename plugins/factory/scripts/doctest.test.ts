@@ -109,7 +109,7 @@ describe("documentationProblems", () => {
 
 describe("renderDoctestFile", () => {
     it("returns null when there is nothing to run", () => {
-        expect(renderDoctestFile("/m.ts", "m.ts", [])).toBeNull();
+        expect(renderDoctestFile([], { modulePath: "/m.ts", label: "m.ts" })).toBeNull();
     });
 });
 
