@@ -1,5 +1,5 @@
 ---
-name: testing-conventions
+name: code-testing
 description: The owner's testing conventions. Use when writing, reviewing or fixing unit, integration or UI tests.
 ---
 

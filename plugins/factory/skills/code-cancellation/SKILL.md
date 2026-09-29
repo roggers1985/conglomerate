@@ -1,5 +1,5 @@
 ---
-name: cancellation-conventions
+name: code-cancellation
 description: The owner's cancellation conventions. Covers AbortSignal in TypeScript/JavaScript (including React effects), context.Context in Go, and the equivalents in Python and Rust. Use when writing or reviewing async code, I/O (network, files, database, subprocesses), long-running loops, timeouts, retries, background jobs, or React effects that do async work.
 ---
 
@@ -65,7 +65,7 @@ it("stops when aborted", async () => {
 
 ### React
 
-An effect that starts async work or adds listeners creates its own `AbortController` and aborts it in the cleanup. This also covers stale responses when the dependencies change. Prefer server-side data fetching where the framework allows it (see `react-conventions`); this pattern is for work that has to run on the client.
+An effect that starts async work or adds listeners creates its own `AbortController` and aborts it in the cleanup. This also covers stale responses when the dependencies change. Prefer server-side data fetching where the framework allows it (see `code-react`); this pattern is for work that has to run on the client.
 
 ```tsx
 useEffect(() => {

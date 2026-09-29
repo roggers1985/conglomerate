@@ -21,4 +21,4 @@ These conventions apply to all code you write or change in this session. They co
 
 ## Topic conventions
 
-For React/UI work, load the `react-conventions` skill, and the `accessibility-testing` skill to write a11y tests with it. For writing tests, load the `testing-conventions` skill. For async or I/O code, load the `cancellation-conventions` skill for the language-specific rules.
+For React/UI work, load the `code-react` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules.

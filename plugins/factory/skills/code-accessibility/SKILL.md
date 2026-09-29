@@ -1,11 +1,11 @@
 ---
-name: accessibility-testing
+name: code-accessibility
 description: Write accessibility (a11y) tests alongside frontend work. Use when creating or changing UI components, pages, forms, dialogs, menus or other interactive elements, or when asked to add or fix a11y tests.
 ---
 
 # Accessibility testing
 
-Every UI change ships with tests that fail when it becomes inaccessible. The target is WCAG 2.2 AA. The `testing-conventions` skill applies too: query by role, label and text, never by class names or DOM structure.
+Every UI change ships with tests that fail when it becomes inaccessible. The target is WCAG 2.2 AA. The `code-testing` skill applies too: query by role, label and text, never by class names or DOM structure.
 
 ## 1. Check the tooling first
 

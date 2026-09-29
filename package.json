@@ -6,6 +6,7 @@
     "type": "module",
     "scripts": {
         "validate": "bun scripts/validate-plugin.ts",
+        "catalog": "bun scripts/skills.ts catalog",
         "typecheck": "tsc",
         "lint": "biome check",
         "lint:fix": "biome check --write",

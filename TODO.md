@@ -13,7 +13,7 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
   - [ ] `code-quality`
   - [ ] `frontend-quality`
   - [ ] `unused-code`
-  - [ ] `accessibility`, built on the `accessibility-testing` tooling (ADR 0011)
+  - [ ] `accessibility`, built on the `code-accessibility` tooling (ADR 0011)
   - [ ] `agent-setup`: `CLAUDE.md` size and clarity, skills that never trigger, `.claude/settings.json` permissions, relevant new Claude Code features
   - [ ] `repo-health`: CI speed and failures, skipped/`.only`/flaky tests, pinned CI action versions, git hooks still working, stale branches (including old `checkup/*` branches)
   - [ ] `checkup-retro`: findings that keep coming back unfixed, intervals that are too frequent or too rare, patterns that should become a convention or ADR

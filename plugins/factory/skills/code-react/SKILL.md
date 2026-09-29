@@ -1,5 +1,5 @@
 ---
-name: react-conventions
+name: code-react
 description: The owner's React and UI conventions. Use when writing, reviewing or refactoring React components, hooks, JSX/TSX, or HTML markup.
 ---
 

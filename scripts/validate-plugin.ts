@@ -2,6 +2,7 @@
 // It exists mainly to show the shape of repo tooling (pure functions + thin CLI + tests).
 
 import path from "node:path";
+import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
 
 export type PluginManifest = {
     readonly name: string;
@@ -89,13 +90,29 @@ function readJson(filePath: string): Promise<unknown> {
     return Bun.file(filePath).json();
 }
 
-async function validatePlugin(root: string, entry: MarketplaceEntry): Promise<string[]> {
-    const manifest = await readJson(path.join(root, entry.source, ".claude-plugin", "plugin.json"));
+async function validateManifest(pluginDir: string, entry: MarketplaceEntry): Promise<string[]> {
+    const manifest = await readJson(path.join(pluginDir, ".claude-plugin", "plugin.json"));
     const errors = validatePluginManifest(manifest);
     const nameMatches = isObject<PluginManifest>(manifest) && manifest.name === entry.name;
     const nameErrors = nameMatches ? [] : [`name does not match marketplace entry "${entry.name}"`];
 
-    return [...errors, ...nameErrors].map((error) => `${entry.name}/plugin.json: ${error}`);
+    return [...errors, ...nameErrors].map((error) => `plugin.json: ${error}`);
+}
+
+async function validateSkills(pluginDir: string): Promise<string[]> {
+    const { skills, errors } = await readPluginSkills(pluginDir);
+    const catalog = Bun.file(path.join(pluginDir, CATALOG_FILE));
+    const catalogIsCurrent = (await catalog.exists()) && (await catalog.text()) === renderCatalog(skills);
+    const catalogErrors = catalogIsCurrent ? [] : [`${CATALOG_FILE} is out of date: run \`bun run catalog\``];
+
+    return [...errors, ...catalogErrors];
+}
+
+async function validatePlugin(root: string, entry: MarketplaceEntry): Promise<string[]> {
+    const pluginDir = path.join(root, entry.source);
+    const errors = [...(await validateManifest(pluginDir, entry)), ...(await validateSkills(pluginDir))];
+
+    return errors.map((error) => `${entry.name}/${error}`);
 }
 
 export async function validateRepository(root: string): Promise<string[]> {
@@ -120,7 +137,7 @@ async function main(): Promise<void> {
         return;
     }
 
-    console.log("✓ marketplace and plugin manifests are valid");
+    console.log("✓ marketplace, plugin manifests, skills and catalog are valid");
 }
 
 if (import.meta.main) {
