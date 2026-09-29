@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR-0029](0029-naming-rules-in-the-linter.md): the naming rules are errors.
 
 ## Context
 

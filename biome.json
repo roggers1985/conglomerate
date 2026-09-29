@@ -52,7 +52,14 @@
                 "useExportType": "error",
                 "useNodejsImportProtocol": "error",
                 "useTemplate": "error",
-                "noNestedTernary": "error"
+                "noNestedTernary": "error",
+                "useFilenamingConvention": {
+                    "level": "error",
+                    "options": {
+                        "filenameCases": ["kebab-case"]
+                    }
+                },
+                "useNamingConvention": "error"
             },
             "suspicious": {
                 "noExplicitAny": "error"

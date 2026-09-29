@@ -15,10 +15,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 - [ ] Decide: push checkup branches and open PRs now that there is a (private) GitHub remote? Opening PRs needs the `gh` CLI (not installed) and `gh auth login`.
 
-## Conventions
-
-- [ ] Turn on Biome's `useFilenamingConvention` (kebab-case) and `useNamingConvention`. The code already passes; one deliberate test fixture (`Code` as an invalid task name) needs a suppression with its reason.
-
 ## Factory stages
 
 Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, Kiro, and Anthropic's AI-native SDLC playbook.

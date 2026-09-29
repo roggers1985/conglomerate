@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. Amended by [ADR-0009](0009-pre-commit-formatting.md), which adds formatting at commit time.
+Accepted. Amended by [ADR-0009](0009-pre-commit-formatting.md), which adds formatting at commit time. Completed by [ADR-0028](0028-continuous-integration.md): CI runs `bun run check` on GitHub.
 
 ## Context
 

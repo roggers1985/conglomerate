@@ -31,6 +31,7 @@ describe("parseRoutes", () => {
     });
 
     it("rejects task names that are not kebab-case", () => {
+        // biome-ignore lint/style/useNamingConvention: an invalid task name is exactly what this test feeds in.
         expect(parseRoutes({ tasks: { Code: code } })).toEqual({
             kind: "invalid",
             errors: ["tasks.Code: task names must be kebab-case"],
