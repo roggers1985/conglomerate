@@ -21,8 +21,22 @@ Skills are named `<domain>-<topic>` (ADR 0013).
 | Skill | What it is | Task (model, effort) |
 | --- | --- | --- |
 | `checkup` | Run the project's recurring checkups (dependencies, security, code and frontend quality, tests, docs, accessibility, and project-specific ones like legal). |  |
+| `checkup-accessibility` | Accessibility checkup. | `checkup` (sonnet, high) |
+| `checkup-agent-setup` | Agent setup checkup. | `checkup` (sonnet, high) |
+| `checkup-code-quality` | Code quality checkup. | `checkup` (sonnet, high) |
 | `checkup-docs-drift` | Documentation drift checkup. | `checkup` (sonnet, high) |
+| `checkup-frontend-quality` | Frontend quality checkup. | `checkup` (sonnet, high) |
+| `checkup-licenses` | Licenses checkup. | `checkup` (sonnet, high) |
+| `checkup-new-features` | New features checkup. | `checkup` (sonnet, high) |
 | `checkup-outdated-packages` | Outdated packages checkup. | `checkup` (sonnet, high) |
+| `checkup-performance` | Performance checkup. | `checkup` (sonnet, high) |
+| `checkup-repo-health` | Repository health checkup. | `checkup` (sonnet, high) |
+| `checkup-retro` | Checkup retrospective. | `checkup` (sonnet, high) |
+| `checkup-security` | Security checkup. | `checkup` (sonnet, high) |
+| `checkup-seo` | SEO checkup. | `checkup` (sonnet, high) |
+| `checkup-test-coverage` | Test coverage checkup. | `checkup` (sonnet, high) |
+| `checkup-todos` | TODOs and suppressions checkup. | `checkup` (sonnet, high) |
+| `checkup-unused-code` | Unused code checkup. | `checkup` (sonnet, high) |
 
 ## writing: Content, copy and documentation for people
 

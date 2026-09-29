@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { CheckupStatus } from "./checkups.ts";
+import type { CheckupConfig, CheckupStatus } from "./checkups.ts";
 import {
     buildReminder,
     checkupStatus,
@@ -11,6 +11,7 @@ import {
     latestReportDate,
     parseSchedule,
     reminderOutput,
+    skillSource,
     statusReport,
 } from "./checkups.ts";
 
@@ -21,6 +22,7 @@ const status = (overrides: Partial<CheckupStatus>): CheckupStatus => ({
     ...seo,
     lastRun: null,
     due: false,
+    skill: "plugin",
     ...overrides,
 });
 
@@ -85,13 +87,27 @@ describe("isDue", () => {
     });
 });
 
+describe("skillSource", () => {
+    const pluginSkills = new Set(["checkup-seo", "checkup-security"]);
+
+    it("prefers the project's own version over the plugin's", () => {
+        expect(skillSource("security", { projectSkills: new Set(["checkup-security"]), pluginSkills })).toBe("project");
+    });
+
+    it("falls back to the plugin's version", () => {
+        expect(skillSource("seo", { projectSkills: new Set(), pluginSkills })).toBe("plugin");
+    });
+
+    it("finds nothing when neither has one", () => {
+        expect(skillSource("backups", { projectSkills: new Set(), pluginSkills })).toBeNull();
+    });
+});
+
 describe("checkupStatus", () => {
-    it("takes the last run from the newest report", () => {
-        expect(checkupStatus(legal, ["2026-09-27.md"], { today: "2026-09-29" })).toEqual({
-            ...legal,
-            lastRun: "2026-09-27",
-            due: false,
-        });
+    it("takes the last run from the newest report, and keeps the skill source", () => {
+        expect(
+            checkupStatus(legal, { reportFileNames: ["2026-09-27.md"], skill: "project", today: "2026-09-29" }),
+        ).toEqual({ ...legal, lastRun: "2026-09-27", due: false, skill: "project" });
     });
 });
 
@@ -119,6 +135,15 @@ describe("buildReminder", () => {
     });
 });
 
+describe("buildReminder without skills", () => {
+    it("mentions scheduled checkups that have no skill, and doesn't count them as due", () => {
+        const reminder = buildReminder([status({ ...legal, due: true, skill: null })]);
+
+        expect(reminder?.notice).toBe("No skill found for: legal; see /factory:checkup.");
+        expect(reminder?.context).not.toContain("offer to run");
+    });
+});
+
 describe("reminderOutput", () => {
     it("stays silent in a project without a schedule", () => {
         expect(reminderOutput({ kind: "unscheduled" })).toBeNull();
@@ -141,8 +166,17 @@ describe("statusReport", () => {
             { today: "2026-09-29" },
         );
 
-        expect(report).toContain("| legal | yes | 30 days | 2026-09-27 |  |");
-        expect(report).toContain("| seo |  | 60 days | never | **due** |");
+        expect(report).toContain("| legal | yes | 30 days | 2026-09-27 |  | plugin |");
+        expect(report).toContain("| seo |  | 60 days | never | **due** | plugin |");
+    });
+
+    it("marks checkups without a skill", () => {
+        const report = statusReport(
+            { kind: "scheduled", statuses: [status({ skill: null })] },
+            { today: "2026-09-29" },
+        );
+
+        expect(report).toContain("| seo |  | 60 days | never |  | **missing** |");
     });
 
     it("explains when nothing is scheduled", () => {
@@ -162,9 +196,19 @@ describe("checkups CLI", () => {
         return stdout;
     };
 
-    const createProject = async (checkups: readonly object[], reports: Record<string, string[]>): Promise<void> => {
+    const createProject = async (
+        checkups: readonly CheckupConfig[],
+        reports: Record<string, string[]>,
+    ): Promise<void> => {
         projectDir = await mkdtemp(path.join(tmpdir(), "checkups-"));
         await Bun.write(path.join(projectDir, "docs/checkups/checkups.json"), JSON.stringify({ checkups }));
+
+        // Each scheduled checkup gets a project skill, so the tests don't depend on which skills the plugin ships.
+        await Promise.all(
+            checkups.map((checkup) =>
+                Bun.write(path.join(projectDir, `.claude/skills/checkup-${checkup.name}/SKILL.md`), ""),
+            ),
+        );
 
         for (const [name, dates] of Object.entries(reports)) {
             await mkdir(path.join(projectDir, "docs/checkups", name), { recursive: true });
@@ -203,6 +247,18 @@ describe("checkups CLI", () => {
     it("prints the status table", async () => {
         await createProject([legal], {});
 
-        expect(await run("status")).toContain("| legal | yes | 30 days | never | **due** |");
+        expect(await run("status")).toContain("| legal | yes | 30 days | never | **due** | project |");
+    });
+
+    it("warns about a scheduled checkup that has no skill anywhere", async () => {
+        await createProject([], {});
+        await Bun.write(
+            path.join(projectDir, "docs/checkups/checkups.json"),
+            JSON.stringify({ checkups: [{ name: "no-such-checkup", intervalDays: 30, priority: false }] }),
+        );
+
+        expect(JSON.parse(await run("reminder")).systemMessage).toBe(
+            "No skill found for: no-such-checkup; see /factory:checkup.",
+        );
     });
 });

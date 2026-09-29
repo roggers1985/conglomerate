@@ -39,10 +39,15 @@ const ScheduleSchema = z
 /** One entry of a project's checkup schedule (`docs/checkups/checkups.json`): settings only, no state. */
 export type CheckupConfig = Readonly<z.infer<typeof CheckupConfigSchema>>;
 
-/** A scheduled checkup with its last run (the date of its newest report) and whether it is due. */
+/** Where a checkup's skill comes from. A project's own `checkup-<name>` overrides the plugin's (ADR 0023). */
+export type SkillSource = "project" | "plugin";
+
+/** A scheduled checkup with its last run (the date of its newest report), whether it is due, and its skill. */
 export type CheckupStatus = CheckupConfig & {
     readonly lastRun: string | null;
     readonly due: boolean;
+    /** `null` when neither the project nor the plugin has a skill for it, so it can't run. */
+    readonly skill: SkillSource | null;
 };
 
 /** The outcome of validating a schedule: its checkups in order, or every problem found. */
@@ -72,6 +77,9 @@ export type ReminderOutput = {
 const SCHEDULE_PATH = "docs/checkups/checkups.json";
 const REPORTS_DIR = "docs/checkups";
 const RUNNER = "/factory:checkup";
+
+const PLUGIN_SKILLS_DIR = path.resolve(import.meta.dir, "..", "skills");
+const PROJECT_SKILLS_DIR = ".claude/skills";
 
 const REPORT_FILE = /^(\d{4}-\d{2}-\d{2})\.md$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -161,29 +169,68 @@ export function isDue(
 }
 
 /**
- * Combines a checkup's settings with its reports into its current status.
+ * Finds the skill that runs a checkup.
+ *
+ * @param name - The checkup's name; its skill is called `checkup-<name>`.
+ * @param options.projectSkills - Skill names in the project's `.claude/skills/`.
+ * @param options.pluginSkills - Skill names in the plugin's `skills/`.
+ * @returns `"project"` when the project has its own version (it overrides the plugin's), `"plugin"` when only the
+ * plugin has one, and `null` when neither does.
+ *
+ * @example
+ * ```ts
+ * const pluginSkills = new Set(["checkup-security", "checkup-seo"]);
+ * const projectSkills = new Set(["checkup-legal", "checkup-security"]);
+ *
+ * expect(skillSource("security", { projectSkills, pluginSkills })).toBe("project");
+ * expect(skillSource("seo", { projectSkills, pluginSkills })).toBe("plugin");
+ * expect(skillSource("backups", { projectSkills, pluginSkills })).toBeNull();
+ * ```
+ */
+export function skillSource(
+    name: string,
+    {
+        projectSkills,
+        pluginSkills,
+    }: { readonly projectSkills: ReadonlySet<string>; readonly pluginSkills: ReadonlySet<string> },
+): SkillSource | null {
+    const skillName = `checkup-${name}`;
+
+    if (projectSkills.has(skillName)) {
+        return "project";
+    }
+
+    return pluginSkills.has(skillName) ? "plugin" : null;
+}
+
+/**
+ * Combines a checkup's settings with its reports and skill into its current status.
  *
  * @param checkup - The checkup's entry in the schedule.
- * @param reportFileNames - The file names in its report folder.
+ * @param options.reportFileNames - The file names in its report folder.
+ * @param options.skill - Where its skill comes from, from {@link skillSource}.
  * @param options.today - Today's date as `YYYY-MM-DD`.
- * @returns The settings plus `lastRun` and `due`.
+ * @returns The settings plus `lastRun`, `due` and `skill`.
  *
  * @example
  * ```ts
  * const legal = { name: "legal", intervalDays: 30, priority: true };
- * const status = checkupStatus(legal, ["2026-09-27.md"], { today: "2026-09-29" });
+ * const status = checkupStatus(legal, { reportFileNames: ["2026-09-27.md"], skill: "project", today: "2026-09-29" });
  *
- * expect(status).toEqual({ name: "legal", intervalDays: 30, priority: true, lastRun: "2026-09-27", due: false });
+ * expect(status).toEqual({ ...legal, lastRun: "2026-09-27", due: false, skill: "project" });
  * ```
  */
 export function checkupStatus(
     checkup: CheckupConfig,
-    reportFileNames: readonly string[],
-    { today }: { readonly today: string },
+    {
+        reportFileNames,
+        skill,
+        today,
+    }: { readonly reportFileNames: readonly string[]; readonly skill: SkillSource | null; readonly today: string },
 ): CheckupStatus {
     const lastRun = latestReportDate(reportFileNames);
 
-    return { ...checkup, lastRun, due: isDue({ lastRun, intervalDays: checkup.intervalDays }, { today }) };
+    return { ...checkup, lastRun, due: isDue({ lastRun, intervalDays: checkup.intervalDays }, { today }), skill };
 }
 
 /**
@@ -198,7 +245,7 @@ export function checkupStatus(
  *
  * @example
  * ```ts
- * const seo = { name: "seo", intervalDays: 60, priority: false, lastRun: null, due: true };
+ * const seo = { name: "seo", intervalDays: 60, priority: false, lastRun: null, due: true, skill: "plugin" } as const;
  *
  * expect(buildReminder([seo])?.notice).toBe("Checkups due: seo. Run /factory:checkup when convenient.");
  * expect(buildReminder([{ ...seo, due: false }])).toBeNull();
@@ -206,43 +253,61 @@ export function checkupStatus(
  *
  * @example
  * ```ts
- * const legal = { name: "legal", intervalDays: 30, priority: true, lastRun: null, due: true };
+ * const legal = { name: "legal", intervalDays: 30, priority: true, lastRun: null, due: true, skill: "project" } as const;
  *
  * expect(buildReminder([legal])?.context).toContain("offer to run the priority checkups first");
+ * expect(buildReminder([{ ...legal, skill: null }])?.notice).toBe("No skill found for: legal; see /factory:checkup.");
  * ```
  */
 export function buildReminder(statuses: readonly CheckupStatus[]): Reminder | null {
-    const due = statuses.filter((status) => status.due);
+    const withoutSkill = statuses.filter((status) => status.skill === null).map((status) => status.name);
+    const due = statuses.filter((status) => status.skill !== null).filter((status) => status.due);
+    const hasNothingToSay = due.length === 0 && withoutSkill.length === 0;
 
-    if (due.length === 0) {
+    if (hasNothingToSay) {
         return null;
     }
 
     const priority = due.filter((status) => status.priority);
     const others = due.filter((status) => !status.priority);
-    const otherNames = others.map((status) => status.name).join(", ");
-    const othersLine = others.length === 0 ? [] : [`Also due: ${otherNames}.`];
+    const priorityBlock =
+        priority.length === 0
+            ? []
+            : [
+                  "Priority checkups are overdue:",
+                  ...priority.map(
+                      (status) =>
+                          `- ${status.name}: last run ${status.lastRun ?? "never"}, due every ${status.intervalDays} days`,
+                  ),
+              ];
+    const notice = [
+        ...priorityBlock,
+        ...otherDueLine(others, { afterPriority: priority.length > 0 }),
+        ...(withoutSkill.length === 0 ? [] : [`No skill found for: ${withoutSkill.join(", ")}; see ${RUNNER}.`]),
+    ].join("\n");
+    const instruction =
+        priority.length === 0
+            ? "The user has been notified of the above. Don't bring it up unless the user asks."
+            : `Before starting other work, tell the user and offer to run the priority checkups first with ${RUNNER}. If they decline, continue with their request.`;
 
-    if (priority.length === 0) {
-        return {
-            notice: `Checkups due: ${otherNames}. Run ${RUNNER} when convenient.`,
-            context: `The user has been notified that these checkups are due: ${otherNames}. Don't bring it up unless the user asks.`,
-        };
+    return { notice, context: `${notice}\n${instruction}` };
+}
+
+function otherDueLine(
+    others: readonly CheckupStatus[],
+    { afterPriority }: { readonly afterPriority: boolean },
+): string[] {
+    const names = others.map((status) => status.name).join(", ");
+
+    if (others.length === 0) {
+        return [];
     }
 
-    const priorityLines = priority.map(
-        (status) => `- ${status.name}: last run ${status.lastRun ?? "never"}, due every ${status.intervalDays} days`,
-    );
+    if (afterPriority) {
+        return [`Also due: ${names}.`];
+    }
 
-    return {
-        notice: ["Priority checkups are overdue:", ...priorityLines, ...othersLine].join("\n"),
-        context: [
-            "Priority checkups are overdue:",
-            ...priorityLines,
-            ...othersLine,
-            `Before starting other work, tell the user and offer to run the priority checkups first with ${RUNNER}. If they decline, continue with their request.`,
-        ].join("\n"),
-    };
+    return [`Checkups due: ${names}. Run ${RUNNER} when convenient.`];
 }
 
 /**
@@ -287,14 +352,14 @@ export function reminderOutput(project: ProjectCheckups): ReminderOutput | null 
  *
  * @param project - The project's checkups.
  * @param options.today - Today's date as `YYYY-MM-DD`.
- * @returns A markdown table with due checkups in bold, or an explanation when nothing is scheduled.
+ * @returns A markdown table with due checkups and missing skills in bold, or an explanation when nothing is scheduled.
  *
  * @example
  * ```ts
- * const legal = { name: "legal", intervalDays: 30, priority: true, lastRun: null, due: true };
+ * const legal = { name: "legal", intervalDays: 30, priority: true, lastRun: null, due: true, skill: "project" } as const;
  *
  * expect(statusReport({ kind: "scheduled", statuses: [legal] }, { today: "2026-09-29" })).toContain(
- *     "| legal | yes | 30 days | never | **due** |",
+ *     "| legal | yes | 30 days | never | **due** | project |",
  * );
  * ```
  */
@@ -313,14 +378,14 @@ export function statusReport(project: ProjectCheckups, { today }: { readonly tod
 
     const rows = project.statuses.map(
         (status) =>
-            `| ${status.name} | ${status.priority ? "yes" : ""} | ${status.intervalDays} days | ${status.lastRun ?? "never"} | ${status.due ? "**due**" : ""} |`,
+            `| ${status.name} | ${status.priority ? "yes" : ""} | ${status.intervalDays} days | ${status.lastRun ?? "never"} | ${status.due ? "**due**" : ""} | ${status.skill ?? "**missing**"} |`,
     );
 
     return [
         `Today: ${today}`,
         "",
-        "| Checkup | Priority | Every | Last run | Due |",
-        "| --- | --- | --- | --- | --- |",
+        "| Checkup | Priority | Every | Last run | Due | Skill |",
+        "| --- | --- | --- | --- | --- | --- |",
         ...rows,
     ].join("\n");
 }
@@ -354,6 +419,21 @@ async function readReportFileNames(
     } catch (error: unknown) {
         if (isFileNotFound(error)) {
             return [];
+        }
+        throw error;
+    }
+}
+
+/** The names of the skills in a folder; empty when the folder doesn't exist. */
+async function skillNames(dir: string, { signal }: { readonly signal: AbortSignal }): Promise<ReadonlySet<string>> {
+    // readdir takes no signal: check before starting instead.
+    signal.throwIfAborted();
+
+    try {
+        return new Set(await readdir(dir));
+    } catch (error: unknown) {
+        if (isFileNotFound(error)) {
+            return new Set();
         }
         throw error;
     }
@@ -401,9 +481,17 @@ async function loadProjectCheckups(
         return schedule;
     }
 
+    const [projectSkills, pluginSkills] = await Promise.all([
+        skillNames(path.join(projectDir, PROJECT_SKILLS_DIR), { signal }),
+        skillNames(PLUGIN_SKILLS_DIR, { signal }),
+    ]);
     const statuses = await Promise.all(
         schedule.value.map(async (checkup) =>
-            checkupStatus(checkup, await readReportFileNames(projectDir, { name: checkup.name, signal }), { today }),
+            checkupStatus(checkup, {
+                reportFileNames: await readReportFileNames(projectDir, { name: checkup.name, signal }),
+                skill: skillSource(checkup.name, { projectSkills, pluginSkills }),
+                today,
+            }),
         ),
     );
 

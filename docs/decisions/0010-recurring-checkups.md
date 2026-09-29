@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR-0023](0023-complete-generic-checkups-and-project-overrides.md): 16 generic checkups; a project's own checkup overrides the plugin's.
 
 ## Context
 
