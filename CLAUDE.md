@@ -4,6 +4,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 
 ## Working agreement
 
+- `TODO.md` holds the agreed next steps. Read it at the start of a session, keep it current while working, and remove items once they are done and committed.
 - The owner wants full control. Discuss every addition before making it. Do not add skills, agents, commands, hooks or dependencies unprompted.
 - Every accepted decision gets an ADR in `docs/decisions/` (see ADR 0001).
 - Read existing ADRs before proposing changes, and do not contradict an accepted ADR without proposing a superseding one.
@@ -14,6 +15,8 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 - `plugins/factory/`: the plugin (`.claude-plugin/plugin.json`, `skills/`, `agents/`, `commands/`, `hooks/`)
   - `conventions/core.md`: the owner's always-on conventions, injected at session start (ADR 0008)
   - `skills/*-conventions/`: topic conventions loaded on demand (ADR 0008)
+  - `skills/accessibility-testing/`: a11y tests alongside frontend work (ADR 0011)
+  - `checkups/protocol.md`, `skills/checkup/`, `scripts/checkups.ts`: recurring checkups (ADR 0010)
   - `scripts/`: plugin scripts run by hooks; Bun + TypeScript, no runtime dependencies (ADR 0007)
 - `scripts/`: repository tooling (strict TypeScript, run directly by Bun)
 - `docs/decisions/`: architecture decision records

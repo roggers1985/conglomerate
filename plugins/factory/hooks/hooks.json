@@ -6,6 +6,11 @@
                     {
                         "type": "command",
                         "command": "bun \"${CLAUDE_PLUGIN_ROOT}/scripts/session-start.ts\""
+                    },
+                    {
+                        "type": "command",
+                        "command": "bun \"${CLAUDE_PLUGIN_ROOT}/scripts/checkups.ts\" reminder",
+                        "timeout": 15
                     }
                 ]
             }

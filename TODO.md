@@ -1,0 +1,24 @@
+# TODO
+
+Work in progress and agreed next steps. Pick up here after an interrupted session.
+Remove an item once it is done and committed; the ADRs and git history keep the record.
+
+## Checkups (ADR 0010)
+
+- [ ] Phase 2: generic checkups, one at a time, each discussed first
+  - [ ] `outdated-packages`
+  - [ ] `docs-drift`
+  - [ ] `security`, `new-features`, `test-coverage`, `code-quality`, `frontend-quality`, `unused-code`
+  - [ ] `accessibility`, built on the `accessibility-testing` tooling (ADR 0011)
+  - [ ] Add `docs/checkups/checkups.json` to this repo once its first checkups exist
+  - [ ] Decide: should the reminder or runner warn up front about a scheduled checkup that has no skill? (Now the runner only notices when it tries to run it.)
+- [ ] Phase 3: `claude-code-platform` checkup, project-specific to this repo
+- [ ] Phase 4: move the jobs project to the plugin's checkups (keep its legal, SEO, backfill, … checkups). Its `checkups.json` already works as is; the `summary`, `lastRun` and `lastReport` fields can go.
+
+## Factory stages
+
+- [ ] Discuss the first stage: Intake / Specification
+
+## Open questions
+
+- [ ] Remove the duplicated conventions from `~/.claude/CLAUDE.md` once the plugin is in use (ADR 0008)
