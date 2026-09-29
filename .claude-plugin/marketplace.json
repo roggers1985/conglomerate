@@ -1,0 +1,13 @@
+{
+    "name": "conglomerate",
+    "owner": {
+        "name": "Rogier Nitschelm"
+    },
+    "plugins": [
+        {
+            "name": "factory",
+            "source": "./plugins/factory",
+            "description": "A software factory: specs, plans, builders and quality gates for Claude Code."
+        }
+    ]
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Runs every quality gate before a push. Bypass in an emergency with: git push --no-verify
+echo "pre-push: running quality checks (bun run check)"
+exec bun run check

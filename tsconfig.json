@@ -1,0 +1,36 @@
+{
+    "compilerOptions": {
+        // Environment: Bun runs TypeScript directly, tsc only type-checks.
+        "target": "ESNext",
+        "lib": ["ESNext"],
+        "module": "Preserve",
+        "moduleResolution": "bundler",
+        "moduleDetection": "force",
+        "types": ["bun"],
+        "noEmit": true,
+        "allowImportingTsExtensions": true,
+
+        // Strictness
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noImplicitOverride": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+
+        // Module hygiene
+        "verbatimModuleSyntax": true,
+        "isolatedModules": true,
+        "erasableSyntaxOnly": true,
+        "noUncheckedSideEffectImports": true,
+        "forceConsistentCasingInFileNames": true,
+
+        "skipLibCheck": true
+    },
+    "include": ["scripts"]
+}

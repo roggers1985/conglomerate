@@ -1,0 +1,21 @@
+{
+    "name": "conglomerate",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Marketplace repository for the factory plugin.",
+    "type": "module",
+    "scripts": {
+        "validate": "bun scripts/validate-plugin.ts",
+        "typecheck": "tsc",
+        "lint": "biome check",
+        "lint:fix": "biome check --write",
+        "test": "bun test",
+        "check": "bun run typecheck && bun run lint && bun test && bun run validate",
+        "prepare": "git config core.hooksPath .githooks"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "^2.5.14",
+        "@types/bun": "^1.4.2",
+        "typescript": "^7.0.2"
+    }
+}
