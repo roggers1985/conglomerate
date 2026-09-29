@@ -11,6 +11,7 @@ import { readRoutes } from "../plugins/factory/scripts/models.ts";
 import { renderTaskAgents, TASK_AGENTS_DIR } from "./agents.ts";
 import { BUNDLE_DIR, renderBundles } from "./bundles.ts";
 import { generatedFileErrors, readGeneratedFiles } from "./generated.ts";
+import { renderLegalFiles } from "./notices.ts";
 import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
 
 const SEMVER = /^\d+\.\d+\.\d+$/;
@@ -109,7 +110,10 @@ async function validateManifest(
     return [];
 }
 
-async function validateGenerated(pluginDir: string, { signal }: ValidateOptions): Promise<string[]> {
+async function validateGenerated(
+    pluginDir: string,
+    { root, signal }: ValidateOptions & { readonly root: string },
+): Promise<string[]> {
     const routes = await readRoutes({ signal });
     const { skills, errors } = await readPluginSkills(pluginDir, { routes, signal });
     const catalog = await readTextIfExists(path.join(pluginDir, CATALOG_FILE), { signal });
@@ -120,13 +124,39 @@ async function validateGenerated(pluginDir: string, { signal }: ValidateOptions)
         readGeneratedFiles(path.join(pluginDir, BUNDLE_DIR), { extension: ".js", signal }),
         renderBundles(pluginDir, { signal }),
     ]);
+    const currentLegalFiles = await renderLegalFiles({
+        repositoryRoot: root,
+        packages: currentBundles.packages,
+        signal,
+    });
+    const legalFiles = await readExistingFiles(pluginDir, [...currentLegalFiles.keys()], { signal });
 
     return [
         ...errors,
         ...catalogErrors,
         ...generatedFileErrors(renderTaskAgents(routes), agents, { label: TASK_AGENTS_DIR }),
-        ...generatedFileErrors(currentBundles, bundles, { label: BUNDLE_DIR }),
+        ...generatedFileErrors(currentBundles.files, bundles, { label: BUNDLE_DIR }),
+        ...generatedFileErrors(currentLegalFiles, legalFiles, { label: "." }),
     ];
+}
+
+/** The given files in a folder, by name; files that don't exist are left out. */
+async function readExistingFiles(
+    dir: string,
+    fileNames: readonly string[],
+    { signal }: ValidateOptions,
+): Promise<ReadonlyMap<string, string>> {
+    const contents = await Promise.all(
+        fileNames.map((fileName) => readTextIfExists(path.join(dir, fileName), { signal })),
+    );
+
+    return new Map(
+        fileNames.flatMap((fileName, index) => {
+            const content = contents[index];
+
+            return content === null || content === undefined ? [] : [[fileName, content] as const];
+        }),
+    );
 }
 
 async function validatePlugin(
@@ -136,7 +166,7 @@ async function validatePlugin(
     const pluginDir = path.join(root, entry.source);
     const errors = [
         ...(await validateManifest(pluginDir, { entry, signal })),
-        ...(await validateGenerated(pluginDir, { signal })),
+        ...(await validateGenerated(pluginDir, { root, signal })),
     ];
 
     return errors.map((error) => `${entry.name}/${error}`);

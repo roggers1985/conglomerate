@@ -27,4 +27,5 @@ claude --plugin-dir plugins/factory   # try the plugin locally
 ```
 
 All skills are listed in [`plugins/factory/CATALOG.md`](plugins/factory/CATALOG.md).
+Licensed under [MIT](LICENSE). Third-party code in the plugin's bundles is listed in [`plugins/factory/THIRD-PARTY-NOTICES.md`](plugins/factory/THIRD-PARTY-NOTICES.md).
 Design decisions are recorded in [`docs/decisions/`](docs/decisions/).

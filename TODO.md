@@ -5,7 +5,7 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 ## Checkups (ADR 0010, 0023)
 
-- [ ] Test-coverage leftovers: two untested error paths in `validateRepository` (invalid `plugin.json`, name mismatch); the `!result.success` branch in `scripts/bundles.ts` seems unreachable because `Bun.build` throws instead
+- [ ] Test-coverage leftover: two untested error paths in `validateRepository` (invalid `plugin.json`, name mismatch)
 - [ ] Move the jobs project to the plugin's checkups (plugin installed, ADR 0024). Plan:
   - keep its project-specific checkups (legal, content-freshness, backfill, stale-data, seo, analytics) and any generic ones whose jobs version holds project knowledge, as overrides (ADR 0023);
   - drop the ones where the generic version is enough;
@@ -48,4 +48,5 @@ To consider:
 
 ## Before going public
 
+- The license is decided: MIT (ADR 0027).
 - [ ] Compare the factory with existing open-source factories (the ones above and others), and only make the repository public if it clearly adds something

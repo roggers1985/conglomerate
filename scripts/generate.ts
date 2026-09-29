@@ -10,9 +10,11 @@ import { renderTaskAgents, TASK_AGENTS_DIR } from "./agents.ts";
 import { BUNDLE_DIR, renderBundles } from "./bundles.ts";
 import type { GeneratedFiles } from "./generated.ts";
 import { readGeneratedFiles } from "./generated.ts";
+import { renderLegalFiles } from "./notices.ts";
 import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
 
-const FACTORY_DIR = path.resolve(import.meta.dir, "..", "plugins", "factory");
+const REPOSITORY_ROOT = path.resolve(import.meta.dir, "..");
+const FACTORY_DIR = path.join(REPOSITORY_ROOT, "plugins", "factory");
 
 /**
  * Writes the expected files into `dir`, and removes files there that are no longer generated.
@@ -69,15 +71,17 @@ async function main(): Promise<void> {
 
     const agents = renderTaskAgents(routes);
     const bundles = await renderBundles(FACTORY_DIR, { signal });
+    const legalFiles = await renderLegalFiles({ repositoryRoot: REPOSITORY_ROOT, packages: bundles.packages, signal });
 
     await Promise.all([
         Bun.write(path.join(FACTORY_DIR, CATALOG_FILE), renderCatalog(skills, { routes })),
         syncFolder(path.join(FACTORY_DIR, TASK_AGENTS_DIR), agents, { extension: ".md", signal }),
-        syncFolder(path.join(FACTORY_DIR, BUNDLE_DIR), bundles, { extension: ".js", signal }),
+        syncFolder(path.join(FACTORY_DIR, BUNDLE_DIR), bundles.files, { extension: ".js", signal }),
+        ...[...legalFiles].map(([fileName, content]) => Bun.write(path.join(FACTORY_DIR, fileName), content)),
     ]);
 
     console.log(
-        `✓ wrote ${CATALOG_FILE} (${skills.length} skills), ${agents.size} task agents and ${bundles.size} bundles`,
+        `✓ wrote ${CATALOG_FILE} (${skills.length} skills), ${agents.size} task agents, ${bundles.files.size} bundles and ${legalFiles.size} legal files`,
     );
 }
 

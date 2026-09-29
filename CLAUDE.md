@@ -38,7 +38,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 - `bun run check`: run every quality gate (typecheck, lint, test, validate). The pre-push hook runs this (ADR 0006); never bypass it with `--no-verify`.
 - A pre-commit hook formats staged files with Biome and re-stages them (ADR 0009). It refuses partially staged files.
 - `bun run typecheck`: type-check (Bun does not type-check when running)
-- `bun run generate`: regenerate `plugins/factory/CATALOG.md`, the task agents (`agents/tasks/`) and the bundles (`dist/`) after adding, renaming or describing a skill, changing `models.json`, or changing plugin scripts or `lib/` (validate fails otherwise). Never edit generated files by hand.
+- `bun run generate`: regenerate `plugins/factory/CATALOG.md`, the task agents (`agents/tasks/`), the bundles (`dist/`) and the plugin's `LICENSE` and `THIRD-PARTY-NOTICES.md` (ADR 0027) after adding, renaming or describing a skill, changing `models.json`, or changing plugin scripts or `lib/` (validate fails otherwise). Never edit generated files by hand.
 - `bun run lint`: lint and format check with Biome (ADR 0005); `bun run lint:fix` to apply fixes. Do not disable rules to get code through; fix the code.
 - `bun test`: run all tests
 - `bun run doctest`: check TSDoc on every export and run every `@example` as a test

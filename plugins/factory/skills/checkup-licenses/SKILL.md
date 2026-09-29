@@ -19,7 +19,7 @@ Makes sure the project may use and distribute what it depends on. You are not a 
    - missing or unknown licenses;
    - non-commercial or source-available licenses;
    - licenses that changed since the previous report.
-3. **Bundled and vendored code**: code copied into the project, or bundled into files the project distributes, keeps its required license notices.
+3. **Bundled and vendored code**: code copied into the project, or bundled into files the project distributes, keeps its required license notices. Where the notices are generated (as in the factory's own repository, ADR 0027), check that generation covers every bundled package, rather than editing the output.
 4. **Assets**: fonts, images and icons have a license that allows their use.
 
 ## Fixes you may make yourself

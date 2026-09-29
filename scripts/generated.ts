@@ -68,10 +68,10 @@ export function generatedFileErrors(
 ): string[] {
     const missingOrStale = [...expected]
         .filter(([fileName, content]) => actual.get(fileName) !== content)
-        .map(([fileName]) => `${label}/${fileName} is missing or out of date: run \`bun run generate\``);
+        .map(([fileName]) => `${path.join(label, fileName)} is missing or out of date: run \`bun run generate\``);
     const orphaned = [...actual.keys()]
         .filter((fileName) => !expected.has(fileName))
-        .map((fileName) => `${label}/${fileName} is no longer generated: run \`bun run generate\``);
+        .map((fileName) => `${path.join(label, fileName)} is no longer generated: run \`bun run generate\``);
 
     return [...missingOrStale, ...orphaned];
 }

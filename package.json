@@ -3,6 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "description": "Marketplace repository for the factory plugin.",
+    "license": "MIT",
     "type": "module",
     "scripts": {
         "validate": "bun scripts/validate-plugin.ts",

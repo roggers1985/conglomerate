@@ -2,6 +2,7 @@
     "name": "factory",
     "version": "0.1.0",
     "description": "A software factory: specs, plans, builders and quality gates for Claude Code.",
+    "license": "MIT",
     "author": {
         "name": "Rogier Nitschelm"
     }
