@@ -1,26 +1,10 @@
 // Generated files (ADR 0013, 0015, 0020): written by `bun run generate`, checked by `bun run validate`.
 
-import { readdir } from "node:fs/promises";
 import path from "node:path";
-import { isFileNotFound } from "../lib/errors.ts";
-import { readText } from "../lib/files.ts";
+import { readDirIfExists, readText } from "../lib/files.ts";
 
 /** Generated files by file name, with their content. */
 export type GeneratedFiles = ReadonlyMap<string, string>;
-
-async function listDir(dir: string, { signal }: { readonly signal: AbortSignal }): Promise<string[]> {
-    // readdir takes no signal: check before starting instead.
-    signal.throwIfAborted();
-
-    try {
-        return await readdir(dir);
-    } catch (error: unknown) {
-        if (isFileNotFound(error)) {
-            return [];
-        }
-        throw error;
-    }
-}
 
 /**
  * Reads the generated files in one folder.
@@ -50,7 +34,9 @@ export async function readGeneratedFiles(
     dir: string,
     { extension, signal }: { readonly extension: string; readonly signal: AbortSignal },
 ): Promise<GeneratedFiles> {
-    const fileNames = (await listDir(dir, { signal })).filter((fileName) => fileName.endsWith(extension)).toSorted();
+    const fileNames = (await readDirIfExists(dir, { signal }))
+        .filter((fileName) => fileName.endsWith(extension))
+        .toSorted();
     const contents = await Promise.all(fileNames.map((fileName) => readText(path.join(dir, fileName), { signal })));
 
     return new Map(fileNames.map((fileName, index) => [fileName, contents[index] ?? ""]));
