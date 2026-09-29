@@ -10,6 +10,7 @@ import { parse } from "../lib/parse.ts";
 import { readRoutes } from "../plugins/factory/scripts/models.ts";
 import { renderTaskAgents, TASK_AGENTS_DIR } from "./agents.ts";
 import { BUNDLE_DIR, renderBundles } from "./bundles.ts";
+import { licenseProblems, readInstalledPackages } from "./dependency-licenses.ts";
 import { generatedFileErrors, readGeneratedFiles } from "./generated.ts";
 import { renderLegalFiles } from "./notices.ts";
 import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
@@ -173,8 +174,8 @@ async function validatePlugin(
 }
 
 /**
- * Validates the whole repository: the marketplace, every plugin's manifest and skills, and the generated
- * catalog and task agents.
+ * Validates the whole repository: the marketplace, every plugin's manifest and skills, the generated files, and
+ * the licenses of all installed dependencies (ADR 0035).
  *
  * @param root - The repository's root folder.
  * @param options.signal - Cancels the validation.
@@ -194,11 +195,13 @@ export async function validateRepository(root: string, { signal }: ValidateOptio
         return { errors: marketplace.errors.map((error) => `marketplace.json: ${error}`) };
     }
 
-    const pluginErrors = await Promise.all(
-        marketplace.value.plugins.map((entry) => validatePlugin(root, { entry, signal })),
-    );
+    const [pluginErrors, packages] = await Promise.all([
+        Promise.all(marketplace.value.plugins.map((entry) => validatePlugin(root, { entry, signal }))),
+        readInstalledPackages(path.join(root, "node_modules"), { signal }),
+    ]);
+    const dependencyErrors = licenseProblems(packages).map((problem) => `dependencies: ${problem}`);
 
-    return { errors: pluginErrors.flat() };
+    return { errors: [...pluginErrors.flat(), ...dependencyErrors] };
 }
 
 async function main(): Promise<void> {
@@ -211,7 +214,7 @@ async function main(): Promise<void> {
         return;
     }
 
-    console.log("✓ marketplace, plugin manifests, skills, catalog, task agents and bundles are valid");
+    console.log("✓ marketplace, plugin manifests, skills, generated files and dependency licenses are valid");
 }
 
 if (import.meta.main) {

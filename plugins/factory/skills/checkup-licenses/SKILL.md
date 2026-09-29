@@ -11,11 +11,13 @@ Follow the protocol in `${CLAUDE_PLUGIN_ROOT}/checkups/protocol.md` (branch, har
 
 Makes sure the project may use and distribute what it depends on. You are not a lawyer: find risks and inconsistencies, cite the license texts, and leave judgements to the owner.
 
+The owner's policy (ADR 0035): only permissive open-source licenses (MIT, ISC, BSD-2/3-Clause, Apache-2.0, 0BSD, MIT-0, Unlicense, CC0-1.0, Zlib, BlueOak-1.0.0), for every dependency including development tools. Copyleft, source-available, non-commercial, proprietary and unknown licenses are findings.
+
 ## In scope
 
 1. **The project's own license**: a `LICENSE` file exists and matches the license declared in `package.json` (or the ecosystem's equivalent), or the project is deliberately unlicensed/private.
 2. **Dependency licenses**: list them with the ecosystem's tool, or from the installed packages' metadata. Flag:
-   - licenses with obligations that conflict with how the project is used or distributed (e.g. GPL or AGPL in distributed or network-served code);
+   - every license outside the owner's allowlist (ADR 0035), and licenses with obligations that conflict with how the project is used or distributed;
    - missing or unknown licenses;
    - non-commercial or source-available licenses;
    - licenses that changed since the previous report.

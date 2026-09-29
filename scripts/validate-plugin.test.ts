@@ -112,6 +112,8 @@ describe("validate-plugin CLI", () => {
         const [stdout, exitCode] = await Promise.all([new Response(cli.stdout).text(), cli.exited]);
 
         expect(exitCode).toBe(0);
-        expect(stdout).toContain("marketplace, plugin manifests, skills, catalog, task agents and bundles are valid");
+        expect(stdout).toContain(
+            "marketplace, plugin manifests, skills, generated files and dependency licenses are valid",
+        );
     });
 });

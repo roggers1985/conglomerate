@@ -34,6 +34,10 @@ These conventions apply to all work in this session. They come from the factory 
 - **Parsing vs `assert` vs types:** a parse failure is expected (return an error result with readable messages); an `assert` failure is a bug (an invariant in our own code); between our own modules, types are enough.
 - Parse once, at the boundary. A hot path may skip re-parsing, but only on measurement, and documented.
 
+## Licenses
+
+- Only permissive open-source licenses, for dependencies (including development tools), tools and plugins: MIT, ISC, BSD-2/3-Clause, Apache-2.0, 0BSD, MIT-0, Unlicense, CC0-1.0, Zlib, BlueOak-1.0.0. Never copyleft (GPL, AGPL, LGPL, MPL), source-available (BSL, SSPL, Elastic, Commons Clause), non-commercial or proprietary licenses. Check the license before proposing a dependency.
+
 ## Helpers
 
 - Prefer small, own, tested and documented helpers (e.g. `isNotNil`) over utility libraries like lodash. Add a helper when it's needed, not in advance.

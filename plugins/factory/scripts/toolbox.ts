@@ -16,6 +16,7 @@ import { KEBAB_CASE } from "../../../lib/kebab-case.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
 import type { ReminderOutput } from "./checkups.ts";
+import { isAllowedLicense } from "./licenses.ts";
 
 const ENTRIES_MAX = 50; // a personal toolbox; far more than this means it needs pruning
 const TEXT_LENGTH_MAX = 300;
@@ -26,6 +27,11 @@ const PLUGIN_ID = /^[a-z0-9-]+@[a-z0-9-]+$/;
 
 const Text = z.string().min(1).max(TEXT_LENGTH_MAX);
 const Requires = z.array(z.string().min(1).max(100)).max(REQUIRES_MAX);
+const License = z
+    .string()
+    .min(1)
+    .max(100)
+    .refine(isAllowedLicense, "must be a permissive open-source license (ADR 0035)");
 
 const ToolSchema = z.strictObject({
     name: z.string().max(50).regex(KEBAB_CASE, "must be kebab-case"),
@@ -33,7 +39,7 @@ const ToolSchema = z.strictObject({
     command: z.string().min(1).max(50),
     install: Text,
     source: Text,
-    license: z.string().min(1).max(100),
+    license: License,
     permissions: Text,
     requires: Requires,
 });
@@ -42,6 +48,7 @@ const PluginSchema = z.strictObject({
     id: z.string().max(100).regex(PLUGIN_ID, "must look like name@marketplace"),
     purpose: Text,
     source: Text,
+    license: License,
     permissions: Text,
     requires: Requires,
 });
@@ -117,7 +124,7 @@ export function parseToolbox(value: unknown): Parsed<Toolbox> {
  * ```ts
  * const toolbox = {
  *     tools: [{ name: "jq", purpose: "JSON", command: "jq", install: "brew install jq", source: "s", license: "MIT", permissions: "p", requires: [] }],
- *     plugins: [{ id: "factory@conglomerate", purpose: "p", source: "s", permissions: "p", requires: [] }],
+ *     plugins: [{ id: "factory@conglomerate", purpose: "p", source: "s", license: "MIT", permissions: "p", requires: [] }],
  * };
  * const status = toolboxStatus(toolbox, { isOnPath: () => false, enabledPlugins: new Set(["factory@conglomerate"]) });
  *
@@ -155,7 +162,7 @@ const missingNames = (status: ToolboxStatus): string[] => [
  * ```ts
  * expect(toolboxReminder({ missingTools: [], missingPlugins: [] })).toBeNull();
  *
- * const plugin = { id: "gopls-lsp@claude-plugins-official", purpose: "p", source: "s", permissions: "p", requires: [] };
+ * const plugin = { id: "gopls-lsp@claude-plugins-official", purpose: "p", source: "s", license: "Apache-2.0", permissions: "p", requires: [] };
  * const output = toolboxReminder({ missingTools: [], missingPlugins: [plugin] });
  *
  * expect(output?.systemMessage).toBe(

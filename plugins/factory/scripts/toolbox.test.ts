@@ -29,17 +29,20 @@ const factory: Plugin = {
     id: "factory@conglomerate",
     purpose: "This factory",
     source: "Local marketplace",
+    license: "MIT",
     permissions: "SessionStart hooks",
     requires: ["rtk"],
 };
 
 const toolbox: Toolbox = { tools: [jq, rtk], plugins: [factory] };
 
-/** The paths of the fields that failed, so tests don't depend on the schema library's wording. */
+/** The distinct paths of the fields that failed, so tests don't depend on the schema library's wording. */
 const failedPaths = (value: unknown): string[] => {
     const parsed = parseToolbox(value);
 
-    return parsed.kind === "invalid" ? parsed.errors.map((error) => error.split(": ")[0] ?? error) : [];
+    const paths = parsed.kind === "invalid" ? parsed.errors.map((error) => error.split(": ")[0] ?? error) : [];
+
+    return [...new Set(paths)];
 };
 
 describe("parseToolbox", () => {
@@ -67,6 +70,15 @@ describe("parseToolbox", () => {
         expect(failedPaths({ tools: [{ ...jq, purpose: "x".repeat(301) }], plugins: [] })).toEqual([
             "tools[0].purpose",
         ]);
+    });
+
+    it("refuses tools and plugins without a permissive open-source license", () => {
+        expect(
+            failedPaths({
+                tools: [{ ...jq, license: "GPL-3.0-only" }],
+                plugins: [{ ...factory, license: "BUSL-1.1", requires: [] }],
+            }),
+        ).toEqual(["tools[0].license", "plugins[0].license"]);
     });
 
     it("rejects a plugin id that isn't name@marketplace", () => {

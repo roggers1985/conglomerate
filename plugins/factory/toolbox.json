@@ -66,6 +66,7 @@
             "id": "factory@conglomerate",
             "purpose": "This software factory: conventions, checkups, model routing",
             "source": "Local marketplace: ~/Projects/js/conglomerate (ADR 0024)",
+            "license": "MIT",
             "permissions": "SessionStart hooks run Bun scripts from its dist/ folder; skills; task agents.",
             "requires": ["bun"]
         },
@@ -73,6 +74,7 @@
             "id": "code-simplifier@claude-plugins-official",
             "purpose": "Agent that simplifies recently changed code",
             "source": "Anthropic's official plugin marketplace",
+            "license": "Apache-2.0",
             "permissions": "One agent; no hooks, no MCP servers.",
             "requires": []
         },
@@ -80,6 +82,7 @@
             "id": "frontend-design@claude-plugins-official",
             "purpose": "Guidance for distinctive frontend design",
             "source": "Anthropic's official plugin marketplace",
+            "license": "Apache-2.0",
             "permissions": "One skill; no hooks, no MCP servers.",
             "requires": []
         },
@@ -87,6 +90,7 @@
             "id": "security-guidance@claude-plugins-official",
             "purpose": "Security warnings on edits and a security review of diffs and commits",
             "source": "Anthropic's official plugin marketplace",
+            "license": "Apache-2.0",
             "permissions": "Five hooks (SessionStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop) that inspect edits and diffs.",
             "requires": []
         },
@@ -94,6 +98,7 @@
             "id": "gopls-lsp@claude-plugins-official",
             "purpose": "Go code intelligence through gopls",
             "source": "Anthropic's official plugin marketplace",
+            "license": "Apache-2.0",
             "permissions": "Starts the gopls language server for Go projects.",
             "requires": ["gopls"]
         }

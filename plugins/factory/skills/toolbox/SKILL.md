@@ -26,7 +26,7 @@ Never add a tool or plugin in passing. Propose it, with this security record, bu
 |---|---|
 | Source | The official homepage and repository; who maintains it; is it actively maintained (recent releases, open issues handled)? |
 | Install method | Prefer a package manager with verified packages (Homebrew) or the official installer; never a script from an unofficial source. Pin a version where the tool is critical. |
-| License | Compatible with how the owner uses it (see the `licenses` checkup). |
+| License | A permissive open-source license from the owner's allowlist (ADR 0035); the toolbox schema refuses anything else. |
 | Permissions | What it can do: hooks that run on every command or prompt, MCP servers with network or file access, credentials it needs. Plugins: run `claude plugin details <id>` and list their hooks, agents and MCP servers. |
 | Security history | Known advisories or incidents. |
 | Overlap | Does it duplicate a tool or plugin already in the toolbox? |
