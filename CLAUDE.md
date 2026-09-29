@@ -19,7 +19,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
   - `models.json`: default model and effort per task type (ADR 0014, 0015). `agents/tasks/*.md` are generated from it; skills declare `metadata.task` but never a model
   - `scripts/`: sources of the plugin's scripts; they may import `lib/` and packages (ADR 0020)
   - `dist/`: generated, minified bundles of those scripts, which hooks and skills run. Only entry points (`session-start`, `checkups`, `doctest`) may have an `import.meta.main` block
-- `lib/`: own helpers with TSDoc and tests (`assert`, `isFileNotFound`, `parse`, `readText`/`readJson`, `interruptSignal`, …); add one when it's needed (ADR 0020)
+- `lib/`: own helpers with TSDoc and tests (`assert`, `isNotNil`, `parse`, `readText`/`readJson`, `interruptSignal`, …); add one when it's needed (ADR 0020)
 - I/O functions take a required `{ signal }` (ADR 0012). Read files through `lib/files.ts` (Bun's file API takes no signal); a CLI's `main` creates its signal with `interruptSignal()`
 - `scripts/`: repository tooling (strict TypeScript, run directly by Bun)
 - `docs/decisions/`: architecture decision records
