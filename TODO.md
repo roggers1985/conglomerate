@@ -15,6 +15,22 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 - [ ] Decide: push checkup branches and open PRs now that there is a (private) GitHub remote? Opening PRs needs the `gh` CLI (not installed) and `gh auth login`.
 
+## Conventions
+
+- [ ] Apply the bounds rule (ADR 0032) to this repo's own code: size limits on files read (`lib/files.ts`), maximums in the Zod schemas (`checkups.json` entries, task names, skill descriptions), and a check of every loop
+- [ ] Safety practices to discuss, from NASA/JPL's "Power of 10" and TigerBeetle's TigerStyle (candidates for `code-safety`):
+  - **Assertion density**: on average two or more assertions per function, covering arguments, return values, preconditions, postconditions and invariants; *pair assertions* (check the same property where data is written and where it is read)
+  - **Function length limit**: 60 lines (NASA) or 70 (TigerStyle); Biome's `noExcessiveLinesPerFunction` can enforce it
+  - **Every error is handled**: TigerStyle cites that 92% of catastrophic failures come from mishandled non-fatal errors; no swallowed errors, no ignored results (Biome's `noFloatingPromises`, still experimental)
+  - **Explicit options for libraries too**: pass timeouts, limits and modes explicitly instead of relying on library defaults (extends ADR 0017)
+  - **Smallest scope**: declare variables as close to their use as possible, and keep few variables in play
+  - **Names with units and qualifiers last**: `timeoutMs`, `latencyMsMax` rather than `maxLatency` (TigerStyle); no abbreviations
+  - **Index, count and size are different things**, and rounding is always explicit (`Math.floor`/`Math.ceil` with a reason)
+  - **Back-of-the-envelope sketches** of network, disk, memory and CPU costs in the planning stage, before building
+  - **Batching** as a design default for I/O
+  - **Zero technical debt**: problems are fixed when found, not deferred without a tracked task (overlaps with the `todos` checkup)
+  - **Static analysis at the strictest setting, warnings as errors**: already done (ADR 0004, 0005)
+
 ## Factory stages
 
 Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, Kiro, and Anthropic's AI-native SDLC playbook.

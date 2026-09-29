@@ -16,6 +16,7 @@ These conventions apply to all work in this session. They come from the factory 
 - Always use curlies when writing if-while-for statements.
 - **One condition per `if`**: each `if` tests one named concept. Split guards into separate early returns; combine conditions only inside a well-named variable or function (`const isNoLongerValid = isExpired || isRevoked;`). No nested ternaries.
 - Use negative space programming: guard against invariants with a function called `assert`.
+- **Put a limit on everything:** every loop that isn't over a bounded collection counts against a named maximum; every input, collection, queue, cache, retry, wait and recursion has an explicit upper bound. Hitting a bound fails loudly; it never truncates silently.
 
 ## Optionality
 
@@ -64,4 +65,4 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Topic conventions
 
-For React/UI work, load the `code-react` skill and the `code-styling` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill. For examples of the readability and optionality rules, load the `code-readability` skill. For schemas and parsing, load the `code-parsing` skill.
+For React/UI work, load the `code-react` skill and the `code-styling` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill. For loops, retries, queues, caches, concurrency or input limits, load the `code-safety` skill. For examples of the readability and optionality rules, load the `code-readability` skill. For schemas and parsing, load the `code-parsing` skill.
