@@ -28,11 +28,6 @@ const ModelsFileSchema = z.strictObject({
     }),
 });
 
-/** A Claude Code model alias. Aliases follow new versions of a model family once Claude Code is updated (ADR 0014). */
-export type Model = (typeof MODELS)[number];
-/** An effort level, from cheapest to most thorough. Not every model supports every level (ADR 0014). */
-export type Effort = (typeof EFFORTS)[number];
-
 /** The default model and effort for one task type, and what that task type is for. */
 export type TaskRoute = Readonly<z.infer<typeof TaskRouteSchema>>;
 
