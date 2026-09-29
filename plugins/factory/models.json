@@ -1,0 +1,49 @@
+{
+    "tasks": {
+        "code-small": {
+            "model": "haiku",
+            "effort": "low",
+            "use": "Mechanical edits: renames, formatting, small fixes with an obvious solution, lookups, simple scripts"
+        },
+        "code": {
+            "model": "sonnet",
+            "effort": "medium",
+            "use": "Everyday feature work and bug fixes with a clear spec"
+        },
+        "code-complex": {
+            "model": "opus",
+            "effort": "high",
+            "use": "Architecture, hard bugs, concurrency and cancellation, security-sensitive code, large refactors"
+        },
+        "review": {
+            "model": "opus",
+            "effort": "high",
+            "use": "Reviewing code, specs and ADRs; finding subtle problems is worth the cost"
+        },
+        "research": {
+            "model": "sonnet",
+            "effort": "medium",
+            "use": "Searching code and documentation, comparing options, summarising sources"
+        },
+        "planning": {
+            "model": "opus",
+            "effort": "high",
+            "use": "Specifications, plans and breaking work down; mistakes here multiply downstream"
+        },
+        "writing": {
+            "model": "opus",
+            "effort": "medium",
+            "use": "Content, documentation and copy for people; language quality matters more than speed"
+        },
+        "marketing": {
+            "model": "opus",
+            "effort": "medium",
+            "use": "Positioning, marketing plans, campaigns and communication"
+        },
+        "checkup": {
+            "model": "sonnet",
+            "effort": "high",
+            "use": "Recurring checkups: long, careful audits with many tool calls, run often enough that cost matters"
+        }
+    }
+}

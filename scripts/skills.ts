@@ -1,9 +1,11 @@
-// Skills of a plugin: the naming rules (ADR 0013) and the generated catalog.
+// Skills of a plugin: the naming rules (ADR 0013), model routing per skill (ADR 0014) and the generated catalog.
 //
 //   bun scripts/skills.ts catalog   regenerate plugins/<plugin>/CATALOG.md for every plugin in the marketplace
 
 import { readdir } from "node:fs/promises";
 import path from "node:path";
+import type { Routes } from "../plugins/factory/scripts/models.ts";
+import { readRoutes, renderRoutingTable } from "../plugins/factory/scripts/models.ts";
 
 export type Domain = {
     readonly name: string;
@@ -13,6 +15,16 @@ export type Domain = {
 export type Skill = {
     readonly name: string;
     readonly description: string;
+    /** The task type from models.json, for skills that do a kind of work rather than hold reference material. */
+    readonly task: string | null;
+};
+
+type SkillFrontmatter = {
+    readonly name: string;
+    readonly description: string;
+    readonly model: string;
+    readonly effort: string;
+    readonly metadata: { readonly task: string };
 };
 
 export type ParsedSkill =
@@ -57,8 +69,40 @@ export function parseFrontmatter(markdown: string): unknown {
     return Bun.YAML.parse(match[1] ?? "");
 }
 
-export function parseSkill(directory: string, frontmatter: unknown): ParsedSkill {
-    if (!isObject<Skill>(frontmatter)) {
+function taskOf(frontmatter: Unvalidated<SkillFrontmatter>): unknown {
+    return isObject<SkillFrontmatter["metadata"]>(frontmatter.metadata) ? frontmatter.metadata.task : undefined;
+}
+
+/** A skill's model and effort always come from its task type in models.json, never from the skill alone. */
+function routingErrors(frontmatter: Unvalidated<SkillFrontmatter>, routes: Routes): string[] {
+    const task = taskOf(frontmatter);
+
+    if (task === undefined) {
+        return failedRules([
+            [
+                frontmatter.model === undefined && frontmatter.effort === undefined,
+                "model and effort come from models.json: set metadata.task instead",
+            ],
+        ]);
+    }
+
+    const route = typeof task === "string" ? routes[task] : undefined;
+
+    if (route === undefined) {
+        return [`metadata.task must be one of ${Object.keys(routes).join(", ")}`];
+    }
+
+    return failedRules([
+        [frontmatter.model === route.model, `model must be "${route.model}" for task "${String(task)}" (models.json)`],
+        [
+            frontmatter.effort === route.effort,
+            `effort must be "${route.effort}" for task "${String(task)}" (models.json)`,
+        ],
+    ]);
+}
+
+export function parseSkill(directory: string, frontmatter: unknown, routes: Routes): ParsedSkill {
+    if (!isObject<SkillFrontmatter>(frontmatter)) {
         return { kind: "invalid", errors: ["SKILL.md must start with a YAML frontmatter block"] };
     }
 
@@ -72,19 +116,31 @@ export function parseSkill(directory: string, frontmatter: unknown): ParsedSkill
         ],
         [typeof description === "string" && description.length > 0, "description is required"],
     ]);
+    const allErrors = [...errors, ...routingErrors(frontmatter, routes)];
+    const task = taskOf(frontmatter);
 
-    if (errors.length > 0 || typeof name !== "string" || typeof description !== "string") {
-        return { kind: "invalid", errors };
+    if (allErrors.length > 0 || typeof name !== "string" || typeof description !== "string") {
+        return { kind: "invalid", errors: allErrors };
     }
 
-    return { kind: "valid", skill: { name, description } };
+    return { kind: "valid", skill: { name, description, task: typeof task === "string" ? task : null } };
 }
 
 const firstSentence = (text: string): string => text.split(/(?<=\.)\s/)[0] ?? text;
 
 const escapeCell = (text: string): string => text.replaceAll("|", "\\|");
 
-function renderDomain(domain: Domain, skills: readonly Skill[]): string {
+function renderTask(task: string | null, routes: Routes): string {
+    const route = task === null ? undefined : routes[task];
+
+    if (task === null || route === undefined) {
+        return "";
+    }
+
+    return `\`${task}\` (${route.model}, ${route.effort})`;
+}
+
+function renderDomain(domain: Domain, skills: readonly Skill[], routes: Routes): string {
     const heading = `## ${domain.name}: ${domain.description}`;
     const own = skills
         .filter((skill) => domainOf(skill.name) === domain)
@@ -94,19 +150,26 @@ function renderDomain(domain: Domain, skills: readonly Skill[]): string {
         return [heading, "", "_No skills yet._"].join("\n");
     }
 
-    const rows = own.map((skill) => `| \`${skill.name}\` | ${escapeCell(firstSentence(skill.description))} |`);
+    const rows = own.map(
+        (skill) =>
+            `| \`${skill.name}\` | ${escapeCell(firstSentence(skill.description))} | ${renderTask(skill.task, routes)} |`,
+    );
 
-    return [heading, "", "| Skill | What it is |", "| --- | --- |", ...rows].join("\n");
+    return [heading, "", "| Skill | What it is | Task (model, effort) |", "| --- | --- | --- |", ...rows].join("\n");
 }
 
-export function renderCatalog(skills: readonly Skill[]): string {
+export function renderCatalog(skills: readonly Skill[], routes: Routes): string {
     return [
         "# Skills catalog",
         "",
         "Generated by `bun run catalog` from the skills' frontmatter. Do not edit by hand.",
         "Skills are named `<domain>-<topic>` (ADR 0013).",
         "",
-        ...DOMAINS.map((domain) => `${renderDomain(domain, skills)}\n`),
+        ...DOMAINS.map((domain) => `${renderDomain(domain, skills, routes)}\n`),
+        "## Model routing (models.json, ADR 0014)",
+        "",
+        renderRoutingTable(routes),
+        "",
     ].join("\n");
 }
 
@@ -115,7 +178,7 @@ export type PluginSkills = {
     readonly errors: readonly string[];
 };
 
-export async function readPluginSkills(pluginDir: string): Promise<PluginSkills> {
+export async function readPluginSkills(pluginDir: string, routes: Routes): Promise<PluginSkills> {
     const skillsDir = path.join(pluginDir, "skills");
     const entries = await readdir(skillsDir, { withFileTypes: true });
     const parsed = await Promise.all(
@@ -124,7 +187,7 @@ export async function readPluginSkills(pluginDir: string): Promise<PluginSkills>
             .map(async (entry) => {
                 const markdown = await Bun.file(path.join(skillsDir, entry.name, "SKILL.md")).text();
 
-                return { directory: entry.name, result: parseSkill(entry.name, parseFrontmatter(markdown)) };
+                return { directory: entry.name, result: parseSkill(entry.name, parseFrontmatter(markdown), routes) };
             }),
     );
 
@@ -149,11 +212,13 @@ async function main(): Promise<void> {
     const pluginsDir = path.join(root, "plugins");
     const plugins = (await readdir(pluginsDir, { withFileTypes: true })).filter((entry) => entry.isDirectory());
 
+    const routes = await readRoutes();
+
     for (const plugin of plugins) {
         const pluginDir = path.join(pluginsDir, plugin.name);
-        const { skills } = await readPluginSkills(pluginDir);
+        const { skills } = await readPluginSkills(pluginDir, routes);
 
-        await Bun.write(path.join(pluginDir, CATALOG_FILE), renderCatalog(skills));
+        await Bun.write(path.join(pluginDir, CATALOG_FILE), renderCatalog(skills, routes));
         console.log(`✓ wrote plugins/${plugin.name}/${CATALOG_FILE} (${skills.length} skills)`);
     }
 }

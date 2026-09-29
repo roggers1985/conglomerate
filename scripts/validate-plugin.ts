@@ -2,6 +2,7 @@
 // It exists mainly to show the shape of repo tooling (pure functions + thin CLI + tests).
 
 import path from "node:path";
+import { readRoutes } from "../plugins/factory/scripts/models.ts";
 import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
 
 export type PluginManifest = {
@@ -100,9 +101,10 @@ async function validateManifest(pluginDir: string, entry: MarketplaceEntry): Pro
 }
 
 async function validateSkills(pluginDir: string): Promise<string[]> {
-    const { skills, errors } = await readPluginSkills(pluginDir);
+    const routes = await readRoutes();
+    const { skills, errors } = await readPluginSkills(pluginDir, routes);
     const catalog = Bun.file(path.join(pluginDir, CATALOG_FILE));
-    const catalogIsCurrent = (await catalog.exists()) && (await catalog.text()) === renderCatalog(skills);
+    const catalogIsCurrent = (await catalog.exists()) && (await catalog.text()) === renderCatalog(skills, routes);
     const catalogErrors = catalogIsCurrent ? [] : [`${CATALOG_FILE} is out of date: run \`bun run catalog\``];
 
     return [...errors, ...catalogErrors];

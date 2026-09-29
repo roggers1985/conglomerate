@@ -16,8 +16,8 @@ Requires [Bun](https://bun.sh).
 ```sh
 bun install         # install dev dependencies and activate git hooks
 bun run check       # run all quality gates (also runs on git push)
-bun run catalog     # regenerate plugins/factory/CATALOG.md after changing skills
                     # staged files are auto-formatted on git commit
+bun run catalog     # regenerate plugins/factory/CATALOG.md after changing skills or models.json
 bun run typecheck   # type-check
 bun run lint        # lint + format check (bun run lint:fix to fix)
 bun test            # run tests

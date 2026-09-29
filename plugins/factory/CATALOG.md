@@ -5,20 +5,20 @@ Skills are named `<domain>-<topic>` (ADR 0013).
 
 ## code: Coding conventions and practices
 
-| Skill | What it is |
-| --- | --- |
-| `code-accessibility` | Write accessibility (a11y) tests alongside frontend work. |
-| `code-cancellation` | The owner's cancellation conventions. |
-| `code-react` | The owner's React and UI conventions. |
-| `code-testing` | The owner's testing conventions. |
+| Skill | What it is | Task (model, effort) |
+| --- | --- | --- |
+| `code-accessibility` | Write accessibility (a11y) tests alongside frontend work. |  |
+| `code-cancellation` | The owner's cancellation conventions. |  |
+| `code-react` | The owner's React and UI conventions. |  |
+| `code-testing` | The owner's testing conventions. |  |
 
 ## checkup: Recurring checkups and their runner (ADR 0010)
 
-| Skill | What it is |
-| --- | --- |
-| `checkup` | Run the project's recurring checkups (dependencies, security, code and frontend quality, tests, docs, accessibility, and project-specific ones like legal). |
-| `checkup-docs-drift` | Documentation drift checkup. |
-| `checkup-outdated-packages` | Outdated packages checkup. |
+| Skill | What it is | Task (model, effort) |
+| --- | --- | --- |
+| `checkup` | Run the project's recurring checkups (dependencies, security, code and frontend quality, tests, docs, accessibility, and project-specific ones like legal). |  |
+| `checkup-docs-drift` | Documentation drift checkup. | `checkup` (sonnet, high) |
+| `checkup-outdated-packages` | Outdated packages checkup. | `checkup` (sonnet, high) |
 
 ## writing: Content, copy and documentation for people
 
@@ -31,3 +31,17 @@ _No skills yet._
 ## factory: Factory stages: specification, planning, building
 
 _No skills yet._
+
+## Model routing (models.json, ADR 0014)
+
+| Task | Model | Effort | Use for |
+| --- | --- | --- | --- |
+| `code-small` | haiku | low | Mechanical edits: renames, formatting, small fixes with an obvious solution, lookups, simple scripts |
+| `code` | sonnet | medium | Everyday feature work and bug fixes with a clear spec |
+| `code-complex` | opus | high | Architecture, hard bugs, concurrency and cancellation, security-sensitive code, large refactors |
+| `review` | opus | high | Reviewing code, specs and ADRs; finding subtle problems is worth the cost |
+| `research` | sonnet | medium | Searching code and documentation, comparing options, summarising sources |
+| `planning` | opus | high | Specifications, plans and breaking work down; mistakes here multiply downstream |
+| `writing` | opus | medium | Content, documentation and copy for people; language quality matters more than speed |
+| `marketing` | opus | medium | Positioning, marketing plans, campaigns and communication |
+| `checkup` | sonnet | high | Recurring checkups: long, careful audits with many tool calls, run often enough that cost matters |

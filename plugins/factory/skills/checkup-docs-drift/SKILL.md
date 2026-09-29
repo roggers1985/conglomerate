@@ -1,6 +1,10 @@
 ---
 name: checkup-docs-drift
 description: Documentation drift checkup. Verifies that CLAUDE.md, READMEs, ADRs, conventions, TODO lists, skills and code comments still match the code (commands, paths, env vars, packages, decisions), so people and agents are not misled. Use for "docs checkup", "is CLAUDE.md up to date", or when the checkup runner dispatches it.
+model: sonnet
+effort: high
+metadata:
+  task: checkup
 ---
 
 # Checkup: docs-drift

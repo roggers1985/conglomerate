@@ -30,6 +30,10 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 - [ ] Apply the cancellation convention (ADR 0012) to this repo's scripts where it makes sense (`checkups.ts` loaders, `validate-plugin.ts`): required `{ signal }` on I/O functions, a signal from `main`
 
+## Models
+
+- [ ] `agent-setup` checkup: review `models.json` assignments when a new model is released (ADR 0014); decide whether and where to use `fable`
+
 ## Factory stages
 
 - [ ] Discuss the first stage: Intake / Specification

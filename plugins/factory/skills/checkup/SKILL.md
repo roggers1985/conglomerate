@@ -25,7 +25,7 @@ This status is computed from `docs/checkups/checkups.json` and the report dates.
    - `due`, or nothing: run the due ones, but ask for confirmation first.
 3. Order: priority checkups first, then the rest in schedule order.
 4. For each chosen checkup, find its skill: `factory:checkup-<name>` (from the plugin) or `checkup-<name>` (from the project's `.claude/skills/`). If neither exists, report that and skip it.
-5. Run the checkups **one at a time, each in its own subagent** (Agent tool), so each starts with a clean context. Tell each subagent:
+5. Run the checkups **one at a time, each in its own subagent** (Agent tool), so each starts with a clean context. Start each subagent with the model of task type `checkup` in the model routing table from your session context (from `models.json`; the checkup skills set the matching effort themselves). Tell each subagent:
    - to invoke the checkup's skill;
    - to follow the protocol in `${CLAUDE_PLUGIN_ROOT}/checkups/protocol.md`;
    - today's date, so the branch and report are named consistently.
