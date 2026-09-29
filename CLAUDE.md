@@ -43,4 +43,5 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 - `bun test`: run all tests
 - `bun run doctest`: check TSDoc on every export and run every `@example` as a test
 - `bun run validate`: validate the marketplace and plugin manifests
-- `claude --plugin-dir plugins/factory`: try the plugin locally
+- `claude --plugin-dir plugins/factory`: try the plugin from source
+- The plugin is installed from this folder as a local marketplace (ADR 0024). After changes: commit, then `claude plugin marketplace update conglomerate && claude plugin update factory@conglomerate`, and restart sessions
