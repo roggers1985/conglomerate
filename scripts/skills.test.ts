@@ -50,7 +50,7 @@ describe("parseSkill", () => {
             ),
         ).toEqual({
             kind: "invalid",
-            errors: ["name: must start with a known domain (code, checkup, writing, marketing, factory)"],
+            errors: ["name: must start with a known domain (code, checkup, writing, marketing, factory, toolbox)"],
         });
     });
 
@@ -144,7 +144,9 @@ describe("readPluginSkills", () => {
 
         expect(await readPluginSkills(pluginDir, { routes, signal: AbortSignal.timeout(5_000) })).toEqual({
             skills: [{ name: "code-go", description: "Go.", task: null }],
-            errors: ["skills/go: name: must start with a known domain (code, checkup, writing, marketing, factory)"],
+            errors: [
+                "skills/go: name: must start with a known domain (code, checkup, writing, marketing, factory, toolbox)",
+            ],
         });
     });
 

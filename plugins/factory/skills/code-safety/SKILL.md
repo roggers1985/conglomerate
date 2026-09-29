@@ -7,7 +7,7 @@ description: "The owner's safety conventions, inspired by NASA/JPL's Power of 10
 
 ## Put a limit on everything
 
-Every quantity that can grow has an explicit upper bound, and hitting it is an error, not a silent truncation. This comes from NASA/JPL's "Power of 10" (rule 2: "all loops must have a fixed upper bound") and TigerStyle ("put a limit on everything").
+Every quantity that can grow has an explicit upper bound, every quantity with a meaningful minimum has an explicit lower bound, and crossing either is an error, not a silent truncation. This comes from NASA/JPL's "Power of 10" (rule 2: "all loops must have a fixed upper bound") and TigerStyle ("put a limit on everything").
 
 ### Loops
 
@@ -62,8 +62,19 @@ const CommentSchema = z.strictObject({
 
 Queues, caches, buffers and in-memory collections have a maximum size and a documented policy for when it's reached: evict (e.g. least recently used), reject new work (backpressure), or fail.
 
+### Lower bounds
+
+A bound has two sides. Where a value below some minimum makes no sense, that minimum is explicit too:
+
+- **Numbers:** counts are `>= 0`; sizes, limits and page sizes are `>= 1`; intervals, timeouts and delays are `> 0`; ratings and percentages have both ends (`min(1).max(5)`, `min(0).max(100)`). In schemas: `.int()`, `.nonnegative()`, `.positive()`, `.min()`.
+- **Strings:** `.min(1)` where an empty value is meaningless (names, ids, titles), after trimming whitespace.
+- **Collections:** `.min(1)` where at least one item is required.
+- **Results of arithmetic** that can drop below zero (a remaining budget, a counter being decremented, a duration computed from two timestamps) are asserted to stay `>= 0`.
+- **The bounds themselves:** a loop maximum is at least 1, and related constants are checked against each other once, e.g. `assert(PAGE_SIZE_DEFAULT <= PAGE_SIZE_MAX, "…")`.
+- **Zero as a special value** (a timeout of 0 meaning "no timeout", 0 retries meaning "try once") is avoided; when it's needed, it's named and documented.
+
 ### How bounds are written
 
 - **Named constants,** documented with the reason for the number: `const PAGES_MAX = 1_000; // a full catalogue is ~200 pages`. No bare numbers in conditions.
 - **Hitting a bound fails loudly:** an error with the bound in its message, or an `assert` for bounds that can only be hit by a bug. Silent truncation is only allowed where the specification says so, and it is then documented.
-- **Every bound is tested:** at the bound, and one over it (see the boundary values in `code-testing`).
+- **Every bound is tested:** at the bound, and one past it, on both sides (see the boundary values in `code-testing`).

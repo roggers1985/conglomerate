@@ -52,6 +52,12 @@ _No skills yet._
 
 _No skills yet._
 
+## toolbox: The owner's trusted tools and plugins (ADR 0033)
+
+| Skill | What it is | Task (model, effort) |
+| --- | --- | --- |
+| `toolbox` | The owner's toolbox of trusted command-line tools and Claude Code plugins. |  |
+
 ## Model routing (models.json, ADR 0014)
 
 | Task | Model | Effort | Use for |

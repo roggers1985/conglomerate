@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Extended by [ADR-0034](0034-lower-bounds.md): lower bounds too.
 
 ## Context
 

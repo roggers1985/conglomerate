@@ -16,6 +16,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
   - `conventions/core.md`: the owner's always-on conventions, injected at session start (ADR 0008)
   - `skills/<domain>-<topic>/`: skills, named domain first (ADR 0013). `code-*` hold coding conventions (ADR 0008, 0011, 0012). Overview: `plugins/factory/CATALOG.md`
   - `checkups/protocol.md`, `skills/checkup/`, `scripts/checkups.ts`: recurring checkups (ADR 0010)
+  - `toolbox.json`: the owner's trusted tools and plugins with their security records; `/factory:toolbox` (ADR 0033)
   - `models.json`: default model and effort per task type (ADR 0014, 0015). `agents/tasks/*.md` are generated from it; skills declare `metadata.task` but never a model
   - `scripts/`: sources of the plugin's scripts; they may import `lib/` and packages (ADR 0020)
   - `dist/`: generated, minified bundles of those scripts, which hooks and skills run. Only entry points (`session-start`, `checkups`, `doctest`) may have an `import.meta.main` block

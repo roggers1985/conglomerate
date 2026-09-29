@@ -17,7 +17,7 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 ## Conventions
 
-- [ ] Apply the bounds rule (ADR 0032) to this repo's own code: size limits on files read (`lib/files.ts`), maximums in the Zod schemas (`checkups.json` entries, task names, skill descriptions), and a check of every loop
+- [ ] Apply the bounds rules (ADR 0032, upper; ADR 0034, lower) to this repo's own code: size limits on files read (`lib/files.ts`), maximums in the Zod schemas (`checkups.json` entries, task names, skill descriptions), and a check of every loop
 - [ ] Safety practices to discuss, from NASA/JPL's "Power of 10" and TigerBeetle's TigerStyle (candidates for `code-safety`):
   - **Assertion density**: on average two or more assertions per function, covering arguments, return values, preconditions, postconditions and invariants; *pair assertions* (check the same property where data is written and where it is read)
   - **Function length limit**: 60 lines (NASA) or 70 (TigerStyle); Biome's `noExcessiveLinesPerFunction` can enforce it

@@ -25,7 +25,8 @@ The agent's instructions decay like code. This checkup keeps them short, correct
    - hooks that point at existing scripts and still work (run them);
    - configured MCP servers that are still used.
 4. **Checkup schedule**: checkups that no longer fit, missing ones (make the same judgement the runner makes in its step 2: UI, public site, personal data, database, …), and intervals that seem wrong given past reports.
-5. **New Claude Code features**: read the Claude Code changelog since the previous report. List features relevant to this project (hook events, skill options, settings).
+5. **Toolbox** (`toolbox.json` in the factory plugin, ADR 0033): tools and plugins with security advisories, new major versions or no recent maintenance; entries whose permissions changed (re-run `claude plugin details`); and useful new tools or plugins, proposed with the full security record from the `toolbox` skill.
+6. **New Claude Code features**: read the Claude Code changelog since the previous report. List features relevant to this project (hook events, skill options, settings).
 
 ## Fixes you may make yourself
 

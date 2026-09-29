@@ -1,0 +1,101 @@
+{
+    "tools": [
+        {
+            "name": "rtk",
+            "purpose": "CLI proxy that compresses command output to save tokens",
+            "command": "rtk",
+            "install": "brew install rtk",
+            "source": "https://www.rtk-ai.app/ (Homebrew formula rtk)",
+            "license": "Apache-2.0",
+            "permissions": "A PreToolUse hook (~/.claude/hooks/rtk-rewrite.sh) rewrites every Bash command Claude runs to go through rtk.",
+            "requires": ["jq"]
+        },
+        {
+            "name": "jq",
+            "purpose": "JSON processor; used by the rtk hook",
+            "command": "jq",
+            "install": "brew install jq",
+            "source": "https://jqlang.github.io/jq/ (Homebrew formula jq)",
+            "license": "MIT",
+            "permissions": "None beyond reading its input.",
+            "requires": []
+        },
+        {
+            "name": "gh",
+            "purpose": "GitHub CLI: pull requests for checkups, CI runs, repository information",
+            "command": "gh",
+            "install": "brew install gh && gh auth login",
+            "source": "https://cli.github.com/ (Homebrew formula gh)",
+            "license": "MIT",
+            "permissions": "Acts on GitHub as the logged-in owner, with the scopes granted at `gh auth login`.",
+            "requires": []
+        },
+        {
+            "name": "bun",
+            "purpose": "Runtime, package manager and test runner; runs the factory's scripts and hooks",
+            "command": "bun",
+            "install": "curl -fsSL https://bun.sh/install | bash",
+            "source": "https://bun.sh/ (official installer, ~/.bun/bin)",
+            "license": "MIT",
+            "permissions": "Runs the plugin's hook scripts at every session start.",
+            "requires": []
+        },
+        {
+            "name": "uv",
+            "purpose": "Python package and project manager",
+            "command": "uv",
+            "install": "brew install uv",
+            "source": "https://docs.astral.sh/uv/ (Homebrew formula uv)",
+            "license": "Apache-2.0 OR MIT",
+            "permissions": "None beyond the commands it is asked to run.",
+            "requires": []
+        },
+        {
+            "name": "gopls",
+            "purpose": "Go language server; used by the gopls-lsp plugin",
+            "command": "gopls",
+            "install": "go install golang.org/x/tools/gopls@latest",
+            "source": "https://github.com/golang/tools/tree/master/gopls",
+            "license": "BSD-3-Clause",
+            "permissions": "Reads the Go code of the open project.",
+            "requires": []
+        }
+    ],
+    "plugins": [
+        {
+            "id": "factory@conglomerate",
+            "purpose": "This software factory: conventions, checkups, model routing",
+            "source": "Local marketplace: ~/Projects/js/conglomerate (ADR 0024)",
+            "permissions": "SessionStart hooks run Bun scripts from its dist/ folder; skills; task agents.",
+            "requires": ["bun"]
+        },
+        {
+            "id": "code-simplifier@claude-plugins-official",
+            "purpose": "Agent that simplifies recently changed code",
+            "source": "Anthropic's official plugin marketplace",
+            "permissions": "One agent; no hooks, no MCP servers.",
+            "requires": []
+        },
+        {
+            "id": "frontend-design@claude-plugins-official",
+            "purpose": "Guidance for distinctive frontend design",
+            "source": "Anthropic's official plugin marketplace",
+            "permissions": "One skill; no hooks, no MCP servers.",
+            "requires": []
+        },
+        {
+            "id": "security-guidance@claude-plugins-official",
+            "purpose": "Security warnings on edits and a security review of diffs and commits",
+            "source": "Anthropic's official plugin marketplace",
+            "permissions": "Five hooks (SessionStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop) that inspect edits and diffs.",
+            "requires": []
+        },
+        {
+            "id": "gopls-lsp@claude-plugins-official",
+            "purpose": "Go code intelligence through gopls",
+            "source": "Anthropic's official plugin marketplace",
+            "permissions": "Starts the gopls language server for Go projects.",
+            "requires": ["gopls"]
+        }
+    ]
+}

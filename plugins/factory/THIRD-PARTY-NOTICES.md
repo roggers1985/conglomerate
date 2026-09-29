@@ -7,7 +7,7 @@ files, so their notices are carried here.
 
 ## zod 4.6.5 (MIT)
 
-Bundled into `dist/checkups.js`, `dist/session-start.js`.
+Bundled into `dist/checkups.js`, `dist/session-start.js`, `dist/toolbox.js`.
 
 ~~~text
 MIT License

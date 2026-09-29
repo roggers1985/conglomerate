@@ -10,7 +10,7 @@ import type { GeneratedFiles } from "./generated.ts";
 export const BUNDLE_DIR = "dist";
 
 /** The plugin scripts that Claude Code runs. Each is an entry point with its own `import.meta.main` block. */
-const ENTRYPOINTS = ["session-start.ts", "checkups.ts", "doctest.ts"];
+const ENTRYPOINTS = ["session-start.ts", "checkups.ts", "toolbox.ts", "doctest.ts"];
 
 /** The bundles, and which third-party packages each one inlines (for the license notices, ADR 0027). */
 export type BundleBuild = {
@@ -83,8 +83,8 @@ function bundledPackages(metafile: Metafile): ReadonlyMap<string, readonly strin
  *     signal: AbortSignal.timeout(30_000),
  * });
  *
- * expect([...files.keys()]).toEqual(["session-start.js", "checkups.js", "doctest.js"]);
- * expect(packages.get("zod")).toEqual(["checkups.js", "session-start.js"]);
+ * expect([...files.keys()]).toEqual(["session-start.js", "checkups.js", "toolbox.js", "doctest.js"]);
+ * expect(packages.get("zod")).toEqual(["checkups.js", "session-start.js", "toolbox.js"]);
  * ```
  */
 export async function renderBundles(
