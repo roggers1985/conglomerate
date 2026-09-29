@@ -6,7 +6,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 ## Checkups (ADR 0010)
 
 - [ ] Phase 2: generic checkups, one at a time, each discussed first
-  - [ ] Run `outdated-packages` and `docs-drift` on this repo for the first time, and refine the skills from what they find
   - [ ] `security`
   - [ ] `new-features`
   - [ ] `test-coverage`
@@ -31,14 +30,11 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 - [ ] Apply the API design convention (ADR 0017) to this repo's scripts: e.g. `isDue(lastRun, intervalDays, today)`, `checkupStatus(checkup, reportFileNames, today)`, `renderDoctestFile(modulePath, label, exports)` take three positional parameters
 - [ ] Apply the cancellation convention (ADR 0012) to this repo's scripts where it makes sense (`checkups.ts` loaders, `validate-plugin.ts`): required `{ signal }` on I/O functions, a signal from `main`
 
-## Models
-
-- [ ] First run of the `model-routing` checkup (ADR 0015): decide whether and where to use `fable`
-
 ## Factory stages
 
 - [ ] Discuss the first stage: Intake / Specification
 
 ## Open questions
 
+- [ ] Run `claude update` (this machine is on 2.1.282; Sonnet 5.5 needs 2.1.284) so `sonnet` resolves to Sonnet 5.5 (ADR 0021)
 - [ ] Remove the duplicated conventions from `~/.claude/CLAUDE.md` once the plugin is in use (ADR 0008)

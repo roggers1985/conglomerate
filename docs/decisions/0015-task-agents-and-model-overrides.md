@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR-0021](0021-model-aliases-and-escalation.md): `fable` is the escalation target when `opus` falls short.
 
 Amends [ADR-0014](0014-model-routing.md): skills no longer set a model, and delegation goes through task agents.
 

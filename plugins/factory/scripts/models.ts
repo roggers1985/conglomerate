@@ -118,7 +118,7 @@ export function renderRoutingContext(tasks: Routes): string {
         "These are defaults, not rules:",
         "- **Override** by passing `model` on the Agent call when a specific task clearly needs more or less than its type suggests (e.g. a small change in security-sensitive code → a stronger model; a large but mechanical change → a cheaper one). Say in one line which model you chose and why.",
         "- **The user's choice always wins**, including over this table.",
-        "- If a task agent reports that its task is bigger or riskier than expected, hand it to a stronger model rather than retrying on the same one.",
+        "- If a task agent reports that its task is bigger or riskier than expected, hand it to a stronger model rather than retrying on the same one: `opus`, or `fable` when `opus` at high effort still falls short (ADR 0021).",
         "- Your own session model is the user's choice; don't change it.",
     ].join("\n");
 }

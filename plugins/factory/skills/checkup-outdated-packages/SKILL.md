@@ -20,10 +20,13 @@ This checkup keeps dependencies current so upgrades never pile up. Security advi
 ## In scope
 
 1. **Inventory**: list outdated dependencies per workspace (`bun outdated`, `npm outdated`, `pnpm outdated`, … for the package manager in use). Group them into patch, minor and major.
+   - When everything is current, `bun outdated` prints only its version line and no table. That is the "nothing outdated" result; there is no need to double-check each package.
 2. **Consistency**: the same package at different versions across workspaces, and loose ranges (`"*"`, `"latest"`, missing lockfile entries) that make installs unpredictable.
 3. **Patch and minor updates**: apply them in small batches (related packages together, e.g. `@types/*`, a framework and its plugins), reinstall, and run the full checks. Commit per batch, so a failing batch is easy to drop. For `0.x` packages a minor version can break things: read the changelog first.
 4. **Majors**: don't apply them. For each one, write a short plan in the report: what breaks according to the release notes and migration guide, which files are affected (search for the APIs involved), rough effort, and what it unlocks. Pay extra attention to the framework, the test runner, the type checker and the linter.
 5. **Tooling versions**: the runtime (Bun, Node) and its pinned version (`engines`, `.nvmrc`, `.bun-version`, `packageManager`), and versions of CI actions in `.github/workflows`.
+   - A pinned version that is behind is a finding.
+   - A project without a pin is not a finding by itself. Propose a pin once, as a low-severity "Needs a human" item, and don't repeat it in later runs unless the owner asked for one.
 
 ## Checks after every batch
 

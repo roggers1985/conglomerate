@@ -19,7 +19,10 @@ Outdated instructions are worse than none: agents follow them. This checkup keep
    - accepted ADRs that the code contradicts;
    - statuses and "superseded by" links that are wrong or missing;
    - numbering gaps or duplicates.
+
+   Accepted ADRs are never rewritten (see the protocol). Older ADRs may deliberately use names that a later ADR renamed; check that the renaming ADR exists, and don't report the old names as drift.
 4. **Skills, commands, agents and hooks** (`.claude/`, and plugin folders if the project is a plugin): file paths, commands and script names they reference still exist.
+   - For generated files (the project's `CLAUDE.md` says which), check that they are up to date by regenerating them, not by editing them.
 5. **READMEs and docs** (`README.md`, `docs/**`): setup steps and commands work, and links and anchors resolve. Skip historical documents such as checkup reports and finished specs and plans; they describe the past on purpose.
 6. **Environment variables**: `.env.example` (or the equivalent) matches the variables the code reads, in both directions.
 7. **Task lists** (`TODO.md` and similar): items that are already done according to the code or git history, and items that no longer make sense.
