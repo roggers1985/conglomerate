@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR-0009](0009-pre-commit-formatting.md), which adds formatting at commit time.
 
 ## Context
 

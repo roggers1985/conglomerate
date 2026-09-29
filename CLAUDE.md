@@ -12,6 +12,9 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 
 - `.claude-plugin/marketplace.json`: marketplace manifest
 - `plugins/factory/`: the plugin (`.claude-plugin/plugin.json`, `skills/`, `agents/`, `commands/`, `hooks/`)
+  - `conventions/core.md`: the owner's always-on conventions, injected at session start (ADR 0008)
+  - `skills/*-conventions/`: topic conventions loaded on demand (ADR 0008)
+  - `scripts/`: plugin scripts run by hooks; Bun + TypeScript, no runtime dependencies (ADR 0007)
 - `scripts/`: repository tooling (strict TypeScript, run directly by Bun)
 - `docs/decisions/`: architecture decision records
 
@@ -23,6 +26,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 ## Commands
 
 - `bun run check`: run every quality gate (typecheck, lint, test, validate). The pre-push hook runs this (ADR 0006); never bypass it with `--no-verify`.
+- A pre-commit hook formats staged files with Biome and re-stages them (ADR 0009). It refuses partially staged files.
 - `bun run typecheck`: type-check (Bun does not type-check when running)
 - `bun run lint`: lint and format check with Biome (ADR 0005); `bun run lint:fix` to apply fixes. Do not disable rules to get code through; fix the code.
 - `bun test`: run all tests

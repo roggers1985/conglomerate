@@ -32,5 +32,5 @@
 
         "skipLibCheck": true
     },
-    "include": ["scripts"]
+    "include": ["scripts", "plugins/*/scripts"]
 }

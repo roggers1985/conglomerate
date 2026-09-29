@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Formats staged files with Biome (formatter + import sorting, no linting) and re-stages them.
+# Linting, typecheck and tests run in the pre-push hook.
+set -euo pipefail
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+if [ -z "$staged" ]; then
+    exit 0
+fi
+
+# Re-staging a partially staged file would also commit its unstaged changes, so refuse instead.
+partial=$(comm -12 <(echo "$staged" | sort) <(git diff --name-only | sort))
+if [ -n "$partial" ]; then
+    echo "pre-commit: these files are only partially staged; stage or stash the rest first:" >&2
+    echo "$partial" | sed 's/^/  /' >&2
+    exit 1
+fi
+
+echo "pre-commit: formatting staged files"
+bunx biome check --write --staged --linter-enabled=false --no-errors-on-unmatched
+echo "$staged" | tr '\n' '\0' | xargs -0 git add --
