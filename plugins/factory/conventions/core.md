@@ -25,6 +25,19 @@ These conventions apply to all work in this session. They come from the factory 
 - **`null` means "deliberately no value"** in a result, e.g. `nextCursor: null` on the last page.
 - Use `?.` and `??` only on values that can actually be `null` or `undefined`; elsewhere they hide a missing boundary.
 
+## Parsing external data
+
+- **Parse, don't validate.** Everything from outside our code (HTTP requests and responses, env vars, CLI args, config and other files, database rows, storage, URL params, SDK results, LLM and tool output) goes through a schema before use. Types are inferred from the schema, never written twice.
+- **Zod** is the default library, used through the Standard Schema interface where possible.
+- **Strict for our own shapes** (unknown keys are typos); **tolerant of extra fields for shapes we don't control** (external APIs, other tools' formats). No silent coercion.
+- **Parsing vs `assert` vs types:** a parse failure is expected (return an error result with readable messages); an `assert` failure is a bug (an invariant in our own code); between our own modules, types are enough.
+- Parse once, at the boundary. A hot path may skip re-parsing, but only on measurement, and documented.
+
+## Helpers
+
+- Prefer small, own, tested and documented helpers (e.g. `isNotNil`) over utility libraries like lodash. Add a helper when it's needed, not in advance.
+- Hard problems (schema parsing, dates, crypto) use a proven library.
+
 ## API design
 
 - Positional parameters only for what a function is *about*; everything that controls *how* goes in an options object as the last parameter. No positional booleans.
@@ -46,4 +59,4 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Topic conventions
 
-For React/UI work, load the `code-react` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill. For examples of the readability and optionality rules, load the `code-readability` skill.
+For React/UI work, load the `code-react` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill. For examples of the readability and optionality rules, load the `code-readability` skill. For schemas and parsing, load the `code-parsing` skill.

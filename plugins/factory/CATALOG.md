@@ -11,6 +11,7 @@ Skills are named `<domain>-<topic>` (ADR 0013).
 | `code-api-design` | The owner's API design conventions for function signatures, options and return values. |  |
 | `code-cancellation` | The owner's cancellation conventions. |  |
 | `code-documentation` | The owner's code documentation conventions. |  |
+| `code-parsing` | The owner's conventions for parsing external data with schemas (Zod by default, via Standard Schema), and the line between schema parsing, assert and plain types. |  |
 | `code-react` | The owner's React and UI conventions. |  |
 | `code-readability` | The owner's readability and optionality conventions, with examples. |  |
 | `code-testing` | The owner's testing conventions. |  |

@@ -2,7 +2,7 @@
 name: checkup
 description: Run the project's recurring checkups (dependencies, security, code and frontend quality, tests, docs, accessibility, and project-specific ones like legal). Shows which are due according to docs/checkups/checkups.json and runs the chosen ones, priority first. Use when asked to "run the checkups", "do a checkup", or to see which checkups are due or overdue.
 argument-hint: "[due | all | <name>…]"
-allowed-tools: Bash(bun "${CLAUDE_PLUGIN_ROOT}/scripts/checkups.ts" *)
+allowed-tools: Bash(bun "${CLAUDE_PLUGIN_ROOT}/dist/checkups.js" *)
 ---
 
 # Checkup runner
@@ -11,7 +11,7 @@ You coordinate the project's recurring checkups (see ADR 0010 in the factory plu
 
 ## Current status
 
-!`bun "${CLAUDE_PLUGIN_ROOT}/scripts/checkups.ts" status "${CLAUDE_PROJECT_DIR}"`
+!`bun "${CLAUDE_PLUGIN_ROOT}/dist/checkups.js" status "${CLAUDE_PROJECT_DIR}"`
 
 This status is computed from `docs/checkups/checkups.json` and the report dates. Don't recompute it.
 

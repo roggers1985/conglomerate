@@ -38,21 +38,21 @@ describe("parseSkill", () => {
     it("accepts a well-named skill", () => {
         expect(parseSkill("code-react", { name: "code-react", description: "React." }, routes)).toEqual({
             kind: "valid",
-            skill: { name: "code-react", description: "React.", task: null },
+            value: { name: "code-react", description: "React.", task: null },
         });
     });
 
     it("rejects a name without a known domain", () => {
         expect(parseSkill("react-conventions", { name: "react-conventions", description: "React." }, routes)).toEqual({
             kind: "invalid",
-            errors: ["name must start with a known domain (code, checkup, writing, marketing, factory)"],
+            errors: ["name: must start with a known domain (code, checkup, writing, marketing, factory)"],
         });
     });
 
     it("rejects a name that differs from its directory", () => {
         expect(parseSkill("code-react", { name: "code-vue", description: "Vue." }, routes)).toEqual({
             kind: "invalid",
-            errors: ['name must match its directory "code-react"'],
+            errors: ['name: must match its directory "code-react"'],
         });
     });
 
@@ -70,21 +70,24 @@ describe("parseSkill with a task type", () => {
     it("accepts a skill with a known task type", () => {
         expect(parseSkill("checkup-seo", checkupSkill, routes)).toEqual({
             kind: "valid",
-            skill: { name: "checkup-seo", description: "SEO.", task: "checkup" },
+            value: { name: "checkup-seo", description: "SEO.", task: "checkup" },
         });
     });
 
     it("rejects an unknown task type", () => {
         expect(parseSkill("checkup-seo", { ...checkupSkill, metadata: { task: "gardening" } }, routes)).toEqual({
             kind: "invalid",
-            errors: ["metadata.task must be one of checkup"],
+            errors: ["metadata.task: must be one of checkup"],
         });
     });
 
     it("rejects a skill that pins its own model or effort", () => {
         expect(parseSkill("checkup-seo", { ...checkupSkill, model: "sonnet", effort: "high" }, routes)).toEqual({
             kind: "invalid",
-            errors: ["skills don't set model or effort: they come from the task agent (ADR 0015)"],
+            errors: [
+                "model: skills don't set this: model and effort come from the task agent (ADR 0015)",
+                "effort: skills don't set this: model and effort come from the task agent (ADR 0015)",
+            ],
         });
     });
 });
@@ -132,7 +135,7 @@ describe("readPluginSkills", () => {
 
         expect(await readPluginSkills(pluginDir, routes)).toEqual({
             skills: [{ name: "code-go", description: "Go.", task: null }],
-            errors: ["skills/go: name must start with a known domain (code, checkup, writing, marketing, factory)"],
+            errors: ["skills/go: name: must start with a known domain (code, checkup, writing, marketing, factory)"],
         });
     });
 });

@@ -8,14 +8,34 @@
 
 import { readdir } from "node:fs/promises";
 import path from "node:path";
-import { assert } from "./assert.ts";
+import { z } from "zod";
+import { assert } from "../../../lib/assert.ts";
+import { isFileNotFound } from "../../../lib/errors.ts";
+import type { Parsed } from "../../../lib/parse.ts";
+import { parse } from "../../../lib/parse.ts";
+
+const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+const CheckupConfigSchema = z.strictObject({
+    name: z.string().regex(KEBAB_CASE, "must be kebab-case"),
+    intervalDays: z.number().int().positive(),
+    priority: z.boolean(),
+});
+
+// Our own file, so strict: unknown keys are typos (ADR 0020).
+const ScheduleSchema = z
+    .strictObject({ checkups: z.array(CheckupConfigSchema) })
+    .superRefine(({ checkups }, context) => {
+        const names = checkups.map((checkup) => checkup.name);
+        const duplicates = new Set(names.filter((name, index) => names.indexOf(name) !== index));
+
+        for (const name of duplicates) {
+            context.addIssue({ code: "custom", message: `"${name}" is listed more than once`, path: ["checkups"] });
+        }
+    });
 
 /** One entry of a project's checkup schedule (`docs/checkups/checkups.json`): settings only, no state. */
-export type CheckupConfig = {
-    readonly name: string;
-    readonly intervalDays: number;
-    readonly priority: boolean;
-};
+export type CheckupConfig = Readonly<z.infer<typeof CheckupConfigSchema>>;
 
 /** A scheduled checkup with its last run (the date of its newest report) and whether it is due. */
 export type CheckupStatus = CheckupConfig & {
@@ -24,9 +44,7 @@ export type CheckupStatus = CheckupConfig & {
 };
 
 /** The outcome of validating a schedule: its checkups in order, or every problem found. */
-export type ParsedSchedule =
-    | { readonly kind: "valid"; readonly checkups: readonly CheckupConfig[] }
-    | { readonly kind: "invalid"; readonly errors: readonly string[] };
+export type ParsedSchedule = Parsed<readonly CheckupConfig[]>;
 
 /** A project's checkups: none scheduled, an invalid schedule, or the status of every scheduled checkup. */
 export type ProjectCheckups =
@@ -49,56 +67,19 @@ export type ReminderOutput = {
     };
 };
 
-// The shape of T before validation: every field may be missing and has an unknown value.
-type Unvalidated<T> = { readonly [K in keyof T]?: unknown };
-
-type Rule = readonly [passes: boolean, message: string];
-
 const SCHEDULE_PATH = "docs/checkups/checkups.json";
 const REPORTS_DIR = "docs/checkups";
 const RUNNER = "/factory:checkup";
 
-const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const REPORT_FILE = /^(\d{4}-\d{2}-\d{2})\.md$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const isObject = <T>(value: unknown): value is Unvalidated<T> => typeof value === "object" && value !== null;
-
-const failedRules = (rules: readonly Rule[]): string[] =>
-    rules.filter(([passes]) => !passes).map(([, message]) => message);
-
-function validateEntry(entry: unknown, index: number): string[] {
-    if (!isObject<CheckupConfig>(entry)) {
-        return [`checkups[${index}] must be an object`];
-    }
-
-    const { name, intervalDays, priority } = entry;
-
-    return failedRules([
-        [typeof name === "string" && KEBAB_CASE.test(name), `checkups[${index}].name must be kebab-case`],
-        [
-            typeof intervalDays === "number" && Number.isInteger(intervalDays) && intervalDays > 0,
-            `checkups[${index}].intervalDays must be a positive whole number`,
-        ],
-        [typeof priority === "boolean", `checkups[${index}].priority must be true or false`],
-    ]);
-}
-
-const isCheckupConfig = (entry: unknown): entry is CheckupConfig => validateEntry(entry, 0).length === 0;
-
-function duplicateNames(entries: readonly unknown[]): string[] {
-    const names = entries.flatMap((entry) =>
-        isObject<CheckupConfig>(entry) && typeof entry.name === "string" ? [entry.name] : [],
-    );
-
-    return [...new Set(names.filter((name, index) => names.indexOf(name) !== index))];
-}
-
 /**
- * Validates the contents of a project's `docs/checkups/checkups.json`.
+ * Parses the contents of a project's `docs/checkups/checkups.json`.
  *
  * @remarks
- * Unknown extra fields are allowed, so older schedules (like the jobs project's, with `lastRun`) still parse.
+ * Strict: unknown fields are rejected, because they are almost always typos. Schedules from before ADR 0010 (like the
+ * jobs project's, with `lastRun` and `summary`) must drop those fields.
  *
  * @param value - The parsed JSON, not yet trusted.
  * @returns The checkups in schedule order, or every problem found (invalid fields, duplicate names).
@@ -107,39 +88,25 @@ function duplicateNames(entries: readonly unknown[]): string[] {
  * ```ts
  * const legal = { name: "legal", intervalDays: 30, priority: true };
  *
- * expect(parseSchedule({ checkups: [legal] })).toEqual({ kind: "valid", checkups: [legal] });
+ * expect(parseSchedule({ checkups: [legal] })).toEqual({ kind: "valid", value: [legal] });
  * ```
  *
  * @example
  * ```ts
  * expect(parseSchedule({ checkups: [{ name: "Legal", intervalDays: 30, priority: true }] })).toEqual({
  *     kind: "invalid",
- *     errors: ["checkups[0].name must be kebab-case"],
+ *     errors: ["checkups[0].name: must be kebab-case"],
  * });
  * ```
  */
 export function parseSchedule(value: unknown): ParsedSchedule {
-    const notASchedule: ParsedSchedule = { kind: "invalid", errors: ['must be an object with a "checkups" array'] };
+    const parsed = parse(ScheduleSchema, value);
 
-    if (!isObject<{ checkups: unknown }>(value)) {
-        return notASchedule;
+    if (parsed.kind === "invalid") {
+        return parsed;
     }
 
-    if (!Array.isArray(value.checkups)) {
-        return notASchedule;
-    }
-
-    const entries: readonly unknown[] = value.checkups;
-    const errors = [
-        ...entries.flatMap(validateEntry),
-        ...duplicateNames(entries).map((name) => `checkup "${name}" is listed more than once`),
-    ];
-
-    if (errors.length > 0) {
-        return { kind: "invalid", errors };
-    }
-
-    return { kind: "valid", checkups: entries.filter(isCheckupConfig) };
+    return { kind: "valid", value: parsed.value.checkups };
 }
 
 /**
@@ -367,13 +334,11 @@ export function formatDate(date: Date): string {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-const isMissingFile = (error: unknown): boolean => error instanceof Error && "code" in error && error.code === "ENOENT";
-
 async function readReportFileNames(projectDir: string, name: string): Promise<string[]> {
     try {
         return await readdir(path.join(projectDir, REPORTS_DIR, name));
     } catch (error: unknown) {
-        if (isMissingFile(error)) {
+        if (isFileNotFound(error)) {
             return [];
         }
         throw error;
@@ -406,7 +371,7 @@ async function loadProjectCheckups(projectDir: string, today: string): Promise<P
     }
 
     const statuses = await Promise.all(
-        schedule.checkups.map(async (checkup) =>
+        schedule.value.map(async (checkup) =>
             checkupStatus(checkup, await readReportFileNames(projectDir, checkup.name), today),
         ),
     );

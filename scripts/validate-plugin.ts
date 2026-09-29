@@ -1,148 +1,128 @@
-// Placeholder tooling: validates the marketplace and plugin manifests.
-// It exists mainly to show the shape of repo tooling (pure functions + thin CLI + tests).
+// Validates the marketplace, every plugin's manifest and skills, and the generated files (`bun run validate`).
 
 import path from "node:path";
-import { assert } from "../plugins/factory/scripts/assert.ts";
+import { z } from "zod";
+import type { Parsed } from "../lib/parse.ts";
+import { parse } from "../lib/parse.ts";
 import { readRoutes } from "../plugins/factory/scripts/models.ts";
-import { readTaskAgents, renderTaskAgents, taskAgentErrors } from "./agents.ts";
+import { renderTaskAgents, TASK_AGENTS_DIR } from "./agents.ts";
+import { BUNDLE_DIR, renderBundles } from "./bundles.ts";
+import { generatedFileErrors, readGeneratedFiles } from "./generated.ts";
 import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
-
-/** The fields of `.claude-plugin/plugin.json` that this repository requires. */
-export type PluginManifest = {
-    readonly name: string;
-    readonly version: string;
-    readonly description: string;
-};
-
-/** One plugin listed in the marketplace. */
-export type MarketplaceEntry = {
-    readonly name: string;
-    readonly source: string;
-};
-
-/** The fields of `.claude-plugin/marketplace.json` that this repository requires. */
-export type Marketplace = {
-    readonly name: string;
-    readonly owner: { readonly name: string };
-    readonly plugins: readonly MarketplaceEntry[];
-};
-
-// The shape of T before validation: every field may be missing and has an unknown value.
-type Unvalidated<T> = { readonly [K in keyof T]?: unknown };
-
-type Rule = readonly [passes: boolean, message: string];
 
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SEMVER = /^\d+\.\d+\.\d+$/;
 
-const isObject = <T>(value: unknown): value is Unvalidated<T> => typeof value === "object" && value !== null;
-const isNonEmptyString = (value: unknown): boolean => typeof value === "string" && value.length > 0;
-const isKebabCase = (value: unknown): boolean => typeof value === "string" && KEBAB_CASE.test(value);
+// Claude Code's manifest formats have more fields than we check, so unknown keys are allowed (ADR 0020).
+const PluginManifestSchema = z.looseObject({
+    name: z.string().regex(KEBAB_CASE, "must be kebab-case"),
+    version: z.string().regex(SEMVER, "must be semver (x.y.z)"),
+    description: z.string().min(1, "is required"),
+});
 
-const failedRules = (rules: readonly Rule[]): string[] =>
-    rules.filter(([passes]) => !passes).map(([, message]) => message);
+const MarketplaceEntrySchema = z.looseObject({
+    name: z.string().regex(KEBAB_CASE, "must be kebab-case"),
+    source: z.string().startsWith("./", 'must be a relative path starting with "./"'),
+});
+
+const MarketplaceSchema = z.looseObject({
+    name: z.string().regex(KEBAB_CASE, "must be kebab-case"),
+    owner: z.looseObject({ name: z.string().min(1, "is required") }),
+    plugins: z.array(MarketplaceEntrySchema).min(1, "must list at least one plugin"),
+});
+
+/** The fields of `.claude-plugin/plugin.json` that this repository requires. */
+export type PluginManifest = Readonly<z.infer<typeof PluginManifestSchema>>;
+
+/** One plugin listed in the marketplace. */
+export type MarketplaceEntry = Readonly<z.infer<typeof MarketplaceEntrySchema>>;
+
+/** The fields of `.claude-plugin/marketplace.json` that this repository requires. */
+export type Marketplace = Readonly<z.infer<typeof MarketplaceSchema>>;
 
 /**
- * Validates a plugin manifest.
+ * Parses a plugin manifest.
  *
- * @param manifest - The parsed `plugin.json`, not yet trusted.
- * @returns Every problem found; empty when valid.
- * @throws Error (an `assert` invariant) when the manifest is not an object.
+ * @param value - The parsed `plugin.json`, not yet trusted.
+ * @returns The manifest, or every problem found.
  *
  * @example
  * ```ts
- * expect(validatePluginManifest({ name: "factory", version: "0.1.0", description: "A factory." })).toEqual([]);
- * expect(validatePluginManifest({ name: "factory", version: "1.0", description: "A factory." })).toEqual([
- *     "version must be semver (x.y.z)",
- * ]);
+ * const manifest = { name: "factory", version: "0.1.0", description: "A factory." };
+ *
+ * expect(parsePluginManifest(manifest)).toEqual({ kind: "valid", value: manifest });
+ * expect(parsePluginManifest({ ...manifest, version: "1.0" })).toEqual({
+ *     kind: "invalid",
+ *     errors: ["version: must be semver (x.y.z)"],
+ * });
  * ```
  */
-export function validatePluginManifest(manifest: unknown): string[] {
-    assert(isObject<PluginManifest>(manifest), "plugin manifest must be an object");
-
-    return failedRules([
-        [isKebabCase(manifest.name), "name must be kebab-case"],
-        [typeof manifest.version === "string" && SEMVER.test(manifest.version), "version must be semver (x.y.z)"],
-        [isNonEmptyString(manifest.description), "description is required"],
-    ]);
-}
-
-function validateMarketplaceEntry(entry: unknown, index: number): string[] {
-    if (!isObject<MarketplaceEntry>(entry)) {
-        return [`plugins[${index}] must be an object`];
-    }
-
-    return failedRules([
-        [isKebabCase(entry.name), `plugins[${index}].name must be kebab-case`],
-        [
-            typeof entry.source === "string" && entry.source.startsWith("./"),
-            `plugins[${index}].source must be a relative path starting with "./"`,
-        ],
-    ]);
+export function parsePluginManifest(value: unknown): Parsed<PluginManifest> {
+    return parse(PluginManifestSchema, value);
 }
 
 /**
- * Validates a marketplace manifest, including every plugin entry.
+ * Parses a marketplace manifest, including every plugin entry.
  *
- * @param marketplace - The parsed `marketplace.json`, not yet trusted.
- * @returns Every problem found; empty when valid.
- * @throws Error (an `assert` invariant) when the marketplace is not an object.
+ * @param value - The parsed `marketplace.json`, not yet trusted.
+ * @returns The marketplace, or every problem found.
  *
  * @example
  * ```ts
  * const marketplace = { name: "conglomerate", owner: { name: "Owner" }, plugins: [{ name: "factory", source: "./plugins/factory" }] };
  *
- * expect(validateMarketplace(marketplace)).toEqual([]);
- * expect(validateMarketplace({ ...marketplace, plugins: [] })).toEqual(["plugins must be a non-empty array"]);
+ * expect(parseMarketplace(marketplace)).toEqual({ kind: "valid", value: marketplace });
+ * expect(parseMarketplace({ ...marketplace, plugins: [] })).toEqual({
+ *     kind: "invalid",
+ *     errors: ["plugins: must list at least one plugin"],
+ * });
  * ```
  */
-export function validateMarketplace(marketplace: unknown): string[] {
-    assert(isObject<Marketplace>(marketplace), "marketplace must be an object");
-
-    const { owner, plugins } = marketplace;
-    const hasPlugins = Array.isArray(plugins) && plugins.length > 0;
-    const topLevelErrors = failedRules([
-        [isKebabCase(marketplace.name), "name must be kebab-case"],
-        [isObject<Marketplace["owner"]>(owner) && isNonEmptyString(owner.name), "owner.name is required"],
-        [hasPlugins, "plugins must be a non-empty array"],
-    ]);
-
-    if (!hasPlugins) {
-        return topLevelErrors;
-    }
-
-    return [...topLevelErrors, ...plugins.flatMap((entry: unknown, index) => validateMarketplaceEntry(entry, index))];
+export function parseMarketplace(value: unknown): Parsed<Marketplace> {
+    return parse(MarketplaceSchema, value);
 }
-
-const isValidMarketplace = (value: unknown): value is Marketplace => validateMarketplace(value).length === 0;
 
 function readJson(filePath: string): Promise<unknown> {
     return Bun.file(filePath).json();
 }
 
 async function validateManifest(pluginDir: string, entry: MarketplaceEntry): Promise<string[]> {
-    const manifest = await readJson(path.join(pluginDir, ".claude-plugin", "plugin.json"));
-    const errors = validatePluginManifest(manifest);
-    const nameMatches = isObject<PluginManifest>(manifest) && manifest.name === entry.name;
-    const nameErrors = nameMatches ? [] : [`name does not match marketplace entry "${entry.name}"`];
+    const manifest = parsePluginManifest(await readJson(path.join(pluginDir, ".claude-plugin", "plugin.json")));
 
-    return [...errors, ...nameErrors].map((error) => `plugin.json: ${error}`);
+    if (manifest.kind === "invalid") {
+        return manifest.errors.map((error) => `plugin.json: ${error}`);
+    }
+
+    if (manifest.value.name !== entry.name) {
+        return [`plugin.json: name does not match marketplace entry "${entry.name}"`];
+    }
+
+    return [];
 }
 
-async function validateSkills(pluginDir: string): Promise<string[]> {
+async function validateGenerated(pluginDir: string): Promise<string[]> {
     const routes = await readRoutes();
     const { skills, errors } = await readPluginSkills(pluginDir, routes);
     const catalog = Bun.file(path.join(pluginDir, CATALOG_FILE));
     const catalogIsCurrent = (await catalog.exists()) && (await catalog.text()) === renderCatalog(skills, routes);
     const catalogErrors = catalogIsCurrent ? [] : [`${CATALOG_FILE} is out of date: run \`bun run generate\``];
-    const agentErrors = taskAgentErrors(renderTaskAgents(routes), await readTaskAgents(pluginDir));
+    const [agents, bundles, currentBundles] = await Promise.all([
+        readGeneratedFiles(path.join(pluginDir, TASK_AGENTS_DIR), { extension: ".md" }),
+        readGeneratedFiles(path.join(pluginDir, BUNDLE_DIR), { extension: ".js" }),
+        renderBundles(pluginDir),
+    ]);
 
-    return [...errors, ...catalogErrors, ...agentErrors];
+    return [
+        ...errors,
+        ...catalogErrors,
+        ...generatedFileErrors(TASK_AGENTS_DIR, renderTaskAgents(routes), agents),
+        ...generatedFileErrors(BUNDLE_DIR, currentBundles, bundles),
+    ];
 }
 
 async function validatePlugin(root: string, entry: MarketplaceEntry): Promise<string[]> {
     const pluginDir = path.join(root, entry.source);
-    const errors = [...(await validateManifest(pluginDir, entry)), ...(await validateSkills(pluginDir))];
+    const errors = [...(await validateManifest(pluginDir, entry)), ...(await validateGenerated(pluginDir))];
 
     return errors.map((error) => `${entry.name}/${error}`);
 }
@@ -161,13 +141,13 @@ async function validatePlugin(root: string, entry: MarketplaceEntry): Promise<st
  * ```
  */
 export async function validateRepository(root: string): Promise<string[]> {
-    const marketplace = await readJson(path.join(root, ".claude-plugin", "marketplace.json"));
+    const marketplace = parseMarketplace(await readJson(path.join(root, ".claude-plugin", "marketplace.json")));
 
-    if (!isValidMarketplace(marketplace)) {
-        return validateMarketplace(marketplace).map((error) => `marketplace.json: ${error}`);
+    if (marketplace.kind === "invalid") {
+        return marketplace.errors.map((error) => `marketplace.json: ${error}`);
     }
 
-    const pluginErrors = await Promise.all(marketplace.plugins.map((entry) => validatePlugin(root, entry)));
+    const pluginErrors = await Promise.all(marketplace.value.plugins.map((entry) => validatePlugin(root, entry)));
 
     return pluginErrors.flat();
 }
@@ -182,7 +162,7 @@ async function main(): Promise<void> {
         return;
     }
 
-    console.log("✓ marketplace, plugin manifests, skills, catalog and task agents are valid");
+    console.log("✓ marketplace, plugin manifests, skills, catalog, task agents and bundles are valid");
 }
 
 if (import.meta.main) {

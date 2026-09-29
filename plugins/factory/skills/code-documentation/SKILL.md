@@ -55,7 +55,7 @@ Types and constants need at least a summary. Functions and classes also need an 
 The factory's doctest runs every `@example` and fails when documentation is missing:
 
 ```sh
-bun "${CLAUDE_PLUGIN_ROOT}/scripts/doctest.ts" src scripts
+bun "${CLAUDE_PLUGIN_ROOT}/dist/doctest.js" src scripts
 ```
 
 - **Scope:** each example runs in its own async test, with the module's exported values and `expect` in scope.

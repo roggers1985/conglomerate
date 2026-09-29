@@ -7,7 +7,6 @@
 // example ```ts no-run when it can't run in isolation (e.g. it needs the network); prefer runnable examples.
 
 import { mkdtemp, readdir, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import path from "node:path";
 
 /** What kind of declaration an export is, which decides the documentation it needs. */
@@ -308,7 +307,8 @@ async function main(): Promise<void> {
 
         return content === null ? [] : [content];
     });
-    const dir = await mkdtemp(path.join(tmpdir(), "doctest-"));
+    // Inside the project, so imports of its packages resolve from the generated tests too.
+    const dir = await mkdtemp(path.join(process.cwd(), ".doctest-"));
 
     try {
         await Promise.all(

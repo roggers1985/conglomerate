@@ -4,27 +4,36 @@ import { parseRoutes, readRoutes, renderRoutingTable } from "./models.ts";
 
 const code: TaskRoute = { model: "sonnet", effort: "medium", use: "Everyday work" };
 
+/** The paths of the fields that failed, so tests don't depend on the schema library's wording. */
+const failedPaths = (parsed: ReturnType<typeof parseRoutes>): string[] =>
+    parsed.kind === "invalid" ? parsed.errors.map((error) => error.split(": ")[0] ?? error) : [];
+
 describe("parseRoutes", () => {
     it("accepts valid routes", () => {
-        expect(parseRoutes({ tasks: { code } })).toEqual({ kind: "valid", tasks: { code } });
+        expect(parseRoutes({ tasks: { code } })).toEqual({ kind: "valid", value: { code } });
     });
 
-    it("rejects a file without a tasks object", () => {
-        expect(parseRoutes({ routes: {} })).toEqual({
-            kind: "invalid",
-            errors: ['must be an object with a "tasks" object'],
-        });
+    it("rejects a file without a tasks object, and unknown keys", () => {
+        const parsed = parseRoutes({ routes: {} });
+        const mentionsUnknownKey =
+            parsed.kind === "invalid" && parsed.errors.some((error) => error.includes('"routes"'));
+
+        expect(failedPaths(parsed)).toContain("tasks");
+        expect(mentionsUnknownKey).toBe(true);
     });
 
-    it("reports unknown models, unknown effort levels and missing descriptions", () => {
-        expect(parseRoutes({ tasks: { Code: { model: "gpt-5", effort: "extreme" } } })).toEqual({
+    it("reports every invalid field of a task", () => {
+        expect(failedPaths(parseRoutes({ tasks: { code: { model: "gpt-5", effort: "extreme" } } }))).toEqual([
+            "tasks.code.model",
+            "tasks.code.effort",
+            "tasks.code.use",
+        ]);
+    });
+
+    it("rejects task names that are not kebab-case", () => {
+        expect(parseRoutes({ tasks: { Code: code } })).toEqual({
             kind: "invalid",
-            errors: [
-                'task "Code" must be kebab-case',
-                "tasks.Code.model must be one of opus, sonnet, haiku, fable",
-                "tasks.Code.effort must be one of low, medium, high, xhigh, max",
-                "tasks.Code.use is required",
-            ],
+            errors: ["tasks.Code: task names must be kebab-case"],
         });
     });
 });

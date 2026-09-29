@@ -1,9 +1,9 @@
 // Task agents (ADR 0015): one subagent per task type in models.json, carrying its default model and effort.
 // Claude delegates through them and may override the model per call; the generated files are never edited by hand.
 
-import { readdir } from "node:fs/promises";
 import path from "node:path";
 import type { Routes, TaskRoute } from "../plugins/factory/scripts/models.ts";
+import type { GeneratedFiles } from "./generated.ts";
 
 /** Plugin agents in `agents/tasks/` are addressed as `<plugin>:tasks:<task>`. */
 export const TASK_AGENTS_DIR = path.join("agents", "tasks");
@@ -63,75 +63,6 @@ export function renderTaskAgent(task: string, route: TaskRoute): string {
  * expect([...agents.keys()]).toEqual(["review.md"]);
  * ```
  */
-export function renderTaskAgents(routes: Routes): ReadonlyMap<string, string> {
+export function renderTaskAgents(routes: Routes): GeneratedFiles {
     return new Map(Object.entries(routes).map(([task, route]) => [`${task}.md`, renderTaskAgent(task, route)]));
-}
-
-const isMissingFile = (error: unknown): boolean => error instanceof Error && "code" in error && error.code === "ENOENT";
-
-async function listDir(dir: string): Promise<string[]> {
-    try {
-        return await readdir(dir);
-    } catch (error: unknown) {
-        if (isMissingFile(error)) {
-            return [];
-        }
-        throw error;
-    }
-}
-
-/**
- * Reads the task agent files of a plugin.
- *
- * @param pluginDir - The plugin's root folder.
- * @returns File name → content of every `.md` file in `agents/tasks/`; empty when the folder doesn't exist.
- *
- * @example
- * ```ts
- * const { mkdtemp, rm } = await import("node:fs/promises");
- * const { tmpdir } = await import("node:os");
- * const pluginDir = await mkdtemp(`${tmpdir()}/plugin-`);
- *
- * expect(await readTaskAgents(pluginDir)).toEqual(new Map());
- *
- * await Bun.write(`${pluginDir}/${TASK_AGENTS_DIR}/review.md`, "content");
- * expect(await readTaskAgents(pluginDir)).toEqual(new Map([["review.md", "content"]]));
- *
- * await rm(pluginDir, { recursive: true });
- * ```
- */
-export async function readTaskAgents(pluginDir: string): Promise<ReadonlyMap<string, string>> {
-    const dir = path.join(pluginDir, TASK_AGENTS_DIR);
-    const markdown = (await listDir(dir)).filter((fileName) => fileName.endsWith(".md"));
-    const contents = await Promise.all(markdown.map((fileName) => Bun.file(path.join(dir, fileName)).text()));
-
-    return new Map(markdown.map((fileName, index) => [fileName, contents[index] ?? ""]));
-}
-
-/**
- * Compares the task agents on disk with the ones `models.json` asks for.
- *
- * @param expected - The agents that should exist, from {@link renderTaskAgents}.
- * @param actual - The agents on disk, from {@link readTaskAgents}.
- * @returns One problem per missing, stale (edited or outdated) or orphaned agent file; empty when they match.
- *
- * @example
- * ```ts
- * const expected = new Map([["review.md", "current"]]);
- *
- * expect(taskAgentErrors(expected, expected)).toEqual([]);
- * expect(taskAgentErrors(expected, new Map([["review.md", "edited"]]))).toEqual([
- *     "agents/tasks/review.md is missing or out of date: run `bun run generate`",
- * ]);
- * ```
- */
-export function taskAgentErrors(expected: ReadonlyMap<string, string>, actual: ReadonlyMap<string, string>): string[] {
-    const missingOrStale = [...expected]
-        .filter(([fileName, content]) => actual.get(fileName) !== content)
-        .map(([fileName]) => `${TASK_AGENTS_DIR}/${fileName} is missing or out of date: run \`bun run generate\``);
-    const extra = [...actual.keys()]
-        .filter((fileName) => !expected.has(fileName))
-        .map((fileName) => `${TASK_AGENTS_DIR}/${fileName} has no task in models.json: run \`bun run generate\``);
-
-    return [...missingOrStale, ...extra];
 }

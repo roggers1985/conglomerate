@@ -24,34 +24,35 @@ const status = (overrides: Partial<CheckupStatus>): CheckupStatus => ({
     ...overrides,
 });
 
+/** The paths of the fields that failed, so tests don't depend on the schema library's wording. */
+const failedPaths = (parsed: ReturnType<typeof parseSchedule>): string[] =>
+    parsed.kind === "invalid" ? parsed.errors.map((error) => error.split(": ")[0] ?? error) : [];
+
 describe("parseSchedule", () => {
     it("accepts a valid schedule", () => {
-        expect(parseSchedule({ checkups: [legal, seo] })).toEqual({ kind: "valid", checkups: [legal, seo] });
+        expect(parseSchedule({ checkups: [legal, seo] })).toEqual({ kind: "valid", value: [legal, seo] });
     });
 
     it("rejects a schedule without a checkups array", () => {
-        expect(parseSchedule({ checks: [] })).toEqual({
-            kind: "invalid",
-            errors: ['must be an object with a "checkups" array'],
-        });
+        expect(failedPaths(parseSchedule({ checkups: "legal" }))).toEqual(["checkups"]);
     });
 
     it("reports every invalid field", () => {
-        expect(parseSchedule({ checkups: [{ name: "Legal", intervalDays: 1.5, priority: "yes" }, 42] })).toEqual({
-            kind: "invalid",
-            errors: [
-                "checkups[0].name must be kebab-case",
-                "checkups[0].intervalDays must be a positive whole number",
-                "checkups[0].priority must be true or false",
-                "checkups[1] must be an object",
-            ],
-        });
+        expect(
+            failedPaths(parseSchedule({ checkups: [{ name: "Legal", intervalDays: 1.5, priority: "yes" }, 42] })),
+        ).toEqual(["checkups[0].name", "checkups[0].intervalDays", "checkups[0].priority", "checkups[1]"]);
+    });
+
+    it("rejects unknown fields, which are usually typos", () => {
+        const parsed = parseSchedule({ checkups: [{ ...legal, intervalDay: 30 }] });
+
+        expect(parsed.kind === "invalid" && parsed.errors[0]).toContain('"intervalDay"');
     });
 
     it("rejects a checkup that is listed twice", () => {
         expect(parseSchedule({ checkups: [legal, legal] })).toEqual({
             kind: "invalid",
-            errors: ['checkup "legal" is listed more than once'],
+            errors: ['checkups: "legal" is listed more than once'],
         });
     });
 });

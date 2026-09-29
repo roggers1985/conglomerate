@@ -1,7 +1,7 @@
 // SessionStart hook: injects the owner's core conventions and the model routing table into every Claude Code session.
 
 import path from "node:path";
-import { assert } from "./assert.ts";
+import { assert } from "../../../lib/assert.ts";
 import type { Routes } from "./models.ts";
 import { readRoutes, renderRoutingContext } from "./models.ts";
 

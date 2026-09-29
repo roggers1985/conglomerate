@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import path from "node:path";
+import type { Parsed } from "../lib/parse.ts";
 import type { Marketplace, PluginManifest } from "./validate-plugin.ts";
-import { validateMarketplace, validatePluginManifest, validateRepository } from "./validate-plugin.ts";
+import { parseMarketplace, parsePluginManifest, validateRepository } from "./validate-plugin.ts";
 
 const validManifest: PluginManifest = { name: "factory", version: "0.1.0", description: "A software factory." };
 
@@ -11,56 +12,60 @@ const validMarketplace: Marketplace = {
     plugins: [{ name: "factory", source: "./plugins/factory" }],
 };
 
-describe("validatePluginManifest", () => {
-    it("accepts a valid manifest", () => {
-        expect(validatePluginManifest(validManifest)).toEqual([]);
+const errorsOf = <T>(parsed: Parsed<T>): readonly string[] => (parsed.kind === "invalid" ? parsed.errors : []);
+
+describe("parsePluginManifest", () => {
+    it("accepts a valid manifest, including fields this repository doesn't check", () => {
+        const manifest = { ...validManifest, author: { name: "Someone" } };
+
+        expect(parsePluginManifest(manifest)).toEqual({ kind: "valid", value: manifest });
     });
 
     it("rejects a name that is not kebab-case", () => {
-        expect(validatePluginManifest({ ...validManifest, name: "My Factory" })).toEqual(["name must be kebab-case"]);
+        expect(errorsOf(parsePluginManifest({ ...validManifest, name: "My Factory" }))).toEqual([
+            "name: must be kebab-case",
+        ]);
     });
 
     it("rejects a version that is not semver", () => {
-        expect(validatePluginManifest({ ...validManifest, version: "1.0" })).toEqual([
-            "version must be semver (x.y.z)",
+        expect(errorsOf(parsePluginManifest({ ...validManifest, version: "1.0" }))).toEqual([
+            "version: must be semver (x.y.z)",
         ]);
     });
 
     it("rejects a missing description", () => {
-        expect(validatePluginManifest({ ...validManifest, description: "" })).toEqual(["description is required"]);
-    });
-
-    it("throws when the manifest is not an object", () => {
-        expect(() => validatePluginManifest(null)).toThrow(/must be an object/);
-    });
-});
-
-describe("validateMarketplace", () => {
-    it("accepts a valid marketplace", () => {
-        expect(validateMarketplace(validMarketplace)).toEqual([]);
-    });
-
-    it("requires an owner name", () => {
-        expect(validateMarketplace({ ...validMarketplace, owner: {} })).toEqual(["owner.name is required"]);
-    });
-
-    it("requires at least one plugin", () => {
-        expect(validateMarketplace({ ...validMarketplace, plugins: [] })).toEqual([
-            "plugins must be a non-empty array",
+        expect(errorsOf(parsePluginManifest({ ...validManifest, description: "" }))).toEqual([
+            "description: is required",
         ]);
     });
 
-    it("requires plugin entries to be objects", () => {
-        expect(validateMarketplace({ ...validMarketplace, plugins: ["factory"] })).toEqual([
-            "plugins[0] must be an object",
+    it("rejects a manifest that is not an object", () => {
+        expect(parsePluginManifest(null).kind).toBe("invalid");
+    });
+});
+
+describe("parseMarketplace", () => {
+    it("accepts a valid marketplace", () => {
+        expect(parseMarketplace(validMarketplace)).toEqual({ kind: "valid", value: validMarketplace });
+    });
+
+    it("requires an owner name", () => {
+        expect(errorsOf(parseMarketplace({ ...validMarketplace, owner: { name: "" } }))).toEqual([
+            "owner.name: is required",
+        ]);
+    });
+
+    it("requires at least one plugin", () => {
+        expect(errorsOf(parseMarketplace({ ...validMarketplace, plugins: [] }))).toEqual([
+            "plugins: must list at least one plugin",
         ]);
     });
 
     it("requires plugin sources to be relative paths", () => {
         const marketplace = { ...validMarketplace, plugins: [{ name: "factory", source: "/abs/factory" }] };
 
-        expect(validateMarketplace(marketplace)).toEqual([
-            'plugins[0].source must be a relative path starting with "./"',
+        expect(errorsOf(parseMarketplace(marketplace))).toEqual([
+            'plugins[0].source: must be a relative path starting with "./"',
         ]);
     });
 });

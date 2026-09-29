@@ -17,7 +17,9 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
   - `skills/<domain>-<topic>/`: skills, named domain first (ADR 0013). `code-*` hold coding conventions (ADR 0008, 0011, 0012). Overview: `plugins/factory/CATALOG.md`
   - `checkups/protocol.md`, `skills/checkup/`, `scripts/checkups.ts`: recurring checkups (ADR 0010)
   - `models.json`: default model and effort per task type (ADR 0014, 0015). `agents/tasks/*.md` are generated from it; skills declare `metadata.task` but never a model
-  - `scripts/`: plugin scripts run by hooks; Bun + TypeScript, no runtime dependencies (ADR 0007)
+  - `scripts/`: sources of the plugin's scripts; they may import `lib/` and packages (ADR 0020)
+  - `dist/`: generated, minified bundles of those scripts, which hooks and skills run. Only entry points (`session-start`, `checkups`, `doctest`) may have an `import.meta.main` block
+- `lib/`: own helpers with TSDoc and tests (`assert`, `isNotNil`, `parse`, …); add one when it's needed (ADR 0020)
 - `scripts/`: repository tooling (strict TypeScript, run directly by Bun)
 - `docs/decisions/`: architecture decision records
 - `docs/checkups/`: this repo's own checkup schedule (`checkups.json`) and reports (ADR 0010)
@@ -28,14 +30,14 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 - `tsconfig.json` is deliberately very strict (ADR 0004). Do not loosen it to make code compile; fix the code.
 - Treat external data (JSON, input) as `unknown` and narrow it by validation. No `as` casts, no `any`.
 - Every export has full TSDoc with a tested `@example` for functions and classes (ADR 0016). Keep the exported surface small: don't export what only the module itself uses.
-- `assert` lives in `plugins/factory/scripts/assert.ts`; import it, don't copy it.
+- Helpers live in `lib/`; import them, don't copy them. External data (JSON files, frontmatter) is parsed with Zod schemas via `lib/parse.ts` (ADR 0020).
 
 ## Commands
 
 - `bun run check`: run every quality gate (typecheck, lint, test, validate). The pre-push hook runs this (ADR 0006); never bypass it with `--no-verify`.
 - A pre-commit hook formats staged files with Biome and re-stages them (ADR 0009). It refuses partially staged files.
 - `bun run typecheck`: type-check (Bun does not type-check when running)
-- `bun run generate`: regenerate `plugins/factory/CATALOG.md` and the task agents (`agents/tasks/`) after adding, renaming or describing a skill, or changing `models.json` (validate fails otherwise). Never edit generated files by hand.
+- `bun run generate`: regenerate `plugins/factory/CATALOG.md`, the task agents (`agents/tasks/`) and the bundles (`dist/`) after adding, renaming or describing a skill, changing `models.json`, or changing plugin scripts or `lib/` (validate fails otherwise). Never edit generated files by hand.
 - `bun run lint`: lint and format check with Biome (ADR 0005); `bun run lint:fix` to apply fixes. Do not disable rules to get code through; fix the code.
 - `bun test`: run all tests
 - `bun run doctest`: check TSDoc on every export and run every `@example` as a test

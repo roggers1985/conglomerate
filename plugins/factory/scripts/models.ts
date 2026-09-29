@@ -1,11 +1,31 @@
-// Model routing (ADR 0014): which model and effort level to use for which kind of task.
-//
-//   bun models.ts table   print the routing table as markdown
+// Model routing (ADR 0014, 0015): which model and effort level to use for which kind of task.
 
 import path from "node:path";
+import { z } from "zod";
+import type { Parsed } from "../../../lib/parse.ts";
+import { parse } from "../../../lib/parse.ts";
 
 const MODELS = ["opus", "sonnet", "haiku", "fable"] as const;
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const MODELS_PATH = path.resolve(import.meta.dir, "..", "models.json");
+
+const TaskRouteSchema = z.strictObject({
+    model: z.enum(MODELS),
+    effort: z.enum(EFFORTS),
+    use: z.string().min(1),
+});
+
+// Our own file, so strict: unknown keys are typos (ADR 0020).
+const ModelsFileSchema = z.strictObject({
+    tasks: z.record(z.string(), TaskRouteSchema).superRefine((tasks, context) => {
+        const invalidNames = Object.keys(tasks).filter((task) => !KEBAB_CASE.test(task));
+
+        for (const task of invalidNames) {
+            context.addIssue({ code: "custom", message: "task names must be kebab-case", path: [task] });
+        }
+    }),
+});
 
 /** A Claude Code model alias. Aliases follow new versions of a model family once Claude Code is updated (ADR 0014). */
 export type Model = (typeof MODELS)[number];
@@ -13,97 +33,40 @@ export type Model = (typeof MODELS)[number];
 export type Effort = (typeof EFFORTS)[number];
 
 /** The default model and effort for one task type, and what that task type is for. */
-export type TaskRoute = {
-    readonly model: Model;
-    readonly effort: Effort;
-    readonly use: string;
-};
+export type TaskRoute = Readonly<z.infer<typeof TaskRouteSchema>>;
 
 /** Every task type in `models.json`, by name. */
 export type Routes = Readonly<Record<string, TaskRoute>>;
 
-/** The outcome of validating `models.json`: the routes, or every problem found. */
-export type ParsedRoutes =
-    | { readonly kind: "valid"; readonly tasks: Routes }
-    | { readonly kind: "invalid"; readonly errors: readonly string[] };
-
-// The shape of T before validation: every field may be missing and has an unknown value.
-type Unvalidated<T> = { readonly [K in keyof T]?: unknown };
-
-type Rule = readonly [passes: boolean, message: string];
-
-const MODELS_PATH = path.resolve(import.meta.dir, "..", "models.json");
-
-const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-
-const isObject = <T>(value: unknown): value is Unvalidated<T> => typeof value === "object" && value !== null;
-
-const isModel = (value: unknown): value is Model => MODELS.some((model) => model === value);
-const isEffort = (value: unknown): value is Effort => EFFORTS.some((effort) => effort === value);
-
-const failedRules = (rules: readonly Rule[]): string[] =>
-    rules.filter(([passes]) => !passes).map(([, message]) => message);
-
-function validateRoute(task: string, route: unknown): string[] {
-    if (!isObject<TaskRoute>(route)) {
-        return [`tasks.${task} must be an object`];
-    }
-
-    return failedRules([
-        [KEBAB_CASE.test(task), `task "${task}" must be kebab-case`],
-        [isModel(route.model), `tasks.${task}.model must be one of ${MODELS.join(", ")}`],
-        [isEffort(route.effort), `tasks.${task}.effort must be one of ${EFFORTS.join(", ")}`],
-        [typeof route.use === "string" && route.use.length > 0, `tasks.${task}.use is required`],
-    ]);
-}
-
-const isTaskRoute = (route: unknown): route is TaskRoute => validateRoute("task", route).length === 0;
-
 /**
- * Validates the contents of `models.json`.
+ * Parses the contents of `models.json`.
  *
  * @param value - The parsed JSON, not yet trusted.
- * @returns The routes when every task type is valid; otherwise every problem, so they can all be fixed at once.
+ * @returns The routes by task type, or every problem found, so they can all be fixed at once.
  *
  * @example
  * ```ts
- * const parsed = parseRoutes({ tasks: { review: { model: "opus", effort: "high", use: "Reviewing code" } } });
+ * const review = { model: "opus", effort: "high", use: "Reviewing code" };
  *
- * expect(parsed).toEqual({ kind: "valid", tasks: { review: { model: "opus", effort: "high", use: "Reviewing code" } } });
+ * expect(parseRoutes({ tasks: { review } })).toEqual({ kind: "valid", value: { review } });
  * ```
  *
  * @example
  * ```ts
- * expect(parseRoutes({ tasks: { review: { model: "gpt", effort: "high", use: "Reviewing" } } })).toEqual({
- *     kind: "invalid",
- *     errors: ["tasks.review.model must be one of opus, sonnet, haiku, fable"],
- * });
+ * const parsed = parseRoutes({ tasks: { review: { model: "gpt", effort: "high", use: "Reviewing" } } });
+ *
+ * expect(parsed.kind).toBe("invalid");
+ * expect(parsed.kind === "invalid" && parsed.errors[0]).toStartWith("tasks.review.model: ");
  * ```
  */
-export function parseRoutes(value: unknown): ParsedRoutes {
-    const notRoutes: ParsedRoutes = { kind: "invalid", errors: ['must be an object with a "tasks" object'] };
+export function parseRoutes(value: unknown): Parsed<Routes> {
+    const parsed = parse(ModelsFileSchema, value);
 
-    if (!isObject<{ tasks: unknown }>(value)) {
-        return notRoutes;
+    if (parsed.kind === "invalid") {
+        return parsed;
     }
 
-    if (!isObject<Routes>(value.tasks)) {
-        return notRoutes;
-    }
-
-    const entries = Object.entries(value.tasks);
-    const errors = entries.flatMap(([task, route]) => validateRoute(task, route));
-
-    if (errors.length > 0) {
-        return { kind: "invalid", errors };
-    }
-
-    return {
-        kind: "valid",
-        tasks: Object.fromEntries(
-            entries.flatMap(([task, route]): [string, TaskRoute][] => (isTaskRoute(route) ? [[task, route]] : [])),
-        ),
-    };
+    return { kind: "valid", value: parsed.value.tasks };
 }
 
 /**
@@ -180,21 +143,5 @@ export async function readRoutes(): Promise<Routes> {
         throw new Error(`models.json is invalid: ${parsed.errors.join("; ")}`);
     }
 
-    return parsed.tasks;
-}
-
-async function main(): Promise<void> {
-    const [command] = Bun.argv.slice(2);
-
-    if (command !== "table") {
-        console.error("Usage: models.ts table");
-        process.exitCode = 1;
-        return;
-    }
-
-    console.log(renderRoutingTable(await readRoutes()));
-}
-
-if (import.meta.main) {
-    await main();
+    return parsed.value;
 }

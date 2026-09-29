@@ -24,7 +24,7 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
   - [ ] Decide: should the reminder or runner warn up front about a scheduled checkup that has no skill? (Now the runner only notices when it tries to run it.)
   - [ ] Runner: suggest project-specific checkups when it spots the signs (e.g. a privacy page → legal, a database → data quality). Project-specific ones stay out of the plugin: legal, privacy/GDPR, content freshness, analytics, data quality, backups, hosting costs, error monitoring.
 - [ ] Phase 3: `claude-code-platform` checkup, project-specific to this repo. Covers only what `agent-setup` doesn't: plugin features (manifest fields, hook events, skill options) and deprecations.
-- [ ] Phase 4: move the jobs project to the plugin's checkups (keep its legal, SEO, backfill, … checkups). Its `checkups.json` already works as is; the `summary`, `lastRun` and `lastReport` fields can go.
+- [ ] Phase 4: move the jobs project to the plugin's checkups (keep its legal, SEO, backfill, … checkups). Its `checkups.json` must first drop `summary`, `lastRun` and `lastReport`: the schedule schema is strict (ADR 0020).
 
 ## Conventions
 

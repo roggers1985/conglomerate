@@ -2,6 +2,9 @@
 
 import { readdir } from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
+import type { Parsed } from "../lib/parse.ts";
+import { parse } from "../lib/parse.ts";
 import type { Routes } from "../plugins/factory/scripts/models.ts";
 import { renderRoutingTable } from "../plugins/factory/scripts/models.ts";
 
@@ -19,23 +22,8 @@ export type Skill = {
     readonly task: string | null;
 };
 
-type SkillFrontmatter = {
-    readonly name: string;
-    readonly description: string;
-    readonly model: string;
-    readonly effort: string;
-    readonly metadata: { readonly task: string };
-};
-
-/** The outcome of validating one skill's frontmatter: the skill, or every problem found. */
-export type ParsedSkill =
-    | { readonly kind: "valid"; readonly skill: Skill }
-    | { readonly kind: "invalid"; readonly errors: readonly string[] };
-
-// The shape of T before validation: every field may be missing and has an unknown value.
-type Unvalidated<T> = { readonly [K in keyof T]?: unknown };
-
-type Rule = readonly [passes: boolean, message: string];
+/** The outcome of parsing one skill's frontmatter: the skill, or every problem found. */
+export type ParsedSkill = Parsed<Skill>;
 
 /** Every skill name starts with one of these domains: `<domain>` or `<domain>-<topic>`. */
 const DOMAINS: readonly Domain[] = [
@@ -51,11 +39,6 @@ export const CATALOG_FILE = "CATALOG.md";
 
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const FRONTMATTER = /^---\n([\s\S]*?)\n---/;
-
-const isObject = <T>(value: unknown): value is Unvalidated<T> => typeof value === "object" && value !== null;
-
-const failedRules = (rules: readonly Rule[]): string[] =>
-    rules.filter(([passes]) => !passes).map(([, message]) => message);
 
 /**
  * Finds the domain a skill name belongs to.
@@ -97,27 +80,34 @@ export function parseFrontmatter(markdown: string): unknown {
     return Bun.YAML.parse(match[1] ?? "");
 }
 
-function taskOf(frontmatter: Unvalidated<SkillFrontmatter>): unknown {
-    return isObject<SkillFrontmatter["metadata"]>(frontmatter.metadata) ? frontmatter.metadata.task : null;
-}
+function skillSchema(directory: string, routes: Routes) {
+    const domains = DOMAINS.map((domain) => domain.name).join(", ");
+    const tasks = Object.keys(routes).join(", ");
+    const setByTaskAgent = "skills don't set this: model and effort come from the task agent (ADR 0015)";
 
-/** Skills never set a model or effort: those are chosen when work is delegated to a task agent (ADR 0015). */
-function routingErrors(frontmatter: Unvalidated<SkillFrontmatter>, routes: Routes): string[] {
-    const task = taskOf(frontmatter);
-    const hasNoTask = task === null || task === undefined;
-    const knownTask = hasNoTask || (typeof task === "string" && routes[task] !== undefined);
-
-    return failedRules([
-        [
-            frontmatter.model === undefined && frontmatter.effort === undefined,
-            "skills don't set model or effort: they come from the task agent (ADR 0015)",
-        ],
-        [knownTask, `metadata.task must be one of ${Object.keys(routes).join(", ")}`],
-    ]);
+    // Claude Code's frontmatter format has many more fields, so unknown keys are allowed (ADR 0020).
+    return z.looseObject({
+        name: z
+            .string()
+            .regex(KEBAB_CASE, "must be kebab-case")
+            .refine((name) => name === directory, `must match its directory "${directory}"`)
+            .refine((name) => domainOf(name) !== null, `must start with a known domain (${domains})`),
+        description: z.string().min(1, "is required"),
+        model: z.never(setByTaskAgent).optional(),
+        effort: z.never(setByTaskAgent).optional(),
+        metadata: z
+            .looseObject({
+                task: z
+                    .string()
+                    .refine((task) => routes[task] !== undefined, `must be one of ${tasks}`)
+                    .optional(),
+            })
+            .optional(),
+    });
 }
 
 /**
- * Validates a skill's frontmatter against the naming rules (ADR 0013) and task types (ADR 0015).
+ * Parses a skill's frontmatter against the naming rules (ADR 0013) and task types (ADR 0015).
  *
  * @param directory - The skill's folder name, which must equal its `name`.
  * @param frontmatter - The skill's parsed frontmatter, not yet trusted.
@@ -131,7 +121,7 @@ function routingErrors(frontmatter: Unvalidated<SkillFrontmatter>, routes: Route
  *
  * expect(parseSkill("checkup-seo", frontmatter, routes)).toEqual({
  *     kind: "valid",
- *     skill: { name: "checkup-seo", description: "SEO checkup.", task: "checkup" },
+ *     value: { name: "checkup-seo", description: "SEO checkup.", task: "checkup" },
  * });
  * ```
  *
@@ -140,37 +130,26 @@ function routingErrors(frontmatter: Unvalidated<SkillFrontmatter>, routes: Route
  * expect(parseSkill("seo", { name: "seo", description: "SEO.", model: "opus" }, {})).toEqual({
  *     kind: "invalid",
  *     errors: [
- *         "name must start with a known domain (code, checkup, writing, marketing, factory)",
- *         "skills don't set model or effort: they come from the task agent (ADR 0015)",
+ *         "name: must start with a known domain (code, checkup, writing, marketing, factory)",
+ *         "model: skills don't set this: model and effort come from the task agent (ADR 0015)",
  *     ],
  * });
  * ```
  */
 export function parseSkill(directory: string, frontmatter: unknown, routes: Routes): ParsedSkill {
-    if (!isObject<SkillFrontmatter>(frontmatter)) {
+    if (frontmatter === null) {
         return { kind: "invalid", errors: ["SKILL.md must start with a YAML frontmatter block"] };
     }
 
-    const { name, description } = frontmatter;
-    const errors = failedRules([
-        [typeof name === "string" && KEBAB_CASE.test(name), "name must be kebab-case"],
-        [name === directory, `name must match its directory "${directory}"`],
-        [
-            typeof name === "string" && domainOf(name) !== null,
-            `name must start with a known domain (${DOMAINS.map((domain) => domain.name).join(", ")})`,
-        ],
-        [typeof description === "string" && description.length > 0, "description is required"],
-    ]);
-    const allErrors = [...errors, ...routingErrors(frontmatter, routes)];
-    const task = taskOf(frontmatter);
+    const parsed = parse(skillSchema(directory, routes), frontmatter);
 
-    const isValid = allErrors.length === 0 && typeof name === "string" && typeof description === "string";
-
-    if (!isValid) {
-        return { kind: "invalid", errors: allErrors };
+    if (parsed.kind === "invalid") {
+        return parsed;
     }
 
-    return { kind: "valid", skill: { name, description, task: typeof task === "string" ? task : null } };
+    const { name, description, metadata } = parsed.value;
+
+    return { kind: "valid", value: { name, description, task: metadata?.task ?? null } };
 }
 
 const firstSentence = (text: string): string => text.split(/(?<=\.)\s/)[0] ?? text;
@@ -282,7 +261,7 @@ export async function readPluginSkills(pluginDir: string, routes: Routes): Promi
     );
 
     return {
-        skills: parsed.flatMap(({ result }) => (result.kind === "valid" ? [result.skill] : [])),
+        skills: parsed.flatMap(({ result }) => (result.kind === "valid" ? [result.value] : [])),
         errors: parsed.flatMap(({ directory, result }) =>
             result.kind === "invalid" ? result.errors.map((error) => `skills/${directory}: ${error}`) : [],
         ),

@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. The plugin-scripts part (no dependencies, no build step) was superseded by [ADR-0020](0020-schema-parsing-shared-lib-and-bundled-plugin-scripts.md): scripts are now bundled into `dist/`.
 
 ## Context
 

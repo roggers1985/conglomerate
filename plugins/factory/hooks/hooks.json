@@ -5,11 +5,11 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "bun \"${CLAUDE_PLUGIN_ROOT}/scripts/session-start.ts\""
+                        "command": "bun \"${CLAUDE_PLUGIN_ROOT}/dist/session-start.js\""
                     },
                     {
                         "type": "command",
-                        "command": "bun \"${CLAUDE_PLUGIN_ROOT}/scripts/checkups.ts\" reminder",
+                        "command": "bun \"${CLAUDE_PLUGIN_ROOT}/dist/checkups.js\" reminder",
                         "timeout": 15
                     }
                 ]
