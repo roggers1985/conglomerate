@@ -6,6 +6,7 @@ import { generatedFileErrors, readGeneratedFiles } from "./generated.ts";
 
 describe("readGeneratedFiles", () => {
     let dir = "";
+    const signal = AbortSignal.timeout(10_000);
 
     afterEach(async () => {
         await rm(dir, { recursive: true, force: true });
@@ -19,7 +20,7 @@ describe("readGeneratedFiles", () => {
             Bun.write(path.join(dir, "a.js.map"), "map"),
         ]);
 
-        expect([...(await readGeneratedFiles(dir, { extension: ".js" }))]).toEqual([
+        expect([...(await readGeneratedFiles(dir, { extension: ".js", signal }))]).toEqual([
             ["a.js", "a"],
             ["b.js", "b"],
         ]);
@@ -28,7 +29,15 @@ describe("readGeneratedFiles", () => {
     it("treats a folder that doesn't exist yet as empty", async () => {
         dir = await mkdtemp(path.join(tmpdir(), "generated-"));
 
-        expect(await readGeneratedFiles(path.join(dir, "dist"), { extension: ".js" })).toEqual(new Map());
+        expect(await readGeneratedFiles(path.join(dir, "dist"), { extension: ".js", signal })).toEqual(new Map());
+    });
+
+    it("stops when aborted", async () => {
+        dir = await mkdtemp(path.join(tmpdir(), "generated-"));
+
+        await expect(readGeneratedFiles(dir, { extension: ".js", signal: AbortSignal.abort() })).rejects.toMatchObject({
+            name: "AbortError",
+        });
     });
 });
 

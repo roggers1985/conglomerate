@@ -25,10 +25,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 - [ ] Phase 3: `claude-code-platform` checkup, project-specific to this repo. Covers only what `agent-setup` doesn't: plugin features (manifest fields, hook events, skill options) and deprecations.
 - [ ] Phase 4: move the jobs project to the plugin's checkups (keep its legal, SEO, backfill, … checkups). Its `checkups.json` must first drop `summary`, `lastRun` and `lastReport`: the schedule schema is strict (ADR 0020).
 
-## Conventions
-
-- [ ] Apply the cancellation convention (ADR 0012) to this repo's scripts where it makes sense (`checkups.ts` loaders, `validate-plugin.ts`): required `{ signal }` on I/O functions, a signal from `main`
-
 ## Factory stages
 
 - [ ] Discuss the first stage: Intake / Specification

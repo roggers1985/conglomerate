@@ -3,11 +3,15 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { isFileNotFound } from "../lib/errors.ts";
+import { readText } from "../lib/files.ts";
 
 /** Generated files by file name, with their content. */
 export type GeneratedFiles = ReadonlyMap<string, string>;
 
-async function listDir(dir: string): Promise<string[]> {
+async function listDir(dir: string, { signal }: { readonly signal: AbortSignal }): Promise<string[]> {
+    // readdir takes no signal: check before starting instead.
+    signal.throwIfAborted();
+
     try {
         return await readdir(dir);
     } catch (error: unknown) {
@@ -23,28 +27,31 @@ async function listDir(dir: string): Promise<string[]> {
  *
  * @param dir - The folder to read.
  * @param options.extension - Only files ending in this extension are read, e.g. `".md"`.
+ * @param options.signal - Cancels the reads.
  * @returns File name → content; empty when the folder doesn't exist yet.
+ * @throws DOMException named `AbortError` when `signal` aborts.
  *
  * @example
  * ```ts
  * const { mkdtemp, rm } = await import("node:fs/promises");
  * const { tmpdir } = await import("node:os");
  * const dir = await mkdtemp(`${tmpdir()}/generated-`);
+ * const signal = AbortSignal.timeout(5_000);
  * await Bun.write(`${dir}/review.md`, "content");
  * await Bun.write(`${dir}/notes.txt`, "ignored");
  *
- * expect(await readGeneratedFiles(dir, { extension: ".md" })).toEqual(new Map([["review.md", "content"]]));
- * expect(await readGeneratedFiles(`${dir}/missing`, { extension: ".md" })).toEqual(new Map());
+ * expect(await readGeneratedFiles(dir, { extension: ".md", signal })).toEqual(new Map([["review.md", "content"]]));
+ * expect(await readGeneratedFiles(`${dir}/missing`, { extension: ".md", signal })).toEqual(new Map());
  *
  * await rm(dir, { recursive: true });
  * ```
  */
 export async function readGeneratedFiles(
     dir: string,
-    { extension }: { readonly extension: string },
+    { extension, signal }: { readonly extension: string; readonly signal: AbortSignal },
 ): Promise<GeneratedFiles> {
-    const fileNames = (await listDir(dir)).filter((fileName) => fileName.endsWith(extension)).toSorted();
-    const contents = await Promise.all(fileNames.map((fileName) => Bun.file(path.join(dir, fileName)).text()));
+    const fileNames = (await listDir(dir, { signal })).filter((fileName) => fileName.endsWith(extension)).toSorted();
+    const contents = await Promise.all(fileNames.map((fileName) => readText(path.join(dir, fileName), { signal })));
 
     return new Map(fileNames.map((fileName, index) => [fileName, contents[index] ?? ""]));
 }

@@ -18,19 +18,26 @@ const ENTRYPOINTS = ["session-start.ts", "checkups.ts", "doctest.ts"];
  * which lets `bun run validate` detect stale bundles by rebuilding and comparing.
  *
  * @param pluginDir - The plugin's root folder.
+ * @param options.signal - Cancels the build; checked before and after, since `Bun.build` takes no signal.
  * @returns File name (`<name>.js`) → bundle, one per entry point.
  * @throws AggregateError with Bun's build logs when bundling fails.
+ * @throws DOMException named `AbortError` when `signal` aborts.
  *
  * @example
  * ```ts
  * // The doctest runs from the repository root.
- * const bundles = await renderBundles(`${process.cwd()}/plugins/factory`);
+ * const bundles = await renderBundles(`${process.cwd()}/plugins/factory`, { signal: AbortSignal.timeout(30_000) });
  *
  * expect([...bundles.keys()]).toEqual(["session-start.js", "checkups.js", "doctest.js"]);
  * expect(bundles.get("checkups.js")).toStartWith("// @bun\n");
  * ```
  */
-export async function renderBundles(pluginDir: string): Promise<GeneratedFiles> {
+export async function renderBundles(
+    pluginDir: string,
+    { signal }: { readonly signal: AbortSignal },
+): Promise<GeneratedFiles> {
+    signal.throwIfAborted();
+
     const result = await Bun.build({
         entrypoints: ENTRYPOINTS.map((entrypoint) => path.join(pluginDir, "scripts", entrypoint)),
         target: "bun",
@@ -40,6 +47,8 @@ export async function renderBundles(pluginDir: string): Promise<GeneratedFiles> 
     if (!result.success) {
         throw new AggregateError(result.logs, "bundling the plugin scripts failed");
     }
+
+    signal.throwIfAborted();
 
     const contents = await Promise.all(result.outputs.map((output) => output.text()));
 

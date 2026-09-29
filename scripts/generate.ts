@@ -4,6 +4,7 @@
 
 import { rm } from "node:fs/promises";
 import path from "node:path";
+import { interruptSignal } from "../lib/interrupt.ts";
 import { readRoutes } from "../plugins/factory/scripts/models.ts";
 import { renderTaskAgents, TASK_AGENTS_DIR } from "./agents.ts";
 import { BUNDLE_DIR, renderBundles } from "./bundles.ts";
@@ -14,8 +15,12 @@ import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
 const FACTORY_DIR = path.resolve(import.meta.dir, "..", "plugins", "factory");
 
 /** Writes the expected files into `dir`, and removes files there that are no longer generated. */
-async function syncFolder(dir: string, expected: GeneratedFiles, extension: string): Promise<void> {
-    const orphaned = [...(await readGeneratedFiles(dir, { extension })).keys()].filter(
+async function syncFolder(
+    dir: string,
+    expected: GeneratedFiles,
+    { extension, signal }: { readonly extension: string; readonly signal: AbortSignal },
+): Promise<void> {
+    const orphaned = [...(await readGeneratedFiles(dir, { extension, signal })).keys()].filter(
         (fileName) => !expected.has(fileName),
     );
 
@@ -26,8 +31,9 @@ async function syncFolder(dir: string, expected: GeneratedFiles, extension: stri
 }
 
 async function main(): Promise<void> {
-    const routes = await readRoutes();
-    const { skills, errors } = await readPluginSkills(FACTORY_DIR, { routes });
+    const signal = interruptSignal();
+    const routes = await readRoutes({ signal });
+    const { skills, errors } = await readPluginSkills(FACTORY_DIR, { routes, signal });
 
     if (errors.length > 0) {
         console.error(errors.map((error) => `✗ ${error}`).join("\n"));
@@ -36,12 +42,12 @@ async function main(): Promise<void> {
     }
 
     const agents = renderTaskAgents(routes);
-    const bundles = await renderBundles(FACTORY_DIR);
+    const bundles = await renderBundles(FACTORY_DIR, { signal });
 
     await Promise.all([
         Bun.write(path.join(FACTORY_DIR, CATALOG_FILE), renderCatalog(skills, { routes })),
-        syncFolder(path.join(FACTORY_DIR, TASK_AGENTS_DIR), agents, ".md"),
-        syncFolder(path.join(FACTORY_DIR, BUNDLE_DIR), bundles, ".js"),
+        syncFolder(path.join(FACTORY_DIR, TASK_AGENTS_DIR), agents, { extension: ".md", signal }),
+        syncFolder(path.join(FACTORY_DIR, BUNDLE_DIR), bundles, { extension: ".js", signal }),
     ]);
 
     console.log(

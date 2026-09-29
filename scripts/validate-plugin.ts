@@ -2,6 +2,8 @@
 
 import path from "node:path";
 import { z } from "zod";
+import { readJson, readTextIfExists } from "../lib/files.ts";
+import { interruptSignal } from "../lib/interrupt.ts";
 import type { Parsed } from "../lib/parse.ts";
 import { parse } from "../lib/parse.ts";
 import { readRoutes } from "../plugins/factory/scripts/models.ts";
@@ -87,12 +89,14 @@ export function parseMarketplace(value: unknown): Parsed<Marketplace> {
     return parse(MarketplaceSchema, value);
 }
 
-function readJson(filePath: string): Promise<unknown> {
-    return Bun.file(filePath).json();
-}
+type ValidateOptions = { readonly signal: AbortSignal };
 
-async function validateManifest(pluginDir: string, entry: MarketplaceEntry): Promise<string[]> {
-    const manifest = parsePluginManifest(await readJson(path.join(pluginDir, ".claude-plugin", "plugin.json")));
+async function validateManifest(
+    pluginDir: string,
+    { entry, signal }: ValidateOptions & { readonly entry: MarketplaceEntry },
+): Promise<string[]> {
+    const manifestPath = path.join(pluginDir, ".claude-plugin", "plugin.json");
+    const manifest = parsePluginManifest(await readJson(manifestPath, { signal }));
 
     if (manifest.kind === "invalid") {
         return manifest.errors.map((error) => `plugin.json: ${error}`);
@@ -105,16 +109,16 @@ async function validateManifest(pluginDir: string, entry: MarketplaceEntry): Pro
     return [];
 }
 
-async function validateGenerated(pluginDir: string): Promise<string[]> {
-    const routes = await readRoutes();
-    const { skills, errors } = await readPluginSkills(pluginDir, { routes });
-    const catalog = Bun.file(path.join(pluginDir, CATALOG_FILE));
-    const catalogIsCurrent = (await catalog.exists()) && (await catalog.text()) === renderCatalog(skills, { routes });
+async function validateGenerated(pluginDir: string, { signal }: ValidateOptions): Promise<string[]> {
+    const routes = await readRoutes({ signal });
+    const { skills, errors } = await readPluginSkills(pluginDir, { routes, signal });
+    const catalog = await readTextIfExists(path.join(pluginDir, CATALOG_FILE), { signal });
+    const catalogIsCurrent = catalog === renderCatalog(skills, { routes });
     const catalogErrors = catalogIsCurrent ? [] : [`${CATALOG_FILE} is out of date: run \`bun run generate\``];
     const [agents, bundles, currentBundles] = await Promise.all([
-        readGeneratedFiles(path.join(pluginDir, TASK_AGENTS_DIR), { extension: ".md" }),
-        readGeneratedFiles(path.join(pluginDir, BUNDLE_DIR), { extension: ".js" }),
-        renderBundles(pluginDir),
+        readGeneratedFiles(path.join(pluginDir, TASK_AGENTS_DIR), { extension: ".md", signal }),
+        readGeneratedFiles(path.join(pluginDir, BUNDLE_DIR), { extension: ".js", signal }),
+        renderBundles(pluginDir, { signal }),
     ]);
 
     return [
@@ -125,9 +129,15 @@ async function validateGenerated(pluginDir: string): Promise<string[]> {
     ];
 }
 
-async function validatePlugin(root: string, entry: MarketplaceEntry): Promise<string[]> {
+async function validatePlugin(
+    root: string,
+    { entry, signal }: ValidateOptions & { readonly entry: MarketplaceEntry },
+): Promise<string[]> {
     const pluginDir = path.join(root, entry.source);
-    const errors = [...(await validateManifest(pluginDir, entry)), ...(await validateGenerated(pluginDir))];
+    const errors = [
+        ...(await validateManifest(pluginDir, { entry, signal })),
+        ...(await validateGenerated(pluginDir, { signal })),
+    ];
 
     return errors.map((error) => `${entry.name}/${error}`);
 }
@@ -137,29 +147,33 @@ async function validatePlugin(root: string, entry: MarketplaceEntry): Promise<st
  * catalog and task agents.
  *
  * @param root - The repository's root folder.
+ * @param options.signal - Cancels the validation.
  * @returns Every problem found, prefixed with the file it concerns; `errors` is empty when everything is valid.
  *
  * @example
  * ```ts
  * // The doctest runs from the repository root.
- * expect(await validateRepository(process.cwd())).toEqual({ errors: [] });
+ * expect(await validateRepository(process.cwd(), { signal: AbortSignal.timeout(30_000) })).toEqual({ errors: [] });
  * ```
  */
-export async function validateRepository(root: string): Promise<RepositoryValidation> {
-    const marketplace = parseMarketplace(await readJson(path.join(root, ".claude-plugin", "marketplace.json")));
+export async function validateRepository(root: string, { signal }: ValidateOptions): Promise<RepositoryValidation> {
+    const marketplacePath = path.join(root, ".claude-plugin", "marketplace.json");
+    const marketplace = parseMarketplace(await readJson(marketplacePath, { signal }));
 
     if (marketplace.kind === "invalid") {
         return { errors: marketplace.errors.map((error) => `marketplace.json: ${error}`) };
     }
 
-    const pluginErrors = await Promise.all(marketplace.value.plugins.map((entry) => validatePlugin(root, entry)));
+    const pluginErrors = await Promise.all(
+        marketplace.value.plugins.map((entry) => validatePlugin(root, { entry, signal })),
+    );
 
     return { errors: pluginErrors.flat() };
 }
 
 async function main(): Promise<void> {
     const root = path.resolve(import.meta.dir, "..");
-    const { errors } = await validateRepository(root);
+    const { errors } = await validateRepository(root, { signal: interruptSignal() });
 
     if (errors.length > 0) {
         console.error(errors.map((error) => `✗ ${error}`).join("\n"));

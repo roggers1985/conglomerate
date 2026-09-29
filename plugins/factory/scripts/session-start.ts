@@ -2,6 +2,8 @@
 
 import path from "node:path";
 import { assert } from "../../../lib/assert.ts";
+import { readText } from "../../../lib/files.ts";
+import { interruptSignal } from "../../../lib/interrupt.ts";
 import type { Routes } from "./models.ts";
 import { readRoutes, renderRoutingContext } from "./models.ts";
 
@@ -45,7 +47,11 @@ export function buildSessionStartOutput(conventions: string, routes: Routes): Se
 }
 
 async function main(): Promise<void> {
-    const [conventions, routes] = await Promise.all([Bun.file(CORE_CONVENTIONS_PATH).text(), readRoutes()]);
+    const signal = interruptSignal();
+    const [conventions, routes] = await Promise.all([
+        readText(CORE_CONVENTIONS_PATH, { signal }),
+        readRoutes({ signal }),
+    ]);
 
     console.log(JSON.stringify(buildSessionStartOutput(conventions, routes)));
 }

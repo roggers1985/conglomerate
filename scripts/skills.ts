@@ -3,6 +3,7 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { readText } from "../lib/files.ts";
 import type { Parsed } from "../lib/parse.ts";
 import { parse } from "../lib/parse.ts";
 import type { Routes } from "../plugins/factory/scripts/models.ts";
@@ -233,8 +234,10 @@ export type PluginSkills = {
  *
  * @param pluginDir - The plugin's root folder.
  * @param options.routes - The task types from `models.json`.
+ * @param options.signal - Cancels the reads.
  * @returns The valid skills, and every problem prefixed with `skills/<folder>: `.
  * @throws Error when the plugin has no `skills/` folder, or a skill folder has no `SKILL.md`.
+ * @throws DOMException named `AbortError` when `signal` aborts.
  *
  * @example
  * ```ts
@@ -243,7 +246,7 @@ export type PluginSkills = {
  * const pluginDir = await mkdtemp(`${tmpdir()}/plugin-`);
  * await Bun.write(`${pluginDir}/skills/code-go/SKILL.md`, "---\nname: code-go\ndescription: Go.\n---\n");
  *
- * expect(await readPluginSkills(pluginDir, { routes: {} })).toEqual({
+ * expect(await readPluginSkills(pluginDir, { routes: {}, signal: AbortSignal.timeout(5_000) })).toEqual({
  *     skills: [{ name: "code-go", description: "Go.", task: null }],
  *     errors: [],
  * });
@@ -253,15 +256,19 @@ export type PluginSkills = {
  */
 export async function readPluginSkills(
     pluginDir: string,
-    { routes }: { readonly routes: Routes },
+    { routes, signal }: { readonly routes: Routes; readonly signal: AbortSignal },
 ): Promise<PluginSkills> {
     const skillsDir = path.join(pluginDir, "skills");
+
+    // readdir takes no signal: check before starting instead.
+    signal.throwIfAborted();
+
     const entries = await readdir(skillsDir, { withFileTypes: true });
     const parsed = await Promise.all(
         entries
             .filter((entry) => entry.isDirectory())
             .map(async (entry) => {
-                const markdown = await Bun.file(path.join(skillsDir, entry.name, "SKILL.md")).text();
+                const markdown = await readText(path.join(skillsDir, entry.name, "SKILL.md"), { signal });
 
                 return {
                     directory: entry.name,

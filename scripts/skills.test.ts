@@ -142,9 +142,18 @@ describe("readPluginSkills", () => {
         await Bun.write(path.join(pluginDir, "skills/code-go/SKILL.md"), "---\nname: code-go\ndescription: Go.\n---\n");
         await Bun.write(path.join(pluginDir, "skills/go/SKILL.md"), "---\nname: go\ndescription: Go.\n---\n");
 
-        expect(await readPluginSkills(pluginDir, { routes })).toEqual({
+        expect(await readPluginSkills(pluginDir, { routes, signal: AbortSignal.timeout(5_000) })).toEqual({
             skills: [{ name: "code-go", description: "Go.", task: null }],
             errors: ["skills/go: name: must start with a known domain (code, checkup, writing, marketing, factory)"],
+        });
+    });
+
+    it("stops when aborted", async () => {
+        pluginDir = await mkdtemp(path.join(tmpdir(), "plugin-"));
+        await Bun.write(path.join(pluginDir, "skills/code-go/SKILL.md"), "---\nname: code-go\ndescription: Go.\n---\n");
+
+        await expect(readPluginSkills(pluginDir, { routes, signal: AbortSignal.abort() })).rejects.toMatchObject({
+            name: "AbortError",
         });
     });
 });

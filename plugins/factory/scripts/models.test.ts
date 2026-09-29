@@ -48,6 +48,10 @@ describe("renderRoutingTable", () => {
 
 describe("the plugin's models.json", () => {
     it("is valid", async () => {
-        expect(Object.keys(await readRoutes())).toContain("checkup");
+        expect(Object.keys(await readRoutes({ signal: AbortSignal.timeout(5_000) }))).toContain("checkup");
+    });
+
+    it("stops reading when aborted", async () => {
+        await expect(readRoutes({ signal: AbortSignal.abort() })).rejects.toMatchObject({ name: "AbortError" });
     });
 });

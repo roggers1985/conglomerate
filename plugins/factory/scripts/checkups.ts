@@ -11,6 +11,8 @@ import path from "node:path";
 import { z } from "zod";
 import { assert } from "../../../lib/assert.ts";
 import { isFileNotFound } from "../../../lib/errors.ts";
+import { readJson } from "../../../lib/files.ts";
+import { interruptSignal } from "../../../lib/interrupt.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
 
@@ -340,7 +342,13 @@ export function formatDate(date: Date): string {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-async function readReportFileNames(projectDir: string, name: string): Promise<string[]> {
+async function readReportFileNames(
+    projectDir: string,
+    { name, signal }: { readonly name: string; readonly signal: AbortSignal },
+): Promise<string[]> {
+    // readdir takes no signal: check before starting instead.
+    signal.throwIfAborted();
+
     try {
         return await readdir(path.join(projectDir, REPORTS_DIR, name));
     } catch (error: unknown) {
@@ -351,22 +359,39 @@ async function readReportFileNames(projectDir: string, name: string): Promise<st
     }
 }
 
-async function readSchedule(projectDir: string): Promise<ParsedSchedule | null> {
-    const file = Bun.file(path.join(projectDir, SCHEDULE_PATH));
-
-    if (!(await file.exists())) {
-        return null;
-    }
-
+/** The schedule's parsed JSON, or `null` when the project has no schedule. */
+async function readScheduleJson(projectDir: string, { signal }: { readonly signal: AbortSignal }): Promise<unknown> {
     try {
-        return parseSchedule(await file.json());
-    } catch {
-        return { kind: "invalid", errors: ["is not valid JSON"] };
+        return await readJson(path.join(projectDir, SCHEDULE_PATH), { signal });
+    } catch (error: unknown) {
+        if (isFileNotFound(error)) {
+            return null;
+        }
+        throw error;
     }
 }
 
-async function loadProjectCheckups(projectDir: string, today: string): Promise<ProjectCheckups> {
-    const schedule = await readSchedule(projectDir);
+async function readSchedule(
+    projectDir: string,
+    { signal }: { readonly signal: AbortSignal },
+): Promise<ParsedSchedule | null> {
+    try {
+        const json = await readScheduleJson(projectDir, { signal });
+
+        return json === null ? null : parseSchedule(json);
+    } catch (error: unknown) {
+        if (error instanceof SyntaxError) {
+            return { kind: "invalid", errors: ["is not valid JSON"] };
+        }
+        throw error;
+    }
+}
+
+async function loadProjectCheckups(
+    projectDir: string,
+    { today, signal }: { readonly today: string; readonly signal: AbortSignal },
+): Promise<ProjectCheckups> {
+    const schedule = await readSchedule(projectDir, { signal });
 
     if (schedule === null) {
         return { kind: "unscheduled" };
@@ -378,7 +403,7 @@ async function loadProjectCheckups(projectDir: string, today: string): Promise<P
 
     const statuses = await Promise.all(
         schedule.value.map(async (checkup) =>
-            checkupStatus(checkup, await readReportFileNames(projectDir, checkup.name), { today }),
+            checkupStatus(checkup, await readReportFileNames(projectDir, { name: checkup.name, signal }), { today }),
         ),
     );
 
@@ -404,7 +429,7 @@ async function main(): Promise<void> {
         [projectDirArgument, process.env["CLAUDE_PROJECT_DIR"]].find((dir) => dir !== undefined && dir.length > 0) ??
         process.cwd();
     const today = formatDate(new Date());
-    const project = await loadProjectCheckups(projectDir, today);
+    const project = await loadProjectCheckups(projectDir, { today, signal: interruptSignal() });
 
     if (command === "status") {
         console.log(statusReport(project, { today }));

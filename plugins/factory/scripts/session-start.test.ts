@@ -28,6 +28,8 @@ describe("session-start hook", () => {
 
         expect(exitCode).toBe(0);
         expect(additionalContext).toContain(conventions.trim());
-        expect(additionalContext).toContain(renderRoutingContext(await readRoutes()));
+        expect(additionalContext).toContain(
+            renderRoutingContext(await readRoutes({ signal: AbortSignal.timeout(5_000) })),
+        );
     });
 });

@@ -74,6 +74,14 @@ describe("validateRepository", () => {
     it("finds no errors in this repository's manifests", async () => {
         const root = path.resolve(import.meta.dir, "..");
 
-        expect(await validateRepository(root)).toEqual({ errors: [] });
+        expect(await validateRepository(root, { signal: AbortSignal.timeout(30_000) })).toEqual({ errors: [] });
+    });
+
+    it("stops when aborted", async () => {
+        const root = path.resolve(import.meta.dir, "..");
+
+        await expect(validateRepository(root, { signal: AbortSignal.abort() })).rejects.toMatchObject({
+            name: "AbortError",
+        });
     });
 });

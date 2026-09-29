@@ -8,6 +8,8 @@
 
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import path from "node:path";
+import { readText } from "../../../lib/files.ts";
+import { interruptSignal } from "../../../lib/interrupt.ts";
 
 /** What kind of declaration an export is, which decides the documentation it needs. */
 export type ExportKind = "function" | "class" | "value" | "type";
@@ -260,7 +262,10 @@ export function renderDoctestFile(
 const isSourceFile = (fileName: string): boolean =>
     fileName.endsWith(".ts") && !fileName.endsWith(".test.ts") && !fileName.endsWith(".d.ts");
 
-async function sourceFiles(target: string): Promise<string[]> {
+async function sourceFiles(target: string, { signal }: { readonly signal: AbortSignal }): Promise<string[]> {
+    // Bun.file and readdir take no signal: check before starting instead.
+    signal.throwIfAborted();
+
     const isSingleSourceFile = isSourceFile(target) && (await Bun.file(target).exists());
 
     if (isSingleSourceFile) {
@@ -284,12 +289,13 @@ async function main(): Promise<void> {
         return;
     }
 
-    const files = (await Promise.all(targets.map((target) => sourceFiles(path.resolve(target))))).flat();
+    const signal = interruptSignal();
+    const files = (await Promise.all(targets.map((target) => sourceFiles(path.resolve(target), { signal })))).flat();
     const modules = await Promise.all(
         files.map(async (file) => ({
             file,
             label: path.relative(process.cwd(), file),
-            exports: findDocumentedExports(await Bun.file(file).text()),
+            exports: findDocumentedExports(await readText(file, { signal })),
         })),
     );
     const problems = modules.flatMap(({ label, exports }) =>
@@ -314,7 +320,7 @@ async function main(): Promise<void> {
             doctests.map((content, index) => Bun.write(path.join(dir, `${index}.doctest.test.ts`), content)),
         );
 
-        const run = Bun.spawn(["bun", "test", dir], { stdout: "inherit", stderr: "inherit" });
+        const run = Bun.spawn(["bun", "test", dir], { stdout: "inherit", stderr: "inherit", signal });
 
         if ((await run.exited) !== 0) {
             process.exitCode = 1;

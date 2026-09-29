@@ -2,6 +2,7 @@
 
 import path from "node:path";
 import { z } from "zod";
+import { readJson } from "../../../lib/files.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
 
@@ -124,20 +125,22 @@ export function renderRoutingContext(tasks: Routes): string {
 }
 
 /**
- * Reads and validates the plugin's `models.json`.
+ * Reads and parses the plugin's `models.json`.
  *
+ * @param options.signal - Cancels the read.
  * @returns The routes, by task type.
  * @throws Error listing every problem when `models.json` is invalid.
+ * @throws DOMException named `AbortError` when `signal` aborts.
  *
  * @example
  * ```ts
- * const routes = await readRoutes();
+ * const routes = await readRoutes({ signal: AbortSignal.timeout(5_000) });
  *
  * expect(routes["checkup"]?.model).toBeDefined();
  * ```
  */
-export async function readRoutes(): Promise<Routes> {
-    const parsed = parseRoutes(await Bun.file(MODELS_PATH).json());
+export async function readRoutes({ signal }: { readonly signal: AbortSignal }): Promise<Routes> {
+    const parsed = parseRoutes(await readJson(MODELS_PATH, { signal }));
 
     if (parsed.kind === "invalid") {
         throw new Error(`models.json is invalid: ${parsed.errors.join("; ")}`);
