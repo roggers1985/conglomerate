@@ -55,8 +55,13 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Tests
 
-- Add unit tests for each feature you make, even when not explicitly asked.
+- Add tests for each feature you make, even when not explicitly asked, and make them extensive: unit tests for every edge case (found systematically: equivalence classes, boundaries, a fixed checklist), integration and component tests (Testing Library) for the largest part of the surface, and Playwright end-to-end tests for every key flow's happy path and critical failure paths.
+- Test behaviour, never implementation. Mock only the outer edges (network, clock, randomness). A flaky test is a bug.
+
+## Styling
+
+- Use the project's existing styling approach. In a project without one, use CSS Modules with design tokens as CSS custom properties; don't add a CSS framework or CSS-in-JS runtime without the owner's decision.
 
 ## Topic conventions
 
-For React/UI work, load the `code-react` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill. For examples of the readability and optionality rules, load the `code-readability` skill. For schemas and parsing, load the `code-parsing` skill.
+For React/UI work, load the `code-react` skill and the `code-styling` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill. For examples of the readability and optionality rules, load the `code-readability` skill. For schemas and parsing, load the `code-parsing` skill.

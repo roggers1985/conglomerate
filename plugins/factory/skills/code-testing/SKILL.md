@@ -1,10 +1,71 @@
 ---
 name: code-testing
-description: The owner's testing conventions. Use when writing, reviewing or fixing unit, integration or UI tests.
+description: The owner's testing conventions. Covers what to test at which level (unit, integration, component, end-to-end), finding edge cases systematically, Testing Library, Playwright, test data, mocking and flakiness. Use when writing, reviewing or fixing unit, integration, component or end-to-end tests, or when deciding which tests a change needs.
 ---
 
 # Testing conventions
 
-- Add unit tests for each feature, even when not explicitly asked.
-- Use Testing Library for UI and integration tests.
-- Never test implementation details (class names, DOM structure, element counts). Query by user-facing semantics: text, roles, labels, ARIA state.
+Every feature ships with tests, even when not explicitly asked. Tests are extensive, and they test *behaviour*: what a user or caller can observe, never how the code does it internally.
+
+## Which tests at which level
+
+| Level | Covers | Tools |
+|---|---|---|
+| **Unit** | Every function with logic, and **every edge case** (see below) | The project's test runner (e.g. `bun test`, Vitest) |
+| **Integration** | Modules working together with their real collaborators: parsing → logic → storage, API handlers with their validation | The same runner; real code, only the outer edges replaced |
+| **Component** | The largest possible part of the UI surface: every interactive component, its states, keyboard use and accessibility | Testing Library with `user-event` (see `code-accessibility`) |
+| **End-to-end** | Every key user flow's happy path, plus its **critical failure paths** | Playwright |
+
+Most tests are unit and component tests; end-to-end tests are fewer and focus on flows. A bug found at a higher level also gets a test at the lowest level that can reproduce it.
+
+## Finding edge cases systematically
+
+"Every edge case" needs a method, otherwise it stays a feeling. For each input:
+
+1. **Equivalence classes**: group the inputs that should behave the same, and test one of each group, including the invalid groups.
+2. **Boundaries**: test at and on both sides of every boundary: 0, 1, many; empty and full; minimum and maximum; just over a limit.
+3. **The checklist**:
+   - empty string, empty collection, a single element, duplicates;
+   - missing values at the boundaries (`null` and `undefined` where the input allows them);
+   - unicode, emoji, very long strings, whitespace-only strings;
+   - dates: time zones, daylight-saving changes, leap years, month ends;
+   - numbers: negative, zero, fractions, very large, `NaN`;
+   - invalid input to parsers: wrong types, unknown fields (see `code-parsing`);
+   - errors from dependencies (network failure, timeout, a rejected promise);
+   - cancellation: an abort before, during and after the work (see `code-cancellation`);
+   - concurrency: the same action twice at once, out-of-order responses.
+4. **Property-based tests** (e.g. `fast-check`) for pure functions with large input spaces, such as parsers, formatters and calculations. State the property ("parse(format(x)) equals x", "the result is always sorted"), and let the tool find the counterexample.
+
+## Unit and integration tests
+
+- One behaviour per test, named after it: `it("rejects a name that is not kebab-case")`.
+- Arrange, act, assert, with a blank line between the parts.
+- **Mock only at the edges**: the network (e.g. MSW), the clock (fake timers), randomness (a seed), the file system (a temporary directory). Never mock the project's own modules; a test that mocks its collaborators tests the mock.
+- **Test data**: small builder functions with sensible defaults (`buildJob({ title: "…" })`), so each test only states what matters to it.
+- Deterministic: no wall clock, no real network, no dependence on test order or shared state.
+
+## Component tests (Testing Library)
+
+- Query as a user would: by role and accessible name, label, and text. Never by class name, test id (unless there is no accessible alternative), or DOM structure.
+- Interact with `user-event`, not `fireEvent`.
+- Cover every state a user can see: loading, empty, error, success, disabled, and pending async buttons.
+- Include keyboard use and accessibility checks for interactive components (`code-accessibility`).
+
+## End-to-end tests (Playwright)
+
+- **Happy paths**: every key user flow, end to end.
+- **Critical failure paths**: validation errors, missing permissions or a logged-out user, a failing payment or external service, and not-found pages.
+- An axe accessibility scan on every page the flows visit (`@axe-core/playwright`).
+- Locate by role and name (`getByRole`), never by CSS selectors. Rely on Playwright's automatic waiting; never `waitForTimeout`.
+- Run against a production build, with isolated test data per test, so tests can run in parallel.
+- Visual comparison screenshots only where the visual result *is* the feature, e.g. a chart or a generated image.
+
+## Flaky tests
+
+A flaky test is a bug. Fix its cause (time, order, shared state, a missing wait on a real condition) instead of retrying it. Never skip or weaken a test to make a change pass.
+
+## What not to do
+
+- Assertions on implementation details: private functions, call counts of our own code, class names, element counts.
+- Large snapshot tests: nobody reviews them, so they approve every change. Small, stable snapshots of a formatted string are fine.
+- Chasing a coverage number. Coverage shows what isn't tested; it doesn't prove that what is tested is tested well. Mutation testing (e.g. Stryker) measures that, and is worth considering for critical code.

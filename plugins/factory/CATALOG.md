@@ -14,6 +14,7 @@ Skills are named `<domain>-<topic>` (ADR 0013).
 | `code-parsing` | The owner's conventions for parsing external data with schemas (Zod by default, via Standard Schema), and the line between schema parsing, assert and plain types. |  |
 | `code-react` | The owner's React and UI conventions. |  |
 | `code-readability` | The owner's readability and optionality conventions, with examples. |  |
+| `code-styling` | The owner's styling conventions for frontend projects. |  |
 | `code-testing` | The owner's testing conventions. |  |
 
 ## checkup: Recurring checkups and their runner (ADR 0010)
