@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Parsed } from "../lib/parse.ts";
 import type { Marketplace, PluginManifest } from "./validate-plugin.ts";
@@ -83,5 +85,33 @@ describe("validateRepository", () => {
         await expect(validateRepository(root, { signal: AbortSignal.abort() })).rejects.toMatchObject({
             name: "AbortError",
         });
+    });
+
+    it("reports an invalid marketplace.json without looking at any plugin", async () => {
+        const root = await mkdtemp(path.join(tmpdir(), "validate-"));
+
+        try {
+            await Bun.write(
+                path.join(root, ".claude-plugin/marketplace.json"),
+                JSON.stringify({ ...validMarketplace, plugins: [] }),
+            );
+
+            expect(await validateRepository(root, { signal: AbortSignal.timeout(5_000) })).toEqual({
+                errors: ["marketplace.json: plugins: must list at least one plugin"],
+            });
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
+    });
+});
+
+describe("validate-plugin CLI", () => {
+    it("exits 0 and prints a summary when the repository is valid", async () => {
+        const script = path.join(import.meta.dir, "validate-plugin.ts");
+        const cli = Bun.spawn(["bun", script], { stdout: "pipe", cwd: path.resolve(import.meta.dir, "..") });
+        const [stdout, exitCode] = await Promise.all([new Response(cli.stdout).text(), cli.exited]);
+
+        expect(exitCode).toBe(0);
+        expect(stdout).toContain("marketplace, plugin manifests, skills, catalog, task agents and bundles are valid");
     });
 });

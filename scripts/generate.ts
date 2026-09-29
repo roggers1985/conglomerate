@@ -14,8 +14,34 @@ import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
 
 const FACTORY_DIR = path.resolve(import.meta.dir, "..", "plugins", "factory");
 
-/** Writes the expected files into `dir`, and removes files there that are no longer generated. */
-async function syncFolder(
+/**
+ * Writes the expected files into `dir`, and removes files there that are no longer generated.
+ *
+ * @param dir - The folder to sync.
+ * @param expected - The files that should exist, by file name.
+ * @param options.extension - Only existing files ending in this extension are considered for removal, e.g. `".md"`.
+ * @param options.signal - Cancels the reads and writes.
+ * @throws DOMException named `AbortError` when `signal` aborts.
+ *
+ * @example
+ * ```ts
+ * const { mkdtemp, rm } = await import("node:fs/promises");
+ * const { tmpdir } = await import("node:os");
+ * const dir = await mkdtemp(`${tmpdir()}/sync-`);
+ * const signal = AbortSignal.timeout(5_000);
+ * await Bun.write(`${dir}/stale.md`, "old");
+ * await Bun.write(`${dir}/notes.txt`, "kept: wrong extension");
+ *
+ * await syncFolder(dir, new Map([["current.md", "new"]]), { extension: ".md", signal });
+ *
+ * expect(await Bun.file(`${dir}/current.md`).text()).toBe("new");
+ * expect(await Bun.file(`${dir}/stale.md`).exists()).toBe(false);
+ * expect(await Bun.file(`${dir}/notes.txt`).exists()).toBe(true);
+ *
+ * await rm(dir, { recursive: true });
+ * ```
+ */
+export async function syncFolder(
     dir: string,
     expected: GeneratedFiles,
     { extension, signal }: { readonly extension: string; readonly signal: AbortSignal },
