@@ -21,6 +21,7 @@ bun run generate    # regenerate CATALOG.md and task agents after changing skill
 bun run typecheck   # type-check
 bun run lint        # lint + format check (bun run lint:fix to fix)
 bun test            # run tests
+bun run doctest     # check TSDoc and run every @example
 bun run validate    # validate the manifests
 claude --plugin-dir plugins/factory   # try the plugin locally
 ```

@@ -9,6 +9,7 @@ Skills are named `<domain>-<topic>` (ADR 0013).
 | --- | --- | --- |
 | `code-accessibility` | Write accessibility (a11y) tests alongside frontend work. |  |
 | `code-cancellation` | The owner's cancellation conventions. |  |
+| `code-documentation` | The owner's code documentation conventions. |  |
 | `code-react` | The owner's React and UI conventions. |  |
 | `code-testing` | The owner's testing conventions. |  |
 

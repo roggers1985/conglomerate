@@ -8,10 +8,25 @@ import type { Routes, TaskRoute } from "../plugins/factory/scripts/models.ts";
 /** Plugin agents in `agents/tasks/` are addressed as `<plugin>:tasks:<task>`. */
 export const TASK_AGENTS_DIR = path.join("agents", "tasks");
 
-export function taskAgentId(task: string): string {
-    return `factory:tasks:${task}`;
-}
-
+/**
+ * Renders the subagent definition for one task type (ADR 0015).
+ *
+ * @remarks
+ * The frontmatter carries the task's default `model` and `effort`. Claude can override the model per call; the body
+ * tells the agent to stop and report when its task turns out bigger or riskier than its type suggests.
+ *
+ * @param task - The task type's name in `models.json`; also the agent's name.
+ * @param route - The task type's model, effort and description.
+ * @returns The agent's markdown file, with YAML frontmatter.
+ *
+ * @example
+ * ```ts
+ * const agent = renderTaskAgent("review", { model: "opus", effort: "high", use: "Reviewing code" });
+ *
+ * expect(agent).toStartWith("---\nname: review\n");
+ * expect(agent).toContain("\nmodel: opus\neffort: high\n");
+ * ```
+ */
 export function renderTaskAgent(task: string, route: TaskRoute): string {
     const description = `Task agent for "${task}" work: ${route.use}. Defaults to ${route.model} with ${route.effort} effort (models.json); pass a model to override.`;
 
@@ -35,7 +50,19 @@ export function renderTaskAgent(task: string, route: TaskRoute): string {
     ].join("\n");
 }
 
-/** File name → content of every task agent that should exist. */
+/**
+ * Renders the definitions of all task agents that `models.json` asks for.
+ *
+ * @param routes - The routes from `models.json`.
+ * @returns File name (`<task>.md`) → file content, one per task type.
+ *
+ * @example
+ * ```ts
+ * const agents = renderTaskAgents({ review: { model: "opus", effort: "high", use: "Reviewing code" } });
+ *
+ * expect([...agents.keys()]).toEqual(["review.md"]);
+ * ```
+ */
 export function renderTaskAgents(routes: Routes): ReadonlyMap<string, string> {
     return new Map(Object.entries(routes).map(([task, route]) => [`${task}.md`, renderTaskAgent(task, route)]));
 }
@@ -53,6 +80,26 @@ async function listDir(dir: string): Promise<string[]> {
     }
 }
 
+/**
+ * Reads the task agent files of a plugin.
+ *
+ * @param pluginDir - The plugin's root folder.
+ * @returns File name → content of every `.md` file in `agents/tasks/`; empty when the folder doesn't exist.
+ *
+ * @example
+ * ```ts
+ * const { mkdtemp, rm } = await import("node:fs/promises");
+ * const { tmpdir } = await import("node:os");
+ * const pluginDir = await mkdtemp(`${tmpdir()}/plugin-`);
+ *
+ * expect(await readTaskAgents(pluginDir)).toEqual(new Map());
+ *
+ * await Bun.write(`${pluginDir}/${TASK_AGENTS_DIR}/review.md`, "content");
+ * expect(await readTaskAgents(pluginDir)).toEqual(new Map([["review.md", "content"]]));
+ *
+ * await rm(pluginDir, { recursive: true });
+ * ```
+ */
 export async function readTaskAgents(pluginDir: string): Promise<ReadonlyMap<string, string>> {
     const dir = path.join(pluginDir, TASK_AGENTS_DIR);
     const markdown = (await listDir(dir)).filter((fileName) => fileName.endsWith(".md"));
@@ -61,7 +108,23 @@ export async function readTaskAgents(pluginDir: string): Promise<ReadonlyMap<str
     return new Map(markdown.map((fileName, index) => [fileName, contents[index] ?? ""]));
 }
 
-/** Differences between the task agents on disk and the ones models.json asks for. */
+/**
+ * Compares the task agents on disk with the ones `models.json` asks for.
+ *
+ * @param expected - The agents that should exist, from {@link renderTaskAgents}.
+ * @param actual - The agents on disk, from {@link readTaskAgents}.
+ * @returns One problem per missing, stale (edited or outdated) or orphaned agent file; empty when they match.
+ *
+ * @example
+ * ```ts
+ * const expected = new Map([["review.md", "current"]]);
+ *
+ * expect(taskAgentErrors(expected, expected)).toEqual([]);
+ * expect(taskAgentErrors(expected, new Map([["review.md", "edited"]]))).toEqual([
+ *     "agents/tasks/review.md is missing or out of date: run `bun run generate`",
+ * ]);
+ * ```
+ */
 export function taskAgentErrors(expected: ReadonlyMap<string, string>, actual: ReadonlyMap<string, string>): string[] {
     const missingOrStale = [...expected]
         .filter(([fileName, content]) => actual.get(fileName) !== content)

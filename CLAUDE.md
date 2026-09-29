@@ -27,6 +27,8 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 
 - `tsconfig.json` is deliberately very strict (ADR 0004). Do not loosen it to make code compile; fix the code.
 - Treat external data (JSON, input) as `unknown` and narrow it by validation. No `as` casts, no `any`.
+- Every export has full TSDoc with a tested `@example` for functions and classes (ADR 0016). Keep the exported surface small: don't export what only the module itself uses.
+- `assert` lives in `plugins/factory/scripts/assert.ts`; import it, don't copy it.
 
 ## Commands
 
@@ -36,5 +38,6 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 - `bun run generate`: regenerate `plugins/factory/CATALOG.md` and the task agents (`agents/tasks/`) after adding, renaming or describing a skill, or changing `models.json` (validate fails otherwise). Never edit generated files by hand.
 - `bun run lint`: lint and format check with Biome (ADR 0005); `bun run lint:fix` to apply fixes. Do not disable rules to get code through; fix the code.
 - `bun test`: run all tests
+- `bun run doctest`: check TSDoc on every export and run every `@example` as a test
 - `bun run validate`: validate the marketplace and plugin manifests
 - `claude --plugin-dir plugins/factory`: try the plugin locally

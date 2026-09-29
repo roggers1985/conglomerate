@@ -8,7 +8,7 @@ import { readRoutes } from "../plugins/factory/scripts/models.ts";
 import { readTaskAgents, renderTaskAgents, TASK_AGENTS_DIR } from "./agents.ts";
 import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
 
-export const FACTORY_DIR = path.resolve(import.meta.dir, "..", "plugins", "factory");
+const FACTORY_DIR = path.resolve(import.meta.dir, "..", "plugins", "factory");
 
 async function main(): Promise<void> {
     const routes = await readRoutes();

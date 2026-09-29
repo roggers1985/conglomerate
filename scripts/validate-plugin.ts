@@ -2,21 +2,25 @@
 // It exists mainly to show the shape of repo tooling (pure functions + thin CLI + tests).
 
 import path from "node:path";
+import { assert } from "../plugins/factory/scripts/assert.ts";
 import { readRoutes } from "../plugins/factory/scripts/models.ts";
 import { readTaskAgents, renderTaskAgents, taskAgentErrors } from "./agents.ts";
 import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
 
+/** The fields of `.claude-plugin/plugin.json` that this repository requires. */
 export type PluginManifest = {
     readonly name: string;
     readonly version: string;
     readonly description: string;
 };
 
+/** One plugin listed in the marketplace. */
 export type MarketplaceEntry = {
     readonly name: string;
     readonly source: string;
 };
 
+/** The fields of `.claude-plugin/marketplace.json` that this repository requires. */
 export type Marketplace = {
     readonly name: string;
     readonly owner: { readonly name: string };
@@ -31,12 +35,6 @@ type Rule = readonly [passes: boolean, message: string];
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SEMVER = /^\d+\.\d+\.\d+$/;
 
-export function assert(condition: unknown, message: string): asserts condition {
-    if (!condition) {
-        throw new Error(`Assertion failed: ${message}`);
-    }
-}
-
 const isObject = <T>(value: unknown): value is Unvalidated<T> => typeof value === "object" && value !== null;
 const isNonEmptyString = (value: unknown): boolean => typeof value === "string" && value.length > 0;
 const isKebabCase = (value: unknown): boolean => typeof value === "string" && KEBAB_CASE.test(value);
@@ -44,6 +42,21 @@ const isKebabCase = (value: unknown): boolean => typeof value === "string" && KE
 const failedRules = (rules: readonly Rule[]): string[] =>
     rules.filter(([passes]) => !passes).map(([, message]) => message);
 
+/**
+ * Validates a plugin manifest.
+ *
+ * @param manifest - The parsed `plugin.json`, not yet trusted.
+ * @returns Every problem found; empty when valid.
+ * @throws Error (an `assert` invariant) when the manifest is not an object.
+ *
+ * @example
+ * ```ts
+ * expect(validatePluginManifest({ name: "factory", version: "0.1.0", description: "A factory." })).toEqual([]);
+ * expect(validatePluginManifest({ name: "factory", version: "1.0", description: "A factory." })).toEqual([
+ *     "version must be semver (x.y.z)",
+ * ]);
+ * ```
+ */
 export function validatePluginManifest(manifest: unknown): string[] {
     assert(isObject<PluginManifest>(manifest), "plugin manifest must be an object");
 
@@ -68,6 +81,21 @@ function validateMarketplaceEntry(entry: unknown, index: number): string[] {
     ]);
 }
 
+/**
+ * Validates a marketplace manifest, including every plugin entry.
+ *
+ * @param marketplace - The parsed `marketplace.json`, not yet trusted.
+ * @returns Every problem found; empty when valid.
+ * @throws Error (an `assert` invariant) when the marketplace is not an object.
+ *
+ * @example
+ * ```ts
+ * const marketplace = { name: "conglomerate", owner: { name: "Owner" }, plugins: [{ name: "factory", source: "./plugins/factory" }] };
+ *
+ * expect(validateMarketplace(marketplace)).toEqual([]);
+ * expect(validateMarketplace({ ...marketplace, plugins: [] })).toEqual(["plugins must be a non-empty array"]);
+ * ```
+ */
 export function validateMarketplace(marketplace: unknown): string[] {
     assert(isObject<Marketplace>(marketplace), "marketplace must be an object");
 
@@ -119,6 +147,19 @@ async function validatePlugin(root: string, entry: MarketplaceEntry): Promise<st
     return errors.map((error) => `${entry.name}/${error}`);
 }
 
+/**
+ * Validates the whole repository: the marketplace, every plugin's manifest and skills, and the generated
+ * catalog and task agents.
+ *
+ * @param root - The repository's root folder.
+ * @returns Every problem found, prefixed with the file it concerns; empty when everything is valid.
+ *
+ * @example
+ * ```ts
+ * // The doctest runs from the repository root.
+ * expect(await validateRepository(process.cwd())).toEqual([]);
+ * ```
+ */
 export async function validateRepository(root: string): Promise<string[]> {
     const marketplace = await readJson(path.join(root, ".claude-plugin", "marketplace.json"));
 

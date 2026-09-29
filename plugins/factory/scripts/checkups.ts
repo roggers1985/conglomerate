@@ -8,32 +8,39 @@
 
 import { readdir } from "node:fs/promises";
 import path from "node:path";
+import { assert } from "./assert.ts";
 
+/** One entry of a project's checkup schedule (`docs/checkups/checkups.json`): settings only, no state. */
 export type CheckupConfig = {
     readonly name: string;
     readonly intervalDays: number;
     readonly priority: boolean;
 };
 
+/** A scheduled checkup with its last run (the date of its newest report) and whether it is due. */
 export type CheckupStatus = CheckupConfig & {
     readonly lastRun: string | null;
     readonly due: boolean;
 };
 
+/** The outcome of validating a schedule: its checkups in order, or every problem found. */
 export type ParsedSchedule =
     | { readonly kind: "valid"; readonly checkups: readonly CheckupConfig[] }
     | { readonly kind: "invalid"; readonly errors: readonly string[] };
 
+/** A project's checkups: none scheduled, an invalid schedule, or the status of every scheduled checkup. */
 export type ProjectCheckups =
     | { readonly kind: "unscheduled" }
     | { readonly kind: "invalid"; readonly errors: readonly string[] }
     | { readonly kind: "scheduled"; readonly statuses: readonly CheckupStatus[] };
 
+/** A session-start reminder: a short notice for the user, and instructions for Claude. */
 export type Reminder = {
     readonly notice: string;
     readonly context: string;
 };
 
+/** The JSON a SessionStart hook prints: `systemMessage` is shown to the user, `additionalContext` goes to Claude. */
 export type ReminderOutput = {
     readonly systemMessage: string;
     readonly hookSpecificOutput: {
@@ -47,19 +54,13 @@ type Unvalidated<T> = { readonly [K in keyof T]?: unknown };
 
 type Rule = readonly [passes: boolean, message: string];
 
-export const SCHEDULE_PATH = "docs/checkups/checkups.json";
-export const REPORTS_DIR = "docs/checkups";
-export const RUNNER = "/factory:checkup";
+const SCHEDULE_PATH = "docs/checkups/checkups.json";
+const REPORTS_DIR = "docs/checkups";
+const RUNNER = "/factory:checkup";
 
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const REPORT_FILE = /^(\d{4}-\d{2}-\d{2})\.md$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-export function assert(condition: unknown, message: string): asserts condition {
-    if (!condition) {
-        throw new Error(`Assertion failed: ${message}`);
-    }
-}
 
 const isObject = <T>(value: unknown): value is Unvalidated<T> => typeof value === "object" && value !== null;
 
@@ -93,6 +94,30 @@ function duplicateNames(entries: readonly unknown[]): string[] {
     return [...new Set(names.filter((name, index) => names.indexOf(name) !== index))];
 }
 
+/**
+ * Validates the contents of a project's `docs/checkups/checkups.json`.
+ *
+ * @remarks
+ * Unknown extra fields are allowed, so older schedules (like the jobs project's, with `lastRun`) still parse.
+ *
+ * @param value - The parsed JSON, not yet trusted.
+ * @returns The checkups in schedule order, or every problem found (invalid fields, duplicate names).
+ *
+ * @example
+ * ```ts
+ * const legal = { name: "legal", intervalDays: 30, priority: true };
+ *
+ * expect(parseSchedule({ checkups: [legal] })).toEqual({ kind: "valid", checkups: [legal] });
+ * ```
+ *
+ * @example
+ * ```ts
+ * expect(parseSchedule({ checkups: [{ name: "Legal", intervalDays: 30, priority: true }] })).toEqual({
+ *     kind: "invalid",
+ *     errors: ["checkups[0].name must be kebab-case"],
+ * });
+ * ```
+ */
 export function parseSchedule(value: unknown): ParsedSchedule {
     if (!isObject<{ checkups: unknown }>(value) || !Array.isArray(value.checkups)) {
         return { kind: "invalid", errors: ['must be an object with a "checkups" array'] };
@@ -111,13 +136,40 @@ export function parseSchedule(value: unknown): ParsedSchedule {
     return { kind: "valid", checkups: entries.filter(isCheckupConfig) };
 }
 
+/**
+ * Finds the date of the newest report among a checkup's report files.
+ *
+ * @param fileNames - File names in `docs/checkups/<name>/`; anything not named `YYYY-MM-DD.md` is ignored.
+ * @returns The newest date as `YYYY-MM-DD`, or `null` when there is no report yet.
+ *
+ * @example
+ * ```ts
+ * expect(latestReportDate(["2026-08-01.md", "2026-09-27.md", "notes.md"])).toBe("2026-09-27");
+ * expect(latestReportDate([])).toBeNull();
+ * ```
+ */
 export function latestReportDate(fileNames: readonly string[]): string | null {
     const dates = fileNames.flatMap((fileName) => REPORT_FILE.exec(fileName)?.[1] ?? []);
 
     return dates.toSorted().at(-1) ?? null;
 }
 
-/** Due when never run, or when at least `intervalDays` have passed since the last run. Dates are `YYYY-MM-DD`. */
+/**
+ * Decides whether a checkup is due.
+ *
+ * @param lastRun - The date of its newest report as `YYYY-MM-DD`, or `null` when it never ran.
+ * @param intervalDays - How often it should run.
+ * @param today - Today's date as `YYYY-MM-DD`.
+ * @returns `true` when it never ran, or when at least `intervalDays` have passed since `lastRun`.
+ * @throws Error (an `assert` invariant) when `today` is not a valid date.
+ *
+ * @example
+ * ```ts
+ * expect(isDue(null, 30, "2026-09-29")).toBe(true);
+ * expect(isDue("2026-08-30", 30, "2026-09-29")).toBe(true);
+ * expect(isDue("2026-08-31", 30, "2026-09-29")).toBe(false);
+ * ```
+ */
 export function isDue(lastRun: string | null, intervalDays: number, today: string): boolean {
     assert(!Number.isNaN(Date.parse(today)), `today must be a YYYY-MM-DD date, got "${today}"`);
 
@@ -128,6 +180,21 @@ export function isDue(lastRun: string | null, intervalDays: number, today: strin
     return Date.parse(today) - Date.parse(lastRun) >= intervalDays * DAY_MS;
 }
 
+/**
+ * Combines a checkup's settings with its reports into its current status.
+ *
+ * @param checkup - The checkup's entry in the schedule.
+ * @param reportFileNames - The file names in its report folder.
+ * @param today - Today's date as `YYYY-MM-DD`.
+ * @returns The settings plus `lastRun` and `due`.
+ *
+ * @example
+ * ```ts
+ * const status = checkupStatus({ name: "legal", intervalDays: 30, priority: true }, ["2026-09-27.md"], "2026-09-29");
+ *
+ * expect(status).toEqual({ name: "legal", intervalDays: 30, priority: true, lastRun: "2026-09-27", due: false });
+ * ```
+ */
 export function checkupStatus(
     checkup: CheckupConfig,
     reportFileNames: readonly string[],
@@ -138,6 +205,31 @@ export function checkupStatus(
     return { ...checkup, lastRun, due: isDue(lastRun, checkup.intervalDays, today) };
 }
 
+/**
+ * Builds the session-start reminder for due checkups.
+ *
+ * @remarks
+ * Overdue priority checkups get a firm notice, and Claude is told to offer them before other work. Other due
+ * checkups get one quiet line, and Claude is told not to bring them up unless asked (ADR 0010).
+ *
+ * @param statuses - The status of every scheduled checkup.
+ * @returns The reminder, or `null` when nothing is due.
+ *
+ * @example
+ * ```ts
+ * const seo = { name: "seo", intervalDays: 60, priority: false, lastRun: null, due: true };
+ *
+ * expect(buildReminder([seo])?.notice).toBe("Checkups due: seo. Run /factory:checkup when convenient.");
+ * expect(buildReminder([{ ...seo, due: false }])).toBeNull();
+ * ```
+ *
+ * @example
+ * ```ts
+ * const legal = { name: "legal", intervalDays: 30, priority: true, lastRun: null, due: true };
+ *
+ * expect(buildReminder([legal])?.context).toContain("offer to run the priority checkups first");
+ * ```
+ */
 export function buildReminder(statuses: readonly CheckupStatus[]): Reminder | null {
     const due = statuses.filter((status) => status.due);
 
@@ -172,6 +264,20 @@ export function buildReminder(statuses: readonly CheckupStatus[]): Reminder | nu
     };
 }
 
+/**
+ * Turns a project's checkups into the SessionStart hook's JSON output.
+ *
+ * @param project - The project's checkups.
+ * @returns The output to print, or `null` (print nothing) when there is no schedule or nothing is due.
+ *
+ * @example
+ * ```ts
+ * expect(reminderOutput({ kind: "unscheduled" })).toBeNull();
+ * expect(reminderOutput({ kind: "invalid", errors: ["is not valid JSON"] })?.systemMessage).toBe(
+ *     "Checkups: docs/checkups/checkups.json is invalid: is not valid JSON",
+ * );
+ * ```
+ */
 export function reminderOutput(project: ProjectCheckups): ReminderOutput | null {
     if (project.kind === "unscheduled") {
         return null;
@@ -195,6 +301,22 @@ export function reminderOutput(project: ProjectCheckups): ReminderOutput | null 
     };
 }
 
+/**
+ * Renders the status table that the `/factory:checkup` runner shows.
+ *
+ * @param project - The project's checkups.
+ * @param today - Today's date as `YYYY-MM-DD`.
+ * @returns A markdown table with due checkups in bold, or an explanation when nothing is scheduled.
+ *
+ * @example
+ * ```ts
+ * const legal = { name: "legal", intervalDays: 30, priority: true, lastRun: null, due: true };
+ *
+ * expect(statusReport({ kind: "scheduled", statuses: [legal] }, "2026-09-29")).toContain(
+ *     "| legal | yes | 30 days | never | **due** |",
+ * );
+ * ```
+ */
 export function statusReport(project: ProjectCheckups, today: string): string {
     if (project.kind === "unscheduled") {
         return `No checkups are scheduled: ${SCHEDULE_PATH} does not exist.`;
@@ -222,6 +344,17 @@ export function statusReport(project: ProjectCheckups, today: string): string {
     ].join("\n");
 }
 
+/**
+ * Formats a date as `YYYY-MM-DD` in local time, the way report files are named.
+ *
+ * @param date - The date to format.
+ * @returns The local calendar date.
+ *
+ * @example
+ * ```ts
+ * expect(formatDate(new Date(2026, 8, 29, 23, 59))).toBe("2026-09-29");
+ * ```
+ */
 export function formatDate(date: Date): string {
     const pad = (value: number): string => String(value).padStart(2, "0");
 
@@ -255,7 +388,7 @@ async function readSchedule(projectDir: string): Promise<ParsedSchedule | null> 
     }
 }
 
-export async function loadProjectCheckups(projectDir: string, today: string): Promise<ProjectCheckups> {
+async function loadProjectCheckups(projectDir: string, today: string): Promise<ProjectCheckups> {
     const schedule = await readSchedule(projectDir);
 
     if (schedule === null) {

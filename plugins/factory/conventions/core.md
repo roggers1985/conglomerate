@@ -15,10 +15,14 @@ These conventions apply to all code you write or change in this session. They co
 - All work that waits (network, files, database, subprocesses, timers, long loops) is cancellable. Such functions take a **required** cancellation handle (`AbortSignal` in TypeScript, `context.Context` in Go), pass it to everything they call, and check it in long loops.
 - Timeouts use the same mechanism. Cancellation is not a failure: don't log it as an error or retry it.
 
+## Documentation
+
+- Every export has a full doc comment (TSDoc in TypeScript), including at least one example for functions and classes. Examples run as tests. Internal code only gets a comment when the *why* isn't obvious.
+
 ## Tests
 
 - Add unit tests for each feature you make, even when not explicitly asked.
 
 ## Topic conventions
 
-For React/UI work, load the `code-react` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules.
+For React/UI work, load the `code-react` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill.
