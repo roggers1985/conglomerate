@@ -35,7 +35,7 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Helpers
 
-- Prefer small, own, tested and documented helpers (e.g. `isNotNil`) over utility libraries like lodash. Add a helper when it's needed, not in advance.
+- Prefer small, own, tested and documented helpers (e.g. `isFileNotFound`) over utility libraries like lodash. Add a helper when it's needed, not in advance.
 - Hard problems (schema parsing, dates, crypto) use a proven library.
 
 ## API design
