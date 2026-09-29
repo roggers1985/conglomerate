@@ -63,20 +63,49 @@ const KEYWORD_KINDS: Readonly<Record<string, ExportKind>> = { function: "functio
 
 **Ternaries:** one condition, never nested (Biome: `noNestedTernary`).
 
-## Readable pipelines
+## Declarative by default
 
-Declarative code is preferred until it stops being readable. Give intermediate results a name, and split long chains.
+A chain of steps says *what* happens. A loop with changing variables makes the reader simulate *how*. Prefer the chain, even when it's long, as long as every step is simple.
 
 ```ts
-// Avoid
-return files.filter(isSourceFile).map(read).flatMap(findExports).filter((e) => e.kind !== "type").map((e) => e.name);
+// Avoid: the reader has to track `names` and the loop's control flow
+const names: string[] = [];
+for (const file of files) {
+    if (!isSourceFile(file)) {
+        continue;
+    }
+    for (const entry of findExports(read(file))) {
+        if (entry.kind !== "type") {
+            names.push(entry.name);
+        }
+    }
+}
 
-// Prefer
-const sources = files.filter(isSourceFile).map(read);
-const valueExports = sources.flatMap(findExports).filter((entry) => entry.kind !== "type");
-
-return valueExports.map((entry) => entry.name);
+// Prefer: one step per line, each step a name or a short lambda
+const names = files
+    .filter(isSourceFile)
+    .map(read)
+    .flatMap(findExports)
+    .filter(isValueExport)
+    .map((entry) => entry.name);
 ```
+
+Keep chains readable:
+
+- **One step per line.** The formatter does this for long chains.
+- **Name non-trivial steps.** A lambda longer than a line becomes a named function (`isValueExport`); its name documents the step.
+- **Name an intermediate result when it's a concept of its own,** e.g. when it's used twice, or when its name explains the rest of the chain.
+- **Prefer purpose-built operations over `reduce`:** `Object.groupBy`, `new Map(entries)`, `Object.fromEntries`, `flatMap`, `some`/`every`, `Math.max(...values)`. A `reduce` with a complex accumulator is usually harder to follow than the loop it replaced.
+- **No side effects inside `map` or `filter`.** Use `for … of` (or `forEach` at the end of a chain) for effects.
+
+Imperative code is the better choice where the logic really is stateful:
+
+- a small parser that tracks state across lines (e.g. "inside a code block");
+- early exits that depend on accumulated state;
+- sequential async work with cancellation checks between steps;
+- a hot loop where a measurement showed the chain is too slow.
+
+Not dogma: when a loop reads more clearly, write the loop.
 
 ## Optionality at the boundaries
 

@@ -10,9 +10,9 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Code style
 
-- **Optimize for readability.** It wins when other rules conflict: a long declarative chain that is hard to read gets named intermediate values, or becomes a plain loop.
+- **Optimize for readability.** It wins when other rules conflict.
 - Never nest: prefer early returns, guard clauses, and flat code over nested conditionals/loops.
-- When reasonably possible, prefer a declarative approach.
+- **Declarative by default.** Chains of `filter`/`map`/`flatMap` and the like are preferred over loops with changing state: they say *what* happens instead of making the reader simulate *how*. Keep each step simple: one step per line, and a named function instead of a long inline lambda. Use imperative code where the logic really is stateful (a small parser, early exits that depend on accumulated state, a measured hot loop). Not dogma: readability decides.
 - Always use curlies when writing if-while-for statements.
 - **One condition per `if`**: each `if` tests one named concept. Split guards into separate early returns; combine conditions only inside a well-named variable or function (`const isNoLongerValid = isExpired || isRevoked;`). No nested ternaries.
 - Use negative space programming: guard against invariants with a function called `assert`.
