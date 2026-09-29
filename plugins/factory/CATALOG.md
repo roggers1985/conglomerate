@@ -15,6 +15,7 @@ Skills are named `<domain>-<topic>` (ADR 0013).
 | `code-react` | The owner's React and UI conventions. |  |
 | `code-readability` | The owner's readability and optionality conventions, with examples. |  |
 | `code-safety` | The owner's safety conventions, inspired by NASA/JPL's Power of 10 and TigerBeetle's TigerStyle. |  |
+| `code-sql` | The owner's SQL and database conventions for PostgreSQL and SQLite. |  |
 | `code-styling` | The owner's styling conventions for frontend projects. |  |
 | `code-testing` | The owner's testing conventions. |  |
 
