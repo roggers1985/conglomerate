@@ -42,17 +42,18 @@ const FENCE = /^```(\w+)?(.*)$/;
 const TAG = /^@(\w+)/;
 const RUNNABLE_LANGUAGES = ["ts", "typescript", "tsx"];
 
+const KEYWORD_KINDS: Readonly<Record<string, ExportKind>> = {
+    function: "function",
+    class: "class",
+    type: "type",
+    interface: "type",
+};
+
 function kindOf(keyword: string, rest: string): ExportKind {
-    if (keyword === "function") {
-        return "function";
-    }
+    const kind = KEYWORD_KINDS[keyword];
 
-    if (keyword === "class") {
-        return "class";
-    }
-
-    if (keyword === "type" || keyword === "interface") {
-        return "type";
+    if (kind !== undefined) {
+        return kind;
     }
 
     return FUNCTION_INITIALIZER.test(rest) ? "function" : "value";
@@ -262,7 +263,9 @@ const isSourceFile = (fileName: string): boolean =>
     fileName.endsWith(".ts") && !fileName.endsWith(".test.ts") && !fileName.endsWith(".d.ts");
 
 async function sourceFiles(target: string): Promise<string[]> {
-    if (isSourceFile(target) && (await Bun.file(target).exists())) {
+    const isSingleSourceFile = isSourceFile(target) && (await Bun.file(target).exists());
+
+    if (isSingleSourceFile) {
         return [target];
     }
 

@@ -81,8 +81,14 @@ const isTaskRoute = (route: unknown): route is TaskRoute => validateRoute("task"
  * ```
  */
 export function parseRoutes(value: unknown): ParsedRoutes {
-    if (!isObject<{ tasks: unknown }>(value) || !isObject<Routes>(value.tasks)) {
-        return { kind: "invalid", errors: ['must be an object with a "tasks" object'] };
+    const notRoutes: ParsedRoutes = { kind: "invalid", errors: ['must be an object with a "tasks" object'] };
+
+    if (!isObject<{ tasks: unknown }>(value)) {
+        return notRoutes;
+    }
+
+    if (!isObject<Routes>(value.tasks)) {
+        return notRoutes;
     }
 
     const entries = Object.entries(value.tasks);

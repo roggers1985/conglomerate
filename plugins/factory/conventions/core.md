@@ -10,11 +10,20 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Code style
 
+- **Optimize for readability.** It wins when other rules conflict: a long declarative chain that is hard to read gets named intermediate values, or becomes a plain loop.
 - Never nest: prefer early returns, guard clauses, and flat code over nested conditionals/loops.
 - When reasonably possible, prefer a declarative approach.
 - Always use curlies when writing if-while-for statements.
-- Prefer single condition if-statements when it improves readability.
+- **One condition per `if`**: each `if` tests one named concept. Split guards into separate early returns; combine conditions only inside a well-named variable or function (`const isNoLongerValid = isExpired || isRevoked;`). No nested ternaries.
 - Use negative space programming: guard against invariants with a function called `assert`.
+
+## Optionality
+
+- **Handle optionality at the boundaries.** Input, config, API responses and database rows are normalised into complete types at the edge (with defaults filled in); core logic works with complete values.
+- **Never `null` or `undefined` for collections**: an empty array, set, map or object means "nothing".
+- **`undefined` means "not provided"**: only for optional fields and parameters at the boundaries. It is never returned explicitly.
+- **`null` means "deliberately no value"** in a result, e.g. `nextCursor: null` on the last page.
+- Use `?.` and `??` only on values that can actually be `null` or `undefined`; elsewhere they hide a missing boundary.
 
 ## API design
 
@@ -37,4 +46,4 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Topic conventions
 
-For React/UI work, load the `code-react` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill.
+For React/UI work, load the `code-react` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill. For examples of the readability and optionality rules, load the `code-readability` skill.

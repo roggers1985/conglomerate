@@ -119,8 +119,14 @@ function duplicateNames(entries: readonly unknown[]): string[] {
  * ```
  */
 export function parseSchedule(value: unknown): ParsedSchedule {
-    if (!isObject<{ checkups: unknown }>(value) || !Array.isArray(value.checkups)) {
-        return { kind: "invalid", errors: ['must be an object with a "checkups" array'] };
+    const notASchedule: ParsedSchedule = { kind: "invalid", errors: ['must be an object with a "checkups" array'] };
+
+    if (!isObject<{ checkups: unknown }>(value)) {
+        return notASchedule;
+    }
+
+    if (!Array.isArray(value.checkups)) {
+        return notASchedule;
     }
 
     const entries: readonly unknown[] = value.checkups;

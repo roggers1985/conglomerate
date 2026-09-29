@@ -98,13 +98,14 @@ export function parseFrontmatter(markdown: string): unknown {
 }
 
 function taskOf(frontmatter: Unvalidated<SkillFrontmatter>): unknown {
-    return isObject<SkillFrontmatter["metadata"]>(frontmatter.metadata) ? frontmatter.metadata.task : undefined;
+    return isObject<SkillFrontmatter["metadata"]>(frontmatter.metadata) ? frontmatter.metadata.task : null;
 }
 
 /** Skills never set a model or effort: those are chosen when work is delegated to a task agent (ADR 0015). */
 function routingErrors(frontmatter: Unvalidated<SkillFrontmatter>, routes: Routes): string[] {
     const task = taskOf(frontmatter);
-    const knownTask = task === undefined || (typeof task === "string" && routes[task] !== undefined);
+    const hasNoTask = task === null || task === undefined;
+    const knownTask = hasNoTask || (typeof task === "string" && routes[task] !== undefined);
 
     return failedRules([
         [
@@ -163,7 +164,9 @@ export function parseSkill(directory: string, frontmatter: unknown, routes: Rout
     const allErrors = [...errors, ...routingErrors(frontmatter, routes)];
     const task = taskOf(frontmatter);
 
-    if (allErrors.length > 0 || typeof name !== "string" || typeof description !== "string") {
+    const isValid = allErrors.length === 0 && typeof name === "string" && typeof description === "string";
+
+    if (!isValid) {
         return { kind: "invalid", errors: allErrors };
     }
 
@@ -175,9 +178,13 @@ const firstSentence = (text: string): string => text.split(/(?<=\.)\s/)[0] ?? te
 const escapeCell = (text: string): string => text.replaceAll("|", "\\|");
 
 function renderTask(task: string | null, routes: Routes): string {
-    const route = task === null ? undefined : routes[task];
+    if (task === null) {
+        return "";
+    }
 
-    if (task === null || route === undefined) {
+    const route = routes[task];
+
+    if (route === undefined) {
         return "";
     }
 

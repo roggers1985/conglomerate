@@ -34,7 +34,8 @@
             "preset": "recommended",
             "complexity": {
                 "noExcessiveCognitiveComplexity": "error",
-                "useLiteralKeys": "off"
+                "useLiteralKeys": "off",
+                "noUselessUndefined": "error"
             },
             "correctness": {
                 "noUnusedImports": "error",
@@ -49,7 +50,8 @@
                 "useImportType": "error",
                 "useExportType": "error",
                 "useNodejsImportProtocol": "error",
-                "useTemplate": "error"
+                "useTemplate": "error",
+                "noNestedTernary": "error"
             },
             "suspicious": {
                 "noExplicitAny": "error"
