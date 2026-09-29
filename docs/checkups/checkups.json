@@ -1,0 +1,6 @@
+{
+    "checkups": [
+        { "name": "outdated-packages", "intervalDays": 30, "priority": false },
+        { "name": "docs-drift", "intervalDays": 30, "priority": false }
+    ]
+}

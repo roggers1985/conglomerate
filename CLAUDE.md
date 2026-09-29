@@ -20,6 +20,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
   - `scripts/`: plugin scripts run by hooks; Bun + TypeScript, no runtime dependencies (ADR 0007)
 - `scripts/`: repository tooling (strict TypeScript, run directly by Bun)
 - `docs/decisions/`: architecture decision records
+- `docs/checkups/`: this repo's own checkup schedule (`checkups.json`) and reports (ADR 0010)
 
 ## TypeScript
 
