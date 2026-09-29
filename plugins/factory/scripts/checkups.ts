@@ -6,17 +6,15 @@
 // The schedule (docs/checkups/checkups.json) holds settings only. The last run of a checkup is the
 // date of its newest report (docs/checkups/<name>/YYYY-MM-DD.md).
 
-import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { assert } from "../../../lib/assert.ts";
 import { isFileNotFound } from "../../../lib/errors.ts";
-import { readJson } from "../../../lib/files.ts";
+import { readDirIfExists, readJson } from "../../../lib/files.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
+import { KEBAB_CASE } from "../../../lib/kebab-case.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
-
-const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 const CheckupConfigSchema = z.strictObject({
     name: z.string().regex(KEBAB_CASE, "must be kebab-case"),
@@ -407,36 +405,16 @@ export function formatDate(date: Date): string {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-async function readReportFileNames(
+function readReportFileNames(
     projectDir: string,
     { name, signal }: { readonly name: string; readonly signal: AbortSignal },
 ): Promise<string[]> {
-    // readdir takes no signal: check before starting instead.
-    signal.throwIfAborted();
-
-    try {
-        return await readdir(path.join(projectDir, REPORTS_DIR, name));
-    } catch (error: unknown) {
-        if (isFileNotFound(error)) {
-            return [];
-        }
-        throw error;
-    }
+    return readDirIfExists(path.join(projectDir, REPORTS_DIR, name), { signal });
 }
 
 /** The names of the skills in a folder; empty when the folder doesn't exist. */
 async function skillNames(dir: string, { signal }: { readonly signal: AbortSignal }): Promise<ReadonlySet<string>> {
-    // readdir takes no signal: check before starting instead.
-    signal.throwIfAborted();
-
-    try {
-        return new Set(await readdir(dir));
-    } catch (error: unknown) {
-        if (isFileNotFound(error)) {
-            return new Set();
-        }
-        throw error;
-    }
+    return new Set(await readDirIfExists(dir, { signal }));
 }
 
 /** The schedule's parsed JSON, or `null` when the project has no schedule. */

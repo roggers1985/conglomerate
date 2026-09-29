@@ -4,6 +4,7 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { readText } from "../lib/files.ts";
+import { KEBAB_CASE } from "../lib/kebab-case.ts";
 import type { Parsed } from "../lib/parse.ts";
 import { parse } from "../lib/parse.ts";
 import type { Routes } from "../plugins/factory/scripts/models.ts";
@@ -38,7 +39,6 @@ const DOMAINS: readonly Domain[] = [
 /** The generated skills overview in the plugin's root folder (ADR 0013). */
 export const CATALOG_FILE = "CATALOG.md";
 
-const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const FRONTMATTER = /^---\n([\s\S]*?)\n---/;
 
 /**

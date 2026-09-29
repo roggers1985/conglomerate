@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { isFileNotFound } from "./errors.ts";
 
 /**
@@ -89,6 +89,45 @@ export async function readTextIfExists(
     } catch (error: unknown) {
         if (isFileNotFound(error)) {
             return null;
+        }
+        throw error;
+    }
+}
+
+/**
+ * Lists a directory's entries, cancellably; empty when the directory doesn't exist yet.
+ *
+ * @remarks
+ * `node:fs/promises`' `readdir` takes no signal (ADR 0012): checked before starting instead.
+ *
+ * @param dir - The directory to list.
+ * @param options.signal - Cancels the read.
+ * @returns The entry names, in `readdir`'s order; empty when the directory is missing.
+ * @throws DOMException named `AbortError` when `signal` aborts; any error other than "not found" is rethrown.
+ *
+ * @example
+ * ```ts
+ * const { mkdtemp, rm } = await import("node:fs/promises");
+ * const { tmpdir } = await import("node:os");
+ * const dir = await mkdtemp(`${tmpdir()}/files-`);
+ * const signal = AbortSignal.timeout(5_000);
+ *
+ * expect(await readDirIfExists(`${dir}/missing`, { signal })).toEqual([]);
+ *
+ * await Bun.write(`${dir}/a.txt`, "a");
+ * expect(await readDirIfExists(dir, { signal })).toEqual(["a.txt"]);
+ *
+ * await rm(dir, { recursive: true });
+ * ```
+ */
+export async function readDirIfExists(dir: string, { signal }: { readonly signal: AbortSignal }): Promise<string[]> {
+    signal.throwIfAborted();
+
+    try {
+        return await readdir(dir);
+    } catch (error: unknown) {
+        if (isFileNotFound(error)) {
+            return [];
         }
         throw error;
     }

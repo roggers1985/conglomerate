@@ -3,12 +3,12 @@
 import path from "node:path";
 import { z } from "zod";
 import { readJson } from "../../../lib/files.ts";
+import { KEBAB_CASE } from "../../../lib/kebab-case.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
 
 const MODELS = ["opus", "sonnet", "haiku", "fable"] as const;
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
-const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const MODELS_PATH = path.resolve(import.meta.dir, "..", "models.json");
 
 const TaskRouteSchema = z.strictObject({

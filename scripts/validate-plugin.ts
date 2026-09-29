@@ -4,6 +4,7 @@ import path from "node:path";
 import { z } from "zod";
 import { readJson, readTextIfExists } from "../lib/files.ts";
 import { interruptSignal } from "../lib/interrupt.ts";
+import { KEBAB_CASE } from "../lib/kebab-case.ts";
 import type { Parsed } from "../lib/parse.ts";
 import { parse } from "../lib/parse.ts";
 import { readRoutes } from "../plugins/factory/scripts/models.ts";
@@ -12,7 +13,6 @@ import { BUNDLE_DIR, renderBundles } from "./bundles.ts";
 import { generatedFileErrors, readGeneratedFiles } from "./generated.ts";
 import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
 
-const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SEMVER = /^\d+\.\d+\.\d+$/;
 
 // Claude Code's manifest formats have more fields than we check, so unknown keys are allowed (ADR 0020).
