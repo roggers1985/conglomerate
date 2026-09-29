@@ -5,6 +5,7 @@
     "description": "Marketplace repository for the factory plugin.",
     "license": "MIT",
     "type": "module",
+    "packageManager": "bun@1.4.2",
     "scripts": {
         "validate": "bun scripts/validate-plugin.ts",
         "generate": "bun scripts/generate.ts",

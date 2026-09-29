@@ -14,7 +14,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 ## Repository and CI
 
 - [ ] Decide: push checkup branches and open PRs now that there is a (private) GitHub remote? Opening PRs needs the `gh` CLI (not installed) and `gh auth login`.
-- [ ] CI: a minimal GitHub Actions workflow running `bun run check` on pushes and PRs to `main` (repo-health; ADR 0006 already expected it)
 
 ## Conventions
 
