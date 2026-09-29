@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. Amended by [ADR-0023](0023-complete-generic-checkups-and-project-overrides.md): 16 generic checkups; a project's own checkup overrides the plugin's.
+Accepted. Amended by [ADR-0030](0030-checkup-priority-levels.md): priority levels (urgent, normal, quiet). Amended by [ADR-0023](0023-complete-generic-checkups-and-project-overrides.md): 16 generic checkups; a project's own checkup overrides the plugin's.
 
 ## Context
 

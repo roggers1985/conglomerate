@@ -15,8 +15,8 @@ import {
     statusReport,
 } from "./checkups.ts";
 
-const legal = { name: "legal", intervalDays: 30, priority: true };
-const seo = { name: "seo", intervalDays: 60, priority: false };
+const legal: CheckupConfig = { name: "legal", intervalDays: 30, priority: "urgent" };
+const seo: CheckupConfig = { name: "seo", intervalDays: 60, priority: "normal" };
 
 const status = (overrides: Partial<CheckupStatus>): CheckupStatus => ({
     ...seo,
@@ -41,7 +41,7 @@ describe("parseSchedule", () => {
 
     it("reports every invalid field", () => {
         expect(
-            failedPaths(parseSchedule({ checkups: [{ name: "Legal", intervalDays: 1.5, priority: "yes" }, 42] })),
+            failedPaths(parseSchedule({ checkups: [{ name: "Legal", intervalDays: 1.5, priority: "sometimes" }, 42] })),
         ).toEqual(["checkups[0].name", "checkups[0].intervalDays", "checkups[0].priority", "checkups[1]"]);
     });
 
@@ -116,7 +116,7 @@ describe("buildReminder", () => {
         expect(buildReminder([status({ due: false })])).toBeNull();
     });
 
-    it("asks Claude to offer overdue priority checkups first", () => {
+    it("asks Claude to offer overdue urgent checkups first", () => {
         const reminder = buildReminder([
             status({ ...legal, lastRun: "2026-08-01", due: true }),
             status({ ...seo, due: true }),
@@ -124,7 +124,7 @@ describe("buildReminder", () => {
 
         expect(reminder?.notice).toContain("- legal: last run 2026-08-01, due every 30 days");
         expect(reminder?.notice).toContain("Also due: seo.");
-        expect(reminder?.context).toContain("offer to run the priority checkups first");
+        expect(reminder?.context).toContain("offer to run the urgent checkups first");
     });
 
     it("only mentions other due checkups quietly", () => {
@@ -132,6 +132,19 @@ describe("buildReminder", () => {
 
         expect(reminder?.notice).toBe("Checkups due: seo. Run /factory:checkup when convenient.");
         expect(reminder?.context).toContain("Don't bring it up unless the user asks");
+    });
+});
+
+describe("buildReminder with quiet checkups", () => {
+    it("leaves due quiet checkups out of the session-start reminder", () => {
+        expect(buildReminder([status({ due: true, priority: "quiet" })])).toBeNull();
+    });
+
+    it("still mentions the other due checkups", () => {
+        const reminder = buildReminder([status({ due: true, priority: "quiet" }), status({ ...legal, due: true })]);
+
+        expect(reminder?.notice).toStartWith("Urgent checkups are overdue:\n- legal");
+        expect(reminder?.notice).not.toContain("seo");
     });
 });
 
@@ -166,8 +179,8 @@ describe("statusReport", () => {
             { today: "2026-09-29" },
         );
 
-        expect(report).toContain("| legal | yes | 30 days | 2026-09-27 |  | plugin |");
-        expect(report).toContain("| seo |  | 60 days | never | **due** | plugin |");
+        expect(report).toContain("| legal | urgent | 30 days | 2026-09-27 |  | plugin |");
+        expect(report).toContain("| seo | normal | 60 days | never | **due** | plugin |");
     });
 
     it("marks checkups without a skill", () => {
@@ -176,7 +189,7 @@ describe("statusReport", () => {
             { today: "2026-09-29" },
         );
 
-        expect(report).toContain("| seo |  | 60 days | never |  | **missing** |");
+        expect(report).toContain("| seo | normal | 60 days | never |  | **missing** |");
     });
 
     it("explains when nothing is scheduled", () => {
@@ -222,7 +235,7 @@ describe("checkups CLI", () => {
         await rm(projectDir, { recursive: true, force: true });
     });
 
-    it("reminds about an overdue priority checkup at session start", async () => {
+    it("reminds about an overdue urgent checkup at session start", async () => {
         await createProject([legal, seo], { seo: [formatDate(new Date())] });
 
         const output = JSON.parse(await run("reminder"));
@@ -247,14 +260,14 @@ describe("checkups CLI", () => {
     it("prints the status table", async () => {
         await createProject([legal], {});
 
-        expect(await run("status")).toContain("| legal | yes | 30 days | never | **due** | project |");
+        expect(await run("status")).toContain("| legal | urgent | 30 days | never | **due** | project |");
     });
 
     it("warns about a scheduled checkup that has no skill anywhere", async () => {
         await createProject([], {});
         await Bun.write(
             path.join(projectDir, "docs/checkups/checkups.json"),
-            JSON.stringify({ checkups: [{ name: "no-such-checkup", intervalDays: 30, priority: false }] }),
+            JSON.stringify({ checkups: [{ name: "no-such-checkup", intervalDays: 30, priority: "normal" }] }),
         );
 
         expect(JSON.parse(await run("reminder")).systemMessage).toBe(

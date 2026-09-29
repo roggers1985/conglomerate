@@ -9,7 +9,7 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 - [ ] Move the jobs project to the plugin's checkups (plugin installed, ADR 0024). Plan:
   - keep its project-specific checkups (legal, content-freshness, backfill, stale-data, seo, analytics) and any generic ones whose jobs version holds project knowledge, as overrides (ADR 0023);
   - drop the ones where the generic version is enough;
-  - remove `summary`, `lastRun` and `lastReport` from its `checkups.json` (the schema is strict, ADR 0020), and replace its own reminder hook and runner with the plugin's.
+  - in its `checkups.json`: remove `summary`, `lastRun` and `lastReport` (the schema is strict, ADR 0020), and turn `priority: true/false` into `"urgent"`/`"normal"` (ADR 0030); then replace its own reminder hook and runner with the plugin's.
 
 ## Repository and CI
 

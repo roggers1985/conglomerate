@@ -22,7 +22,7 @@ Unmerged checkup branches (their reports don't count yet):
 ## Steps
 
 1. Show the status table above to the user.
-   - If no checkups are scheduled, explain how to start: create `docs/checkups/checkups.json` with entries like `{ "name": "outdated-packages", "intervalDays": 30, "priority": false }`, and propose a starting schedule from the plugin's `factory:checkup-*` skills that fit this project (see step 2). Stop there.
+   - If no checkups are scheduled, explain how to start: create `docs/checkups/checkups.json` with entries like `{ "name": "outdated-packages", "intervalDays": 30, "priority": "normal" }` (`priority` is `urgent`, `normal` or `quiet`, ADR 0030), and propose a starting schedule from the plugin's `factory:checkup-*` skills that fit this project (see step 2). Stop there.
    - If a checkup's skill is **missing**, say so: it can't run until the project adds `.claude/skills/checkup-<name>/SKILL.md` or the name is corrected.
 2. Look for checkups the project is missing. Check the project briefly (structure, `package.json`, pages, config) and suggest, without adding them yourself:
    - generic ones from the plugin that fit but aren't scheduled, e.g. `frontend-quality`, `accessibility` and `performance` when there is a UI, and `seo` for a public website;
@@ -32,7 +32,7 @@ Unmerged checkup branches (their reports don't count yet):
    - Checkup names: run those.
    - `all`: run every scheduled checkup.
    - `due`, or nothing: run the due ones, but ask for confirmation first.
-4. Order: priority checkups first, then the rest in schedule order.
+4. Order: `urgent` checkups first, then `normal`, then `quiet`; within a level, schedule order.
 5. For each chosen checkup, use the skill in the table's Skill column: the project's own `checkup-<name>` (from `.claude/skills/`) when it says `project` (it overrides the plugin's version), otherwise the plugin's `factory:checkup-<name>`. Skip checkups whose skill is missing, and say so.
 6. Run the checkups **one at a time, each in its own subagent** (Agent tool), so each starts with a clean context. Use the task agent `factory:tasks:checkup`, which defaults to the `checkup` model and effort from `models.json`. Override the model only when the user asks for one (e.g. "run the checkups with opus"). Tell each subagent:
    - to invoke the checkup's skill;

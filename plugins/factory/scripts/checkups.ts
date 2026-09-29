@@ -16,10 +16,16 @@ import { KEBAB_CASE } from "../../../lib/kebab-case.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
 
+/**
+ * How insistently a due checkup is brought up at session start (ADR 0030): `urgent` checkups are offered before
+ * other work, `normal` ones get one quiet line, and `quiet` ones only show in the `/factory:checkup` status.
+ */
+const PRIORITIES = ["urgent", "normal", "quiet"] as const;
+
 const CheckupConfigSchema = z.strictObject({
     name: z.string().regex(KEBAB_CASE, "must be kebab-case"),
     intervalDays: z.number().int().positive(),
-    priority: z.boolean(),
+    priority: z.enum(PRIORITIES),
 });
 
 // Our own file, so strict: unknown keys are typos (ADR 0020).
@@ -94,14 +100,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  *
  * @example
  * ```ts
- * const legal = { name: "legal", intervalDays: 30, priority: true };
+ * const legal = { name: "legal", intervalDays: 30, priority: "urgent" };
  *
  * expect(parseSchedule({ checkups: [legal] })).toEqual({ kind: "valid", value: [legal] });
  * ```
  *
  * @example
  * ```ts
- * expect(parseSchedule({ checkups: [{ name: "Legal", intervalDays: 30, priority: true }] })).toEqual({
+ * expect(parseSchedule({ checkups: [{ name: "Legal", intervalDays: 30, priority: "urgent" }] })).toEqual({
  *     kind: "invalid",
  *     errors: ["checkups[0].name: must be kebab-case"],
  * });
@@ -212,7 +218,7 @@ export function skillSource(
  *
  * @example
  * ```ts
- * const legal = { name: "legal", intervalDays: 30, priority: true };
+ * const legal = { name: "legal", intervalDays: 30, priority: "urgent" };
  * const status = checkupStatus(legal, { reportFileNames: ["2026-09-27.md"], skill: "project", today: "2026-09-29" });
  *
  * expect(status).toEqual({ ...legal, lastRun: "2026-09-27", due: false, skill: "project" });
@@ -235,15 +241,16 @@ export function checkupStatus(
  * Builds the session-start reminder for due checkups.
  *
  * @remarks
- * Overdue priority checkups get a firm notice, and Claude is told to offer them before other work. Other due
- * checkups get one quiet line, and Claude is told not to bring them up unless asked (ADR 0010).
+ * Overdue `urgent` checkups get a firm notice, and Claude is told to offer them before other work. Due `normal`
+ * checkups get one quiet line, and Claude is told not to bring them up unless asked. `quiet` checkups are left out
+ * (ADR 0030). Scheduled checkups without a skill are always mentioned, since they can't run.
  *
  * @param statuses - The status of every scheduled checkup.
  * @returns The reminder, or `null` when nothing is due.
  *
  * @example
  * ```ts
- * const seo = { name: "seo", intervalDays: 60, priority: false, lastRun: null, due: true, skill: "plugin" } as const;
+ * const seo = { name: "seo", intervalDays: 60, priority: "normal", lastRun: null, due: true, skill: "plugin" } as const;
  *
  * expect(buildReminder([seo])?.notice).toBe("Checkups due: seo. Run /factory:checkup when convenient.");
  * expect(buildReminder([{ ...seo, due: false }])).toBeNull();
@@ -251,57 +258,58 @@ export function checkupStatus(
  *
  * @example
  * ```ts
- * const legal = { name: "legal", intervalDays: 30, priority: true, lastRun: null, due: true, skill: "project" } as const;
+ * const legal = { name: "legal", intervalDays: 30, priority: "urgent", lastRun: null, due: true, skill: "project" } as const;
  *
- * expect(buildReminder([legal])?.context).toContain("offer to run the priority checkups first");
+ * expect(buildReminder([legal])?.context).toContain("offer to run the urgent checkups first");
+ * expect(buildReminder([{ ...legal, priority: "quiet" }])).toBeNull();
  * expect(buildReminder([{ ...legal, skill: null }])?.notice).toBe("No skill found for: legal; see /factory:checkup.");
  * ```
  */
 export function buildReminder(statuses: readonly CheckupStatus[]): Reminder | null {
     const withoutSkill = statuses.filter((status) => status.skill === null).map((status) => status.name);
-    const due = statuses.filter((status) => status.skill !== null).filter((status) => status.due);
+    const due = statuses
+        .filter((status) => status.skill !== null)
+        .filter((status) => status.due)
+        .filter((status) => status.priority !== "quiet");
     const hasNothingToSay = due.length === 0 && withoutSkill.length === 0;
 
     if (hasNothingToSay) {
         return null;
     }
 
-    const priority = due.filter((status) => status.priority);
-    const others = due.filter((status) => !status.priority);
-    const priorityBlock =
-        priority.length === 0
+    const urgent = due.filter((status) => status.priority === "urgent");
+    const others = due.filter((status) => status.priority === "normal");
+    const urgentBlock =
+        urgent.length === 0
             ? []
             : [
-                  "Priority checkups are overdue:",
-                  ...priority.map(
+                  "Urgent checkups are overdue:",
+                  ...urgent.map(
                       (status) =>
                           `- ${status.name}: last run ${status.lastRun ?? "never"}, due every ${status.intervalDays} days`,
                   ),
               ];
     const notice = [
-        ...priorityBlock,
-        ...otherDueLine(others, { afterPriority: priority.length > 0 }),
+        ...urgentBlock,
+        ...otherDueLine(others, { afterUrgent: urgent.length > 0 }),
         ...(withoutSkill.length === 0 ? [] : [`No skill found for: ${withoutSkill.join(", ")}; see ${RUNNER}.`]),
     ].join("\n");
     const instruction =
-        priority.length === 0
+        urgent.length === 0
             ? "The user has been notified of the above. Don't bring it up unless the user asks."
-            : `Before starting other work, tell the user and offer to run the priority checkups first with ${RUNNER}. If they decline, continue with their request.`;
+            : `Before starting other work, tell the user and offer to run the urgent checkups first with ${RUNNER}. If they decline, continue with their request.`;
 
     return { notice, context: `${notice}\n${instruction}` };
 }
 
-function otherDueLine(
-    others: readonly CheckupStatus[],
-    { afterPriority }: { readonly afterPriority: boolean },
-): string[] {
+function otherDueLine(others: readonly CheckupStatus[], { afterUrgent }: { readonly afterUrgent: boolean }): string[] {
     const names = others.map((status) => status.name).join(", ");
 
     if (others.length === 0) {
         return [];
     }
 
-    if (afterPriority) {
+    if (afterUrgent) {
         return [`Also due: ${names}.`];
     }
 
@@ -354,10 +362,10 @@ export function reminderOutput(project: ProjectCheckups): ReminderOutput | null 
  *
  * @example
  * ```ts
- * const legal = { name: "legal", intervalDays: 30, priority: true, lastRun: null, due: true, skill: "project" } as const;
+ * const legal = { name: "legal", intervalDays: 30, priority: "urgent", lastRun: null, due: true, skill: "project" } as const;
  *
  * expect(statusReport({ kind: "scheduled", statuses: [legal] }, { today: "2026-09-29" })).toContain(
- *     "| legal | yes | 30 days | never | **due** | project |",
+ *     "| legal | urgent | 30 days | never | **due** | project |",
  * );
  * ```
  */
@@ -376,7 +384,7 @@ export function statusReport(project: ProjectCheckups, { today }: { readonly tod
 
     const rows = project.statuses.map(
         (status) =>
-            `| ${status.name} | ${status.priority ? "yes" : ""} | ${status.intervalDays} days | ${status.lastRun ?? "never"} | ${status.due ? "**due**" : ""} | ${status.skill ?? "**missing**"} |`,
+            `| ${status.name} | ${status.priority} | ${status.intervalDays} days | ${status.lastRun ?? "never"} | ${status.due ? "**due**" : ""} | ${status.skill ?? "**missing**"} |`,
     );
 
     return [
