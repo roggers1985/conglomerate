@@ -4,6 +4,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 
 ## Working agreement
 
+- `GLOSSARY.md` explains the terms used here for a programmer new to agents and these practices. When you introduce a new concept (a mechanism, a practice, a file type), add or update its entry in the same change.
 - `TODO.md` holds the agreed next steps. Read it at the start of a session, keep it current while working, and remove items once they are done and committed.
 - The owner wants full control. Discuss every addition before making it. Do not add skills, agents, commands, hooks or dependencies unprompted.
 - Every accepted decision gets an ADR in `docs/decisions/` (see ADR 0001).

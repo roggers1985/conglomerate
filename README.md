@@ -47,4 +47,6 @@ bun run validate    # validate manifests, skills and generated files
 claude --plugin-dir plugins/factory   # try the plugin from source
 ```
 
+New to some of the terms here? See the [glossary](GLOSSARY.md).
+
 Licensed under [MIT](LICENSE). Third-party code in the plugin's bundles is listed in [`plugins/factory/THIRD-PARTY-NOTICES.md`](plugins/factory/THIRD-PARTY-NOTICES.md).

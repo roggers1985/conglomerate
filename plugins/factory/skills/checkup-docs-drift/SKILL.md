@@ -25,8 +25,9 @@ Outdated instructions are worse than none: agents follow them. This checkup keep
    - For generated files (the project's `CLAUDE.md` says which), check that they are up to date by regenerating them, not by editing them.
 5. **READMEs and docs** (`README.md`, `docs/**`): setup steps and commands work, and links and anchors resolve. Skip historical documents such as checkup reports and finished specs and plans; they describe the past on purpose.
 6. **Environment variables**: `.env.example` (or the equivalent) matches the variables the code reads, in both directions.
-7. **Task lists** (`TODO.md` and similar): items that are already done according to the code or git history, and items that no longer make sense.
-8. **Code comments that state facts**: comments with numbers, dates or behaviour ("as of <date>", "N of M", "we do X because Y") that the code no longer matches.
+7. **Glossaries** (`GLOSSARY.md` and similar): entries that no longer match the code, and concepts used in the docs or ADRs that have no entry yet.
+8. **Task lists** (`TODO.md` and similar): items that are already done according to the code or git history, and items that no longer make sense.
+9. **Code comments that state facts**: comments with numbers, dates or behaviour ("as of <date>", "N of M", "we do X because Y") that the code no longer matches.
 
 ## Fixes you may make yourself
 
