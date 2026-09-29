@@ -17,13 +17,13 @@ Follow the protocol in `plugins/factory/checkups/protocol.md` (branch, hard rule
 
 Use the official documentation, and cite it in the report:
 
-- Models overview: https://docs.claude.com/en/docs/about-claude/models/overview
-- Model deprecations: https://docs.claude.com/en/docs/about-claude/model-deprecations
-- Pricing: https://docs.claude.com/en/docs/about-claude/pricing
+- Models overview: https://platform.claude.com/docs/en/about-claude/models/overview
+- Model deprecations: https://platform.claude.com/docs/en/about-claude/model-deprecations
+- Pricing: https://platform.claude.com/docs/en/about-claude/pricing
 - Claude Code model configuration (aliases, effort levels): https://code.claude.com/docs/en/model-config
 - Subagent configuration (`model`, `effort` frontmatter): https://code.claude.com/docs/en/sub-agents
 
-If a page has moved, find it through https://docs.claude.com/llms.txt or https://code.claude.com/docs/llms.txt, and note the new URL in the report (under "Next time", so this list gets updated).
+If a page has moved, find it through https://platform.claude.com/llms.txt or https://code.claude.com/docs/llms.txt, and note the new URL in the report (under "Next time", so this list gets updated).
 
 ## In scope
 
