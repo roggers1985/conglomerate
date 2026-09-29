@@ -8,6 +8,7 @@ Skills are named `<domain>-<topic>` (ADR 0013).
 | Skill | What it is | Task (model, effort) |
 | --- | --- | --- |
 | `code-accessibility` | Write accessibility (a11y) tests alongside frontend work. |  |
+| `code-api-design` | The owner's API design conventions for function signatures, options and return values. |  |
 | `code-cancellation` | The owner's cancellation conventions. |  |
 | `code-documentation` | The owner's code documentation conventions. |  |
 | `code-react` | The owner's React and UI conventions. |  |
