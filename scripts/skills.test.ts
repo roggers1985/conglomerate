@@ -64,36 +64,27 @@ describe("parseSkill", () => {
     });
 });
 
-describe("parseSkill with model routing", () => {
+describe("parseSkill with a task type", () => {
     const checkupSkill = { name: "checkup-seo", description: "SEO.", metadata: { task: "checkup" } };
 
-    it("accepts a skill whose model and effort match its task type", () => {
-        expect(parseSkill("checkup-seo", { ...checkupSkill, model: "sonnet", effort: "high" }, routes)).toEqual({
+    it("accepts a skill with a known task type", () => {
+        expect(parseSkill("checkup-seo", checkupSkill, routes)).toEqual({
             kind: "valid",
             skill: { name: "checkup-seo", description: "SEO.", task: "checkup" },
         });
     });
 
-    it("rejects a model or effort that differs from models.json", () => {
-        expect(parseSkill("checkup-seo", { ...checkupSkill, model: "opus", effort: "high" }, routes)).toEqual({
-            kind: "invalid",
-            errors: ['model must be "sonnet" for task "checkup" (models.json)'],
-        });
-    });
-
     it("rejects an unknown task type", () => {
-        const skill = { ...checkupSkill, metadata: { task: "gardening" }, model: "sonnet", effort: "high" };
-
-        expect(parseSkill("checkup-seo", skill, routes)).toEqual({
+        expect(parseSkill("checkup-seo", { ...checkupSkill, metadata: { task: "gardening" } }, routes)).toEqual({
             kind: "invalid",
             errors: ["metadata.task must be one of checkup"],
         });
     });
 
-    it("rejects a model set without a task type", () => {
-        expect(parseSkill("code-react", { name: "code-react", description: "React.", model: "opus" }, routes)).toEqual({
+    it("rejects a skill that pins its own model or effort", () => {
+        expect(parseSkill("checkup-seo", { ...checkupSkill, model: "sonnet", effort: "high" }, routes)).toEqual({
             kind: "invalid",
-            errors: ["model and effort come from models.json: set metadata.task instead"],
+            errors: ["skills don't set model or effort: they come from the task agent (ADR 0015)"],
         });
     });
 });

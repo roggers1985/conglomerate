@@ -32,7 +32,7 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 ## Models
 
-- [ ] `agent-setup` checkup: review `models.json` assignments when a new model is released (ADR 0014); decide whether and where to use `fable`
+- [ ] First run of the `model-routing` checkup (ADR 0015): decide whether and where to use `fable`
 
 ## Factory stages
 

@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR-0015](0015-task-agents-and-model-overrides.md): skills no longer set a model; delegation goes through task agents whose model can be overridden.
 
 ## Context
 

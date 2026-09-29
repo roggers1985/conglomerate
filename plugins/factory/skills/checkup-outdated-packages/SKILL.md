@@ -1,8 +1,6 @@
 ---
 name: checkup-outdated-packages
 description: Outdated packages checkup. Lists outdated dependencies, applies safe patch and minor updates in small verified batches, and writes an upgrade plan for major versions based on release notes. Use for "update packages", "outdated dependencies checkup", or when the checkup runner dispatches it.
-model: sonnet
-effort: high
 metadata:
   task: checkup
 ---

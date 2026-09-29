@@ -16,11 +16,12 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
   - `conventions/core.md`: the owner's always-on conventions, injected at session start (ADR 0008)
   - `skills/<domain>-<topic>/`: skills, named domain first (ADR 0013). `code-*` hold coding conventions (ADR 0008, 0011, 0012). Overview: `plugins/factory/CATALOG.md`
   - `checkups/protocol.md`, `skills/checkup/`, `scripts/checkups.ts`: recurring checkups (ADR 0010)
-  - `models.json`: which model and effort per task type (ADR 0014); task skills declare `metadata.task` and must match it
+  - `models.json`: default model and effort per task type (ADR 0014, 0015). `agents/tasks/*.md` are generated from it; skills declare `metadata.task` but never a model
   - `scripts/`: plugin scripts run by hooks; Bun + TypeScript, no runtime dependencies (ADR 0007)
 - `scripts/`: repository tooling (strict TypeScript, run directly by Bun)
 - `docs/decisions/`: architecture decision records
 - `docs/checkups/`: this repo's own checkup schedule (`checkups.json`) and reports (ADR 0010)
+- `.claude/skills/`: checkups specific to this repo, e.g. `checkup-model-routing` (ADR 0015)
 
 ## TypeScript
 
@@ -32,7 +33,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 - `bun run check`: run every quality gate (typecheck, lint, test, validate). The pre-push hook runs this (ADR 0006); never bypass it with `--no-verify`.
 - A pre-commit hook formats staged files with Biome and re-stages them (ADR 0009). It refuses partially staged files.
 - `bun run typecheck`: type-check (Bun does not type-check when running)
-- `bun run catalog`: regenerate `plugins/factory/CATALOG.md` after adding, renaming or describing a skill, or changing `models.json` (validate fails otherwise)
+- `bun run generate`: regenerate `plugins/factory/CATALOG.md` and the task agents (`agents/tasks/`) after adding, renaming or describing a skill, or changing `models.json` (validate fails otherwise). Never edit generated files by hand.
 - `bun run lint`: lint and format check with Biome (ADR 0005); `bun run lint:fix` to apply fixes. Do not disable rules to get code through; fix the code.
 - `bun test`: run all tests
 - `bun run validate`: validate the marketplace and plugin manifests

@@ -86,9 +86,15 @@ export function renderRoutingContext(tasks: Routes): string {
     return [
         "## Model routing",
         "",
-        "When you delegate work to a subagent, give it the model for its task type (from the factory plugin's `models.json`). Skills that belong to a task type switch to its model and effort themselves. Your own session model is the user's choice; don't change it.",
+        "Delegate work to the task agent for its type: `factory:tasks:<task>` (Agent tool). Each one defaults to the model and effort below (from the factory plugin's `models.json`).",
         "",
         renderRoutingTable(tasks),
+        "",
+        "These are defaults, not rules:",
+        "- **Override** by passing `model` on the Agent call when a specific task clearly needs more or less than its type suggests (e.g. a small change in security-sensitive code → a stronger model; a large but mechanical change → a cheaper one). Say in one line which model you chose and why.",
+        "- **The user's choice always wins**, including over this table.",
+        "- If a task agent reports that its task is bigger or riskier than expected, hand it to a stronger model rather than retrying on the same one.",
+        "- Your own session model is the user's choice; don't change it.",
     ].join("\n");
 }
 

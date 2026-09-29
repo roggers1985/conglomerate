@@ -3,6 +3,7 @@
 
 import path from "node:path";
 import { readRoutes } from "../plugins/factory/scripts/models.ts";
+import { readTaskAgents, renderTaskAgents, taskAgentErrors } from "./agents.ts";
 import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
 
 export type PluginManifest = {
@@ -105,9 +106,10 @@ async function validateSkills(pluginDir: string): Promise<string[]> {
     const { skills, errors } = await readPluginSkills(pluginDir, routes);
     const catalog = Bun.file(path.join(pluginDir, CATALOG_FILE));
     const catalogIsCurrent = (await catalog.exists()) && (await catalog.text()) === renderCatalog(skills, routes);
-    const catalogErrors = catalogIsCurrent ? [] : [`${CATALOG_FILE} is out of date: run \`bun run catalog\``];
+    const catalogErrors = catalogIsCurrent ? [] : [`${CATALOG_FILE} is out of date: run \`bun run generate\``];
+    const agentErrors = taskAgentErrors(renderTaskAgents(routes), await readTaskAgents(pluginDir));
 
-    return [...errors, ...catalogErrors];
+    return [...errors, ...catalogErrors, ...agentErrors];
 }
 
 async function validatePlugin(root: string, entry: MarketplaceEntry): Promise<string[]> {
@@ -139,7 +141,7 @@ async function main(): Promise<void> {
         return;
     }
 
-    console.log("✓ marketplace, plugin manifests, skills and catalog are valid");
+    console.log("✓ marketplace, plugin manifests, skills, catalog and task agents are valid");
 }
 
 if (import.meta.main) {
