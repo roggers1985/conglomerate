@@ -1,6 +1,6 @@
 ---
 name: code-safety
-description: The owner's safety conventions, inspired by NASA/JPL's "Power of 10" and TigerBeetle's TigerStyle. Starts with bounds: every loop, retry, recursion, input, collection, queue, cache and wait has an explicit upper bound. Use when writing loops, retries, pagination, recursion, queues, caches, concurrency or input handling, or when reviewing code for robustness.
+description: "The owner's safety conventions, inspired by NASA/JPL's Power of 10 and TigerBeetle's TigerStyle. It starts with bounds, so that every loop, retry, recursion, input, collection, queue, cache and wait has an explicit upper bound. Use when writing loops, retries, pagination, recursion, queues, caches, concurrency or input handling, or when reviewing code for robustness."
 ---
 
 # Safety conventions

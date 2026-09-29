@@ -81,6 +81,24 @@ export function parseFrontmatter(markdown: string): unknown {
     return Bun.YAML.parse(match[1] ?? "");
 }
 
+/** Parses a skill file; frontmatter that isn't valid YAML is a problem of that skill, not a crash of the whole run. */
+function parseSkillFile(
+    markdown: string,
+    options: { readonly directory: string; readonly routes: Routes },
+): ParsedSkill {
+    try {
+        return parseSkill(parseFrontmatter(markdown), options);
+    } catch (error: unknown) {
+        if (error instanceof SyntaxError) {
+            return {
+                kind: "invalid",
+                errors: [`frontmatter is not valid YAML (quote values that contain ": "): ${error.message}`],
+            };
+        }
+        throw error;
+    }
+}
+
 function skillSchema(directory: string, routes: Routes) {
     const domains = DOMAINS.map((domain) => domain.name).join(", ");
     const tasks = Object.keys(routes).join(", ");
@@ -272,7 +290,7 @@ export async function readPluginSkills(
 
                 return {
                     directory: entry.name,
-                    result: parseSkill(parseFrontmatter(markdown), { directory: entry.name, routes }),
+                    result: parseSkillFile(markdown, { directory: entry.name, routes }),
                 };
             }),
     );

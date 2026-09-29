@@ -156,4 +156,17 @@ describe("readPluginSkills", () => {
             name: "AbortError",
         });
     });
+
+    it("reports frontmatter that isn't valid YAML as a problem of that skill", async () => {
+        pluginDir = await mkdtemp(path.join(tmpdir(), "plugin-"));
+        await Bun.write(
+            path.join(pluginDir, "skills/code-go/SKILL.md"),
+            "---\nname: code-go\ndescription: Go. Use when: writing Go.\n---\n",
+        );
+
+        const { errors } = await readPluginSkills(pluginDir, { routes, signal: AbortSignal.timeout(5_000) });
+
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toStartWith("skills/code-go: frontmatter is not valid YAML");
+    });
 });
