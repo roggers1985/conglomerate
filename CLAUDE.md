@@ -14,7 +14,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 - `.claude-plugin/marketplace.json`: marketplace manifest
 - `plugins/factory/`: the plugin (`.claude-plugin/plugin.json`, `skills/`, `agents/`, `commands/`, `hooks/`)
   - `conventions/core.md`: the owner's always-on conventions, injected at session start (ADR 0008)
-  - `skills/*-conventions/`: topic conventions loaded on demand (ADR 0008)
+  - `skills/*-conventions/`: topic conventions loaded on demand (ADR 0008; cancellation: ADR 0012)
   - `skills/accessibility-testing/`: a11y tests alongside frontend work (ADR 0011)
   - `checkups/protocol.md`, `skills/checkup/`, `scripts/checkups.ts`: recurring checkups (ADR 0010)
   - `scripts/`: plugin scripts run by hooks; Bun + TypeScript, no runtime dependencies (ADR 0007)
