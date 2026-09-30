@@ -288,6 +288,15 @@ describe("verificationProblems", () => {
         ]);
     });
 
+    it("reports evidence for a criterion the spec doesn't have, or has dropped", () => {
+        const evidence = "- AC-1: a test\n- AC-2: a test\n- AC-3: an old test\n- AC-9: a typo";
+
+        expect(verificationProblems(verification(evidence), { criteria })).toEqual([
+            "verification.md has evidence for AC-9, which the spec doesn't have",
+            "verification.md has evidence for AC-3, which the spec has dropped",
+        ]);
+    });
+
     it("requires the checks that ran", () => {
         expect(
             verificationProblems("## Evidence\n\n- AC-1: a test", { criteria: { active: ["AC-1"], dropped: [] } }),
