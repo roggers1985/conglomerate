@@ -26,11 +26,11 @@ The build turns the task list (`tasks.md`, or the Tasks section of `plan.md`) in
    - to read `CLAUDE.md`, the change's `spec.md`, `plan.md` and its task from disk, and to install dependencies from the lockfile;
    - **test-first:** write the test for the criteria the task covers, naming each criterion in the test's name (e.g. `it("AC-1: downloads the jobs as CSV")`), see it fail, then make it pass;
    - to follow the conventions, and to stay inside the task's files. Anything else it notices goes in its reply, not in the code;
-   - to run the task's **Verify** command and the project's check commands, and to commit only when all pass;
+   - to run the task's **Verify** command and the project's **fast checks** (type check, lint, and the tests near the change), and to commit only when they pass. The full suite runs after the merge (step 4), so it doesn't run once per task;
    - **verify before claiming done:** reply with the commands it ran and their results, not with "it works".
 4. **Take the result in:**
    - merge the task's branch into `change/<name>`;
-   - run the project's checks there;
+   - run the project's **full** check suite there. When it fails, the task isn't done: give it back to a subagent with the failure;
    - remove the worktree and both of its branches (`git worktree remove`, `git branch -d`);
    - set the task to `done` in the task list, and commit.
 5. **When it fails:** give the same task at most 3 attempts (the autonomy limits, ADR 0044). If the third fails, try once with a stronger task agent (`code-complex`, then `model: "fable"`, ADR 0021). If that fails too, stop and report to the owner what was tried.
@@ -63,7 +63,9 @@ After the last task, verify the whole change on `change/<name>`:
 
 Every active criterion of the spec needs evidence: the test that names it, or the concrete check that shows it. A criterion without evidence means the build isn't done: add the missing test as a new task.
 
-3. Set the build (and verify) stage to `done`, and run `bun "${CLAUDE_PLUGIN_ROOT}/dist/changes.js" check docs/changes/<name>/task.md`. It refuses a done build while a task isn't done or `verification.md` lacks evidence for a criterion. Fix what it reports, then commit.
+**On the quick track** there is no change folder, so there's no `verification.md`: put the same two parts, the checks that ran and the evidence, in your reply to the owner and in the pull request's description.
+
+3. On the standard and full tracks, set the build (and verify) stage to `done`, and run `bun "${CLAUDE_PLUGIN_ROOT}/dist/changes.js" check docs/changes/<name>/task.md`. It refuses a done build while a task isn't done or `verification.md` lacks evidence for a criterion. Fix what it reports, then commit.
 
 ## The spike stage
 
