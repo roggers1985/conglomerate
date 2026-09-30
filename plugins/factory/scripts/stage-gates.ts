@@ -308,7 +308,7 @@ export function taskListProblems(
     const coversDropped = [...covered].filter((id) => criteria?.dropped.includes(id) === true);
 
     return [
-        blocks.length === 0 ? `${file} has no tasks (### T-<n>: <title>)` : null,
+        blocks.length === 0 ? `${file} has no tasks (### T-<n>: <title>)${headingHint(markdown)}` : null,
         blocks.length > TASKS_MAX ? `${file} has more than ${TASKS_MAX} tasks: split the change` : null,
         ...[...duplicates].map((id) => `${id} is used more than once in ${file}`),
         ...blocks.flatMap((block, index) => taskProblems(block, { earlierIds: ids.slice(0, index) })),
@@ -318,8 +318,16 @@ export function taskListProblems(
     ].filter((problem) => problem !== null);
 }
 
+/** A hint for task headings written with the wrong number of `#`, the most likely reason no task was found. */
+function headingHint(markdown: string): string {
+    const misspelled = /^(#{1,2}|#{4,}) (T-\d+)/m.exec(markdown);
+
+    return misspelled === null ? "" : `; found "${misspelled[1]} ${misspelled[2]}": tasks use three #`;
+}
+
 function taskProblems(block: TaskBlock, { earlierIds }: { readonly earlierIds: readonly string[] }): string[] {
-    const missing = REQUIRED_TASK_FIELDS.filter((field) => (block.fields.get(field) ?? "").length === 0);
+    const missing = REQUIRED_TASK_FIELDS.filter((field) => !block.fields.has(field));
+    const empty = REQUIRED_TASK_FIELDS.filter((field) => block.fields.get(field) === "");
     const covers = block.fields.get("Covers") ?? "";
     const hasCriteria = [...covers.matchAll(CRITERION_ID)].length > 0;
     const coversNothingWithoutReason = covers.length > 0 && !hasCriteria && !NO_CRITERIA.test(covers);
@@ -330,6 +338,7 @@ function taskProblems(block: TaskBlock, { earlierIds }: { readonly earlierIds: r
 
     return [
         ...missing.map((field) => `${block.id} has no "${field}"`),
+        ...empty.map((field) => `${block.id}'s "${field}" is empty: write its value on the same line`),
         coversNothingWithoutReason
             ? `${block.id} covers no criterion: name them (AC-<n>), or write "none" with the reason`
             : null,
