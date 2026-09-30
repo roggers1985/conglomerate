@@ -49,4 +49,4 @@ To consider:
 ## Before going public
 
 - The license is decided: MIT (ADR 0027).
-- [ ] Compare the factory with existing open-source factories (the ones above and others), and only make the repository public if it clearly adds something
+- [ ] Make the repository public only if it clearly adds something. The comparison and the criteria are in `docs/readiness.md` (ADR 0050), kept current by the `readiness` checkup

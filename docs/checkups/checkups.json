@@ -15,6 +15,7 @@
         { "name": "licenses" },
         { "name": "architecture" },
         { "name": "retro" },
-        { "name": "conventions" }
+        { "name": "conventions" },
+        { "name": "readiness" }
     ]
 }

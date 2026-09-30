@@ -66,6 +66,8 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Strangler fig.** Replacing part of a system step by step, with the old and new side by side behind a stable interface, until the old part can be removed. The alternative to a big-bang rewrite.
 
+**Readiness.** *Here:* `docs/readiness.md`, which compares the factory with alternatives such as Superpowers, Spec Kit and OpenSpec, and tracks the criteria for publishing it. The `readiness` checkup keeps it current (ADR 0050).
+
 **Conventions checkup.** *Here:* a checkup of this repository that re-reads the sources of the owner's conventions, looks for better practices, and checks the conventions for contradictions. It only proposes (ADR 0039).
 
 **Model routing.** Choosing which model does which kind of work. *Here:* `plugins/factory/models.json` (ADR 0014).
