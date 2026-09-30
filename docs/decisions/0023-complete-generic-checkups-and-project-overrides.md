@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. Clarified by [ADR-0025](0025-checkup-refinements-after-first-runs.md): checkups that clearly don't apply may be left out of the schedule.
+Accepted. Amended by [ADR-0045](0045-architecture-checkup-and-register.md): an `architecture` checkup. Clarified by [ADR-0025](0025-checkup-refinements-after-first-runs.md): checkups that clearly don't apply may be left out of the schedule.
 
 Amends [ADR-0010](0010-recurring-checkups.md): the list of generic checkups is extended, and a project's own checkup overrides the plugin's.
 

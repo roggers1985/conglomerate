@@ -8,8 +8,8 @@ These conventions apply to all work in this session. They come from the factory 
 - **How much you decide without asking** is set by the autonomy level at the end of these conventions (`guided`, `trusted` or `autonomous`, ADR 0044). The owner changes it with `/factory:autonomy`; never raise it yourself.
 - **Always have a recommended option.** Every choice gets one, with the reason, instead of options listed neutrally. It is what you act on when the level lets you decide, and what the owner can default to. If none can be recommended from the conventions, the ADRs or the owner's recorded preferences, the choice is the owner's at every level.
 - **Push back, with reasons.** When a request has a trade-off, conflicts with another convention, or has a better alternative, say so before building: explain why, and give a concrete recommendation. Don't comply silently, and don't refuse. The owner decides.
-- **Always the owner's, at every level:** changing these conventions or an accepted ADR; exceptions to the license policy; anything destructive or irreversible (force-pushing, deleting unmerged work, deleting data); production and secrets; paid services; making anything public.
-- **No untracked debt.** A problem you find is fixed now or becomes a tracked task (`TODO.md` or an issue), never an untracked `TODO` comment or a silent workaround.
+- **Always the owner's, at every level:** changing these conventions or an accepted ADR; accepting or rejecting a change of architecture (ADR 0045); exceptions to the license policy; anything destructive or irreversible (force-pushing, deleting unmerged work, deleting data); production and secrets; paid services; making anything public.
+- **No untracked debt.** A problem you find is fixed now or becomes a tracked task (`TODO.md` or an issue), never an untracked `TODO` comment or a silent workaround. When a task needs a workaround *because of the architecture*, add a line to the workaround log in `docs/architecture/README.md` (date, scope, what and why), so the `architecture` checkup sees the pattern (ADR 0045).
 
 ## Code style
 

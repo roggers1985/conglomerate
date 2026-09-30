@@ -26,6 +26,7 @@ Skills are named `<domain>-<topic>` (ADR 0013).
 | `checkup` | Run the project's recurring checkups (dependencies, security, code and frontend quality, tests, docs, accessibility, and project-specific ones like legal). |  |
 | `checkup-accessibility` | Accessibility checkup. | `checkup` (sonnet, high) |
 | `checkup-agent-setup` | Agent setup checkup. | `checkup` (sonnet, high) |
+| `checkup-architecture` | Architecture checkup. | `planning` (opus, high) |
 | `checkup-code-quality` | Code quality checkup. | `checkup` (sonnet, high) |
 | `checkup-docs-drift` | Documentation drift checkup. | `checkup` (sonnet, high) |
 | `checkup-frontend-quality` | Frontend quality checkup. | `checkup` (sonnet, high) |

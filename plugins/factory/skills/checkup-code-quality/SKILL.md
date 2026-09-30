@@ -43,6 +43,7 @@ Keeps the code readable and correct, and in line with the owner's conventions fr
 ## How to work
 
 - Lint and type suppressions and TODO comments are the **todos** checkup's job; note them under "Outside scope".
+- Problems of the architecture itself (boundaries between modules or units, layering, where the business rules live) are the **architecture** checkup's job: note them under "Outside scope", or in the workaround log of `docs/architecture/README.md` if the project has one.
 
 ## Fixes you may make yourself
 
