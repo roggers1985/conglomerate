@@ -42,7 +42,7 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 ## The factory
 
-**Software factory.** A pipeline that turns ideas into shipped software through fixed stages, each with clear inputs, outputs and checks. *Here:* the plugin's name, and the plan in `TODO.md`.
+**Software factory.** A pipeline that turns ideas into shipped software through fixed stages, each with clear inputs, outputs and checks. Some factories are plugins for an agent tool; others have their own **runtime**, an orchestrator that runs agents unattended. *Here:* a plugin, with Claude Code as its runtime and the owner in the loop (ADR 0040); the stages are planned in `TODO.md`.
 
 **Convention.** A rule for how code is written. *Here:* the always-on ones are in `plugins/factory/conventions/core.md`, added to every session; the detailed ones are `code-*` skills.
 
