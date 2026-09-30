@@ -206,6 +206,22 @@ describe("taskListProblems", () => {
         ]);
     });
 
+    it("explains a field whose value was written on the next lines", () => {
+        const tasks =
+            "### T-1: Export\n- Files:\n  - `a.ts`\n  - `b.ts`\n- Covers: AC-1\n- Verify: `bun test`\n- Status: pending";
+
+        expect(check(tasks)).toEqual(['T-1\'s "Files" is empty: write its value on the same line']);
+    });
+
+    it("hints at the heading when tasks use the wrong number of #", () => {
+        expect(check("## T-1: Export\n- Files: `a.ts`", null)).toEqual([
+            'tasks.md has no tasks (### T-<n>: <title>); found "## T-1": tasks use three #',
+        ]);
+        expect(check("#### T-2: Export", null)).toEqual([
+            'tasks.md has no tasks (### T-<n>: <title>); found "#### T-2": tasks use three #',
+        ]);
+    });
+
     it("requires a reason when a task covers no criterion", () => {
         expect(check([validTask("T-1"), validTask("T-2", "setup")].join("\n\n"))).toEqual([
             'T-2 covers no criterion: name them (AC-<n>), or write "none" with the reason',
