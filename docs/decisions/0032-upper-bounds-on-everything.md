@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. Extended by [ADR-0034](0034-lower-bounds.md): lower bounds too.
+Accepted. Extended by [ADR-0038](0038-safety-practices-from-power-of-10-and-tigerstyle.md): assertions, function length, errors, library options. Extended by [ADR-0034](0034-lower-bounds.md): lower bounds too.
 
 ## Context
 

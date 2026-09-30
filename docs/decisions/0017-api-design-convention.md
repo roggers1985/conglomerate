@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Extended by [ADR-0038](0038-safety-practices-from-power-of-10-and-tigerstyle.md): explicit options for libraries too.
 
 ## Context
 

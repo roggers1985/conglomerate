@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. Amended by [ADR-0022](0022-declarative-by-default.md): declarative is the default; a hard-to-read chain gets named steps rather than becoming a loop.
+Accepted. Extended by [ADR-0038](0038-safety-practices-from-power-of-10-and-tigerstyle.md): scope and naming. Amended by [ADR-0022](0022-declarative-by-default.md): declarative is the default; a hard-to-read chain gets named steps rather than becoming a loop.
 
 ## Context
 

@@ -1,6 +1,6 @@
 ---
 name: code-safety
-description: "The owner's safety conventions, inspired by NASA/JPL's Power of 10 and TigerBeetle's TigerStyle. It starts with bounds, so that every loop, retry, recursion, input, collection, queue, cache and wait has an explicit upper bound. Use when writing loops, retries, pagination, recursion, queues, caches, concurrency or input handling, or when reviewing code for robustness."
+description: "The owner's safety conventions, inspired by NASA/JPL's Power of 10 and TigerBeetle's TigerStyle. Covers bounds (every loop, retry, recursion, input, collection, queue, cache and wait has explicit limits), assertions for what types can't express, function length, error handling, explicit library options, and index, count and size. Use when writing loops, retries, pagination, recursion, queues, caches, concurrency, input handling or error handling, or when reviewing code for robustness."
 ---
 
 # Safety conventions
@@ -68,7 +68,7 @@ Queues, caches, buffers and in-memory collections have a maximum size and a docu
 A bound has two sides. Where a value below some minimum makes no sense, that minimum is explicit too:
 
 - **Numbers:** counts are `>= 0`; sizes, limits and page sizes are `>= 1`; intervals, timeouts and delays are `> 0`; ratings and percentages have both ends (`min(1).max(5)`, `min(0).max(100)`). In schemas: `.int()`, `.nonnegative()`, `.positive()`, `.min()`.
-- **Strings:** `.min(1)` where an empty value is meaningless (names, ids, titles), after trimming whitespace.
+- **Strings:** not blank where an empty value is meaningless (names, ids, titles): check the trimmed length, don't trim the value in the schema.
 - **Collections:** `.min(1)` where at least one item is required.
 - **Results of arithmetic** that can drop below zero (a remaining budget, a counter being decremented, a duration computed from two timestamps) are asserted to stay `>= 0`.
 - **The bounds themselves:** a loop maximum is at least 1, and related constants are checked against each other once, e.g. `assert(PAGE_SIZE_DEFAULT <= PAGE_SIZE_MAX, "…")`.
@@ -79,3 +79,33 @@ A bound has two sides. Where a value below some minimum makes no sense, that min
 - **Named constants,** documented with the reason for the number: `const PAGES_MAX = 1_000; // a full catalogue is ~200 pages`. No bare numbers in conditions.
 - **Hitting a bound fails loudly:** an error with the bound in its message, or an `assert` for bounds that can only be hit by a bug. Silent truncation is only allowed where the specification says so, and it is then documented.
 - **Every bound is tested:** at the bound, and one past it, on both sides (see the boundary values in `code-testing`).
+
+## Assertions
+
+Assert what the types can't express, and skip what they already guarantee. There is no quota: an assertion earns its place by the bug it catches, and filler assertions hide the ones that matter.
+
+- **Worth asserting:** numeric ranges (`maxBytes >= 1`, a remaining budget `>= 0`), whole numbers, non-blank strings, relations between values (`start <= end`, a default at most its maximum), and state a function relies on (a list is sorted, a map has the key it's about to read).
+- **Not worth asserting:** that a `string` is a string, that a required field is present, that a discriminated union has one of its kinds. The type checker already proves these.
+- **Pair assertions:** where data is written in one place and read in another, check the same property on both sides. The writer asserts what it produces, and the reader parses what it receives, so a bug on either side is caught near its cause. This repository's `generate` and `validate` are an example.
+- `assert` is for bugs in our own code; invalid input from outside is a parse error with a readable message (see `code-parsing`).
+
+## Functions
+
+A function fits on a screen: **at most 70 lines**, blank lines not counted (TigerStyle; NASA's rule 4 says 60). Biome's `noExcessiveLinesPerFunction` enforces it; test files are exempt, since a `describe` block groups many tests. A longer function is split where it has a name for a part, not at an arbitrary line.
+
+## Errors
+
+Every error is handled or passed on on purpose. TigerStyle cites a study in which 92% of catastrophic failures came from mishandled non-fatal errors.
+
+- **No empty `catch`,** and no `catch` that only logs and carries on as if nothing happened. Handle the specific error you expect (e.g. `whenMissing` for a missing file) and rethrow the rest.
+- **No ignored results:** every promise is awaited, returned or explicitly handed to something that handles its rejection. Biome's `noFloatingPromises` and `noMisusedPromises` enforce this.
+- A result object with a failure kind is checked before its value is used; the discriminated union makes skipping it a type error.
+
+## Library options
+
+Pass the options that bound or change a library's behaviour explicitly, instead of relying on its defaults: timeouts, size limits, retries, concurrency, and modes (strict or lenient, sync or async). Library defaults are often unlimited (no timeout, no maximum), which is how unbounded waits get in. Tuning knobs that don't bound anything may keep their defaults. This extends the "explicit over hidden defaults" rule of `code-api-design` (ADR 0017) to the libraries we call.
+
+## Index, count and size
+
+- **An index, a count and a size are different things,** even when they are all numbers: an index runs from 0 to count − 1, a count is how many items there are, and a size is usually in bytes. Name them so (`index`, `count`, `sizeBytes`), and don't use one where another is meant.
+- **Rounding is always explicit:** `Math.floor`, `Math.ceil` or `Math.round`, with a comment when the direction matters (e.g. pages needed: `Math.ceil(count / pageSize)`). Never rely on an implicit conversion to drop the fraction.

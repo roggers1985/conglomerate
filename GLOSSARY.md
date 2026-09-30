@@ -81,6 +81,8 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Assertion (`assert`).** A check in the code that something that must be true is true, failing loudly when it isn't. It catches bugs where they happen, not three steps later. *Here:* `lib/assert.ts`.
 
+**Pair assertion.** Checking the same property in two places: where data is written and where it is read. A bug on either side is then caught close to its cause. *Here:* `bun run generate` writes the generated files and `bun run validate` checks them (ADR 0038).
+
 **Negative space programming.** Stating in code what must *not* happen (with assertions), not only what should. A term from TigerStyle.
 
 **Boundary (trust boundary).** The edge where data enters the program from outside: a request, a file, an environment variable, a database row, a model's output. *Here:* data is parsed at the boundary and trusted after it.
@@ -90,6 +92,8 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 **Schema.** A description of the shape data must have (fields, types, limits), used to parse it. *Here:* written with **Zod**, a schema library, through **Standard Schema**, a common interface that several schema libraries share (ADR 0020).
 
 **Bounds.** Limits on how big (upper bound) or small (lower bound) something may be: loop iterations, input sizes, retries, waits. Crossing one fails loudly. *Here:* ADR 0032 and 0034, and the `code-safety` skill, after NASA/JPL's "Power of 10" rules and TigerStyle.
+
+**Nursery rule.** A lint rule that Biome still considers experimental: it may change or be renamed in a minor release before it becomes stable. *Here:* `noFloatingPromises` and `noMisusedPromises` (ADR 0038).
 
 **Cancellation.** Being able to stop work that's no longer needed (a user navigated away, a timeout passed). In JavaScript through an `AbortSignal`, in Go through a `context.Context`. *Here:* ADR 0012 and the `code-cancellation` skill.
 

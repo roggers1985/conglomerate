@@ -36,7 +36,14 @@
             "complexity": {
                 "noExcessiveCognitiveComplexity": "error",
                 "useLiteralKeys": "off",
-                "noUselessUndefined": "error"
+                "noUselessUndefined": "error",
+                "noExcessiveLinesPerFunction": {
+                    "level": "error",
+                    "options": {
+                        "maxLines": 70,
+                        "skipBlankLines": true
+                    }
+                }
             },
             "correctness": {
                 "noUnusedImports": "error",
@@ -63,7 +70,23 @@
             },
             "suspicious": {
                 "noExplicitAny": "error"
+            },
+            "nursery": {
+                "noFloatingPromises": "error",
+                "noMisusedPromises": "error"
             }
         }
-    }
+    },
+    "overrides": [
+        {
+            "includes": ["**/*.test.ts"],
+            "linter": {
+                "rules": {
+                    "complexity": {
+                        "noExcessiveLinesPerFunction": "off"
+                    }
+                }
+            }
+        }
+    ]
 }

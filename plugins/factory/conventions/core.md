@@ -7,6 +7,7 @@ These conventions apply to all work in this session. They come from the factory 
 - The owner wants full control and to discuss every addition. Propose before building anything they haven't agreed to.
 - **Push back, with reasons.** When a request has a trade-off, conflicts with another convention, or has a better alternative, say so before building: explain why, and give a concrete recommendation. Don't comply silently, and don't refuse. The owner decides.
 - When you recommend one option among several, say which one and why, instead of listing options neutrally.
+- **No untracked debt.** A problem you find is fixed now or becomes a tracked task (`TODO.md` or an issue), never an untracked `TODO` comment or a silent workaround.
 
 ## Code style
 
@@ -69,4 +70,4 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Topic conventions
 
-For React/UI work, load the `code-react` skill and the `code-styling` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill. For loops, retries, queues, caches, concurrency or input limits, load the `code-safety` skill. For database schemas, migrations and queries, load the `code-sql` skill. For examples of the readability and optionality rules, load the `code-readability` skill. For schemas and parsing, load the `code-parsing` skill.
+For React/UI work, load the `code-react` skill and the `code-styling` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill. For loops, retries, queues, caches, concurrency, input limits, assertions or error handling, load the `code-safety` skill. For database schemas, migrations and queries, load the `code-sql` skill. For examples of the readability and optionality rules, and for naming, load the `code-readability` skill. For schemas and parsing, load the `code-parsing` skill.

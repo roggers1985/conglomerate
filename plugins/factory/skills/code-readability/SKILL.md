@@ -1,6 +1,6 @@
 ---
 name: code-readability
-description: The owner's readability and optionality conventions, with examples. Covers one named condition per if, guard clauses, readable pipelines, handling null/undefined at the boundaries, empty collections instead of null, and when optional chaining is allowed. Use when writing or refactoring conditionals, data pipelines, or code that deals with missing values.
+description: The owner's readability and optionality conventions, with examples. Covers one named condition per if, guard clauses, readable pipelines, handling null/undefined at the boundaries, empty collections instead of null, when optional chaining is allowed, variable scope, and naming (units, qualifiers last, no abbreviations). Use when writing or refactoring conditionals, data pipelines, code that deals with missing values, or when naming things.
 ---
 
 # Readability and optionality
@@ -147,3 +147,13 @@ job.tags?.length; // wrong: tags is always an array
 ```
 
 Biome's `noUnnecessaryConditions` could enforce this, but it currently gives false positives (for example on `RegExp.exec`), so it is off. Enforcement is by review until Biome improves (ADR 0019).
+
+## Scope
+
+Declare a variable as close to its first use as possible, and keep few variables in play at once. A value that is only needed inside one branch is declared in that branch; a long function with many variables at the top is a sign it wants splitting (see "Functions" in `code-safety`).
+
+## Names
+
+- **Units in names:** a number with a unit says it: `timeoutMs`, `sizeBytes`, `intervalDays`. A missing unit is a classic bug (seconds passed where milliseconds were meant).
+- **Qualifiers last,** so related names line up and sort together: `latencyMsMax`, `latencyMsMin` rather than `maxLatency`, and `PACKAGES_MAX`, `JSON_BYTES_MAX` for constants (TigerStyle).
+- **No abbreviations,** except terms that are more familiar abbreviated: `id`, `url`, `html`, `json`, `api`. `configuration` may stay `config`; `msg`, `cnt` and `idx` become `message`, `count` and `index`.
