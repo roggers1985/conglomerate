@@ -61,8 +61,8 @@ Show the owner, in a few lines: the classification, the track, the deviations wi
 
 ## 6. Write it down
 
-- **quick:** no files. Write the route as one line in your reply, e.g. "Route: quick (build → verify → review), trusted", and start.
-- **standard and full:** create `docs/changes/<YYYY-MM-DD>-<short-name>/task.md`, then check it with `bun "${CLAUDE_PLUGIN_ROOT}/dist/changes.js" check <path>`. Fix it until the check passes, then commit it.
+- **quick:** no files. Write the route as one line in your reply, e.g. "Route: quick (build → verify → review), trusted", and start. The build creates the change's branch.
+- **standard and full:** create the change's branch from the default branch (`git switch -c change/<YYYY-MM-DD>-<short-name>`), where all of the change's work happens (ADR 0054). Then create `docs/changes/<YYYY-MM-DD>-<short-name>/task.md`, check it with `bun "${CLAUDE_PLUGIN_ROOT}/dist/changes.js" check <path>`. Fix it until the check passes, then commit it.
 
 ```markdown
 ---
@@ -107,5 +107,6 @@ At session start, the factory reports unfinished changes. When the owner wants t
 - **intent** and **spec:** the `factory-intake` skill (ADR 0052).
 - **migration-plan**, **plan** and **tasks:** the `factory-planning` skill (ADR 0053).
 - **architecture:** the `checkup-architecture` skill, scoped to the units the change touches (ADR 0045).
+- **spike**, **build** and **verify:** the `factory-build` skill (ADR 0054).
 
 The other stages are being built one at a time (`TODO.md`). Until a stage's own skill exists, do its work as the route describes, following the conventions, and say that the stage has no skill yet.

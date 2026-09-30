@@ -370,3 +370,70 @@ export function unfinishedTaskProblems(markdown: string, { file }: { readonly fi
                 `the build is done, but ${block.id} in ${file} is ${block.fields.get("Status") || "without a status"}`,
         );
 }
+
+/** The sections `verification.md` must have: the checks that ran, and the evidence per acceptance criterion. */
+export const VERIFICATION_SECTIONS = ["Checks", "Evidence"] as const;
+
+/** The sections `spike.md` must have. */
+export const SPIKE_SECTIONS = ["Question", "Findings", "Recommendation"] as const;
+
+const EVIDENCE = /^\s*[-*] (AC-\d+):\s*(.*)$/;
+
+/**
+ * Checks `verification.md` before the build or verify stage may be done: the checks that ran are listed, and every
+ * active acceptance criterion has evidence (the test or check that shows it works) (ADR 0054).
+ *
+ * @param markdown - The contents of `verification.md`.
+ * @param options.criteria - The spec's active and dropped criteria ids; `null` when the route has no spec.
+ * @returns Every problem found; empty when the gate passes.
+ *
+ * @example
+ * ```ts
+ * const verification = "## Checks\n\n`bun run check`: passed\n\n## Evidence\n\n- AC-1: `export.test.ts` › exports as CSV";
+ * const criteria = { active: ["AC-1", "AC-2"], dropped: [] };
+ *
+ * expect(verificationProblems(verification, { criteria })).toEqual(["verification.md has no evidence for AC-2"]);
+ * ```
+ */
+export function verificationProblems(
+    markdown: string,
+    {
+        criteria,
+    }: { readonly criteria: { readonly active: readonly string[]; readonly dropped: readonly string[] } | null },
+): string[] {
+    const lines = (sections(markdown).get("Evidence") ?? "").split("\n");
+    const evidence = lines.map((line) => EVIDENCE.exec(line)).filter(isNotNil);
+    const withEvidence = new Set(
+        evidence.filter((match) => (match[2] ?? "").trim().length > 0).map((match) => match[1] ?? ""),
+    );
+    const missing = (criteria?.active ?? []).filter((id) => !withEvidence.has(id));
+    const named = new Set(evidence.map((match) => match[1] ?? ""));
+    const known = new Set([...(criteria?.active ?? []), ...(criteria?.dropped ?? [])]);
+    const unknown = criteria === null ? [] : [...named].filter((id) => !known.has(id));
+    const dropped = [...named].filter((id) => criteria?.dropped.includes(id) === true);
+
+    return [
+        ...sectionProblems(markdown, VERIFICATION_SECTIONS, { file: "verification.md" }),
+        ...missing.map((id) => `verification.md has no evidence for ${id}`),
+        ...unknown.map((id) => `verification.md has evidence for ${id}, which the spec doesn't have`),
+        ...dropped.map((id) => `verification.md has evidence for ${id}, which the spec has dropped`),
+    ];
+}
+
+/**
+ * Checks `spike.md` before the spike stage may be done: the question, what was found, and what to do with it.
+ *
+ * @param markdown - The contents of `spike.md`.
+ * @returns Every problem found; empty when the gate passes.
+ *
+ * @example
+ * ```ts
+ * const spike = "## Question\n\nCan Bun stream CSV?\n\n## Findings\n\nYes.\n\n## Recommendation\n\nUse streams.";
+ *
+ * expect(spikeProblems(spike)).toEqual([]);
+ * expect(spikeProblems("## Question\n\nCan Bun stream CSV?")).toContain('spike.md has no "## Findings" section');
+ * ```
+ */
+export function spikeProblems(markdown: string): string[] {
+    return sectionProblems(markdown, SPIKE_SECTIONS, { file: "spike.md" });
+}

@@ -21,8 +21,10 @@ import {
     planProblems,
     sectionText,
     specProblems,
+    spikeProblems,
     taskListProblems,
     unfinishedTaskProblems,
+    verificationProblems,
 } from "./stage-gates.ts";
 
 /**
@@ -201,10 +203,12 @@ export type StageDocuments = {
     readonly spec: string | null;
     readonly plan: string | null;
     readonly tasks: string | null;
+    readonly verification: string | null;
+    readonly spike: string | null;
 };
 
 /**
- * Checks the documents of the stages marked done against their stage's gate (ADR 0052, 0053): a stage can't be done
+ * Checks the documents of the stages marked done against their stage's gate (ADR 0052, 0053, 0054): a stage can't be done
  * while its document is missing or incomplete, while the plan's tasks don't cover the spec, or, for the build, while
  * a task isn't done.
  *
@@ -219,7 +223,9 @@ export type StageDocuments = {
  *     { name: "plan", level: "trusted", status: "pending" },
  * ] as const;
  *
- * expect(gateProblems({ stages }, { intent: null, spec: null, plan: null, tasks: null })).toEqual([
+ * const none = { intent: null, spec: null, plan: null, tasks: null, verification: null, spike: null };
+ *
+ * expect(gateProblems({ stages }, none)).toEqual([
  *     "spec is done, but spec.md is missing",
  * ]);
  * ```
@@ -233,6 +239,8 @@ export function gateProblems(task: Pick<TaskDocument, "stages">, documents: Stag
     const criteria = documents.spec === null ? null : criteriaIds(documents.spec);
     const taskList = hasTasksStage ? documents.tasks : sectionText(documents.plan ?? "", "Tasks");
     const taskListFile = hasTasksStage ? "tasks.md" : "plan.md's Tasks section";
+    // verification.md is required once the build or the verify stage is done; name the stage that asks for it.
+    const verifiedBy = (["verify", "build"] as const).find(isDone) ?? null;
     const planWithTasks = (plan: string): string[] => [
         ...planProblems(plan, { hasTasksSection: !hasTasksStage }),
         ...(hasTasksStage ? [] : taskListProblems(sectionText(plan, "Tasks") ?? "", { file: taskListFile, criteria })),
@@ -249,12 +257,26 @@ export function gateProblems(task: Pick<TaskDocument, "stages">, documents: Stag
                   taskListProblems(tasks, { file: "tasks.md", criteria }),
               )
             : []),
+        ...(isDone("spike") ? documentProblems(documents.spike, "spike", spikeProblems) : []),
         ...(isDone("build") && taskList !== null ? unfinishedTaskProblems(taskList, { file: taskListFile }) : []),
+        ...(verifiedBy === null
+            ? []
+            : fileProblems(documents.verification, { file: "verification.md", stage: verifiedBy }, (verification) =>
+                  verificationProblems(verification, { criteria }),
+              )),
     ];
 }
 
 function documentProblems(markdown: string | null, stage: Stage, check: (markdown: string) => string[]): string[] {
     return markdown === null ? [`${stage} is done, but ${stage}.md is missing`] : check(markdown);
+}
+
+function fileProblems(
+    markdown: string | null,
+    { file, stage }: { readonly file: string; readonly stage: Stage },
+    check: (markdown: string) => string[],
+): string[] {
+    return markdown === null ? [`${stage} is done, but ${file} is missing`] : check(markdown);
 }
 
 /** One change folder: its route, or why it couldn't be read. */
@@ -396,14 +418,16 @@ async function readChange(
 
     const readDocument = (file: string): Promise<string | null> =>
         readText(path.join(changeDir, file), { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
-    const [intent, spec, plan, tasks] = await Promise.all(
-        ["intent.md", "spec.md", "plan.md", "tasks.md"].map(readDocument),
+    const [intent, spec, plan, tasks, verification, spike] = await Promise.all(
+        ["intent.md", "spec.md", "plan.md", "tasks.md", "verification.md", "spike.md"].map(readDocument),
     );
     const problems = gateProblems(task.value, {
         intent: intent ?? null,
         spec: spec ?? null,
         plan: plan ?? null,
         tasks: tasks ?? null,
+        verification: verification ?? null,
+        spike: spike ?? null,
     });
 
     return problems.length === 0 ? task : { kind: "invalid", errors: problems };
