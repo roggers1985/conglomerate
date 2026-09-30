@@ -4,7 +4,7 @@ A Claude Code plugin marketplace that houses **factory**: a personal, opinionate
 
 ## What the factory gives you
 
-Most AI coding factories focus on getting from an idea to code. This one starts at the other end: **how code stays good**, in every project, for as long as it lives.
+Most AI coding factories focus on getting from an idea to code. This one does that too, but starts at the other end: **how code stays good**, in every project, for as long as it lives.
 
 - **Conventions that are always on, and enforced.** A compact set of rules is loaded into every session: readability first, flat code, one named condition per `if`, bounds on everything (after NASA/JPL's "Power of 10" and TigerStyle), cancellation, parsing external data with schemas, explicit APIs, documentation with tested examples. The details live in skills that load when they're relevant (`code-react`, `code-testing`, `code-styling`, `code-safety`, …). The plugin's own code is held to all of it, by a strict TypeScript config, lint rules and CI.
 - **Recurring checkups that keep projects healthy.** Eighteen generic checkups cover security, dependencies, new language and framework features, test coverage, code quality, unused code, documentation drift, licenses, TODOs, accessibility, performance, SEO, the agent setup, repository health, the architecture (per app or package, with a recorded decision either way), a daily look at the project's monitoring (SonarQube, Sentry, …), and a retrospective of the checkups themselves. Projects add their own (legal, data quality, …) or override the generic ones.
@@ -12,6 +12,8 @@ Most AI coding factories focus on getting from an idea to code. This one starts 
   - You can decline a checkup per project, and it won't be suggested again until you opt back in.
   - It fixes what's small and safe, and hands the rest over as a pull request with a report.
   - Urgency levels decide how insistently a due checkup is brought up.
+- **A route from idea to merged code.** Every task starts with triage, which proposes a route through fixed stages (intent, spec, plan, tasks, build, review, finish) with an autonomy level per stage, and waits for your go-ahead. Specs have numbered acceptance criteria in EARS form, every criterion is traced to a task and to the test that proves it, a separate agent reviews the result, and scripts check each stage's document before the next one starts.
+- **You choose how much it decides.** Three autonomy levels (guided, trusted, autonomous), per project or per session. Some decisions stay yours at every level: the conventions, the architecture, anything destructive.
 - **The right model for each task.** Work is routed by task type to the model and effort level that fit it: a small model for mechanical edits, a strong one for reviews and planning. The agent may override the route with a stated reason, and escalates when a task turns out bigger than expected.
 - **A toolbox you can trust.** The tools and plugins you rely on are listed with a security record (source, license, permissions). A missing one is reported at session start, and nothing is installed without your confirmation.
 - **Every decision is written down.** Each convention and design choice has an architecture decision record in [`docs/decisions/`](docs/decisions/), so humans and agents can see *why*, not just *what*.

@@ -23,9 +23,9 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, Kiro, and Anthropic's AI-native SDLC playbook.
 
-To build:
+To do:
 
-- [ ] **Finish a branch:** a fixed ending with the choice of merge, PR or discard, and cleanup.
+- [ ] Use the stages on a first real change (in this repository or another project), and feed what it shows back into the skills and ADRs (ADR 0056)
 
 To consider:
 
