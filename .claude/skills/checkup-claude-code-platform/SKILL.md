@@ -35,7 +35,7 @@ The changelog pages only show the last week or two. For older versions, read the
    - `claude plugin validate plugins/factory`.
 3. **Deprecations and breaking changes** that affect any of the above, with the version they take effect in.
 4. **Opportunities**: new platform features that would replace a workaround in this repository, such as the bundling of plugin scripts (ADR 0020), the session-start hook, or the task agents (ADR 0015).
-5. **Copilot**: whether GitHub Copilot can now use the plugin's skills or agents (TODO: "Copilot can be integrated later"). Report what would be needed; don't build it.
+5. **Copilot**: whether GitHub Copilot can now use the plugin's skills or agents (support is deferred, ADR 0002, and tracked in `TODO.md`). Report what would be needed; don't build it.
 
 ## Fixes you may make yourself
 
