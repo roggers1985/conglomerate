@@ -6,6 +6,7 @@
 
 import path from "node:path";
 import { z } from "zod";
+import { mapConcurrent } from "../../../lib/concurrency.ts";
 import { readDir, readText, TEXT_BYTES_MAX, whenMissing } from "../../../lib/files.ts";
 import { parseFrontmatter } from "../../../lib/frontmatter.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
@@ -62,6 +63,7 @@ const OWNER_STAGES: readonly Stage[] = ["intent", "spec"];
 const STATUSES = ["pending", "in-progress", "done", "skipped"] as const;
 const TASK_TYPES = ["feature", "bug", "refactor", "chore", "docs", "spike"] as const;
 
+const READS_IN_FLIGHT_MAX = 16; // change folders read at once at session start
 const CHANGES_MAX = 10_000; // change folders in one project: years of daily work
 const LIST_ITEMS_MAX = 20; // deviations or debt items per task; more means the route needs rethinking
 const TEXT_LENGTH_MAX = 300;
@@ -388,14 +390,23 @@ async function readTaskDocument(
     }
 }
 
-/** A change's task document, with the gates of its done stages applied. */
+/**
+ * A change's task document, with the gates of its done stages applied. `gates: "unfinished"` skips the gates of a
+ * change whose every stage is done or skipped, so session start doesn't read the documents of the whole history.
+ */
 async function readChange(
     changeDir: string,
-    { signal }: { readonly signal: AbortSignal },
+    { gates, signal }: { readonly gates: "always" | "unfinished"; readonly signal: AbortSignal },
 ): Promise<Parsed<TaskDocument>> {
     const task = await readTaskDocument(path.join(changeDir, "task.md"), { signal });
 
     if (task.kind === "invalid") {
+        return task;
+    }
+
+    const isFinished = resumePoint(task.value.stages) === null;
+
+    if (isFinished && gates === "unfinished") {
         return task;
     }
 
@@ -424,15 +435,15 @@ async function readChanges(projectDir: string, { signal }: { readonly signal: Ab
         .map((entry) => entry.name)
         .toSorted();
 
-    return Promise.all(
-        folders.map(async (name): Promise<Change> => {
-            const task = await readChange(path.join(changesDir, name), { signal });
+    const readOne = async (name: string): Promise<Change> => {
+        const task = await readChange(path.join(changesDir, name), { gates: "unfinished", signal });
 
-            return task.kind === "valid"
-                ? { kind: "valid", name, task: task.value }
-                : { kind: "invalid", name, errors: task.errors };
-        }),
-    );
+        return task.kind === "valid"
+            ? { kind: "valid", name, task: task.value }
+            : { kind: "invalid", name, errors: task.errors };
+    };
+
+    return mapConcurrent(folders, readOne, { concurrency: READS_IN_FLIGHT_MAX, signal });
 }
 
 const COMMANDS = ["check", "status", "reminder"] as const;
@@ -452,7 +463,7 @@ async function main(): Promise<void> {
     }
 
     if (command === "check") {
-        const task = await readChange(path.dirname(path.resolve(argument ?? "task.md")), { signal });
+        const task = await readChange(path.dirname(path.resolve(argument ?? "task.md")), { gates: "always", signal });
 
         if (task.kind === "invalid") {
             console.error(task.errors.map((error) => `✗ ${error}`).join("\n"));
