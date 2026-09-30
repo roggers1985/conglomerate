@@ -1,6 +1,6 @@
 ---
 name: checkup-architecture
-description: Architecture checkup. Assesses whether a project's architecture still fits what it does, per explicitly scoped unit (an app or package in a monorepo, the boundaries between them, or the whole repository). Compares the architecture as it is with the one a good team would choose today, backs every candidate with evidence from git history and earlier findings, and turns each into a proposed decision, including "keep it as it is", with an incremental migration path. Keeps the architecture register. Never restructures. Use for "architecture checkup", "is our architecture still right", before a large feature, or when the checkup runner dispatches it.
+description: Architecture checkup. Assesses whether a project's architecture still fits what it does, per explicitly scoped unit (an app or package in a monorepo, the boundaries between them, or the whole repository). Checks first whether the business requirements, plans and load it serves have changed, compares the architecture as it is with the one a good team would choose today, backs every candidate with evidence from git history and earlier findings, and turns each into a proposed decision, including "keep it as it is", with an incremental migration path. Keeps the architecture register. Never restructures. Use for "architecture checkup", "is our architecture still right", before a large feature, or when the checkup runner dispatches it.
 metadata:
   task: planning
 ---
@@ -12,6 +12,15 @@ Follow the protocol in `${CLAUDE_PLUGIN_ROOT}/checkups/protocol.md` (branch, har
 Agents working in an existing application tend to keep its architecture as it is: every task is local, and working around the structure is always cheaper *for that one change*. This checkup asks the question no task asks: does the architecture still fit, and if not, what should change, in which steps? Or should it stay, and why? Every candidate ends in a recorded decision, either way (ADR 0045).
 
 **This checkup assesses; it never restructures.** Its output is the register, proposed decisions and a plan. Changing the architecture is always the owner's decision, at every autonomy level.
+
+## 0. Drivers first
+
+An architecture is right or wrong *for something*. Business requirements, plans, load and the team change even when the code doesn't, so each run starts with the drivers (ADR 0046).
+
+- **Read the drivers** in the register (see 5): what the architecture has to serve, per unit. These are its key requirements, the expected load and growth, planned features, and the team. On the first run, derive them from `README.md`, `CLAUDE.md`, product docs, the roadmap, `TODO.md` and open issues and milestones (`gh issue list`, `gh api repos/{owner}/{repo}/milestones`), and mark them as unconfirmed.
+- **Check what changed** since the last run in those same sources: new or dropped requirements, new plans, a different expected load.
+- **A changed driver reopens every decision that depends on it:** proposals marked `accepted risk`, and accepted ADRs whose drivers it lists. Reassess them in this run, even without new evidence in the code.
+- **Drivers you can't check** from the repository (business plans, expected growth, team changes) go under "Needs a human" as short questions for the owner to confirm or correct. Never guess them.
 
 ## 1. Units and scope
 
@@ -51,6 +60,8 @@ From the project:
 - **Recurring findings:** what earlier checkups (`code-quality`, `performance`, `security`, `test-coverage`) keep reporting in the same place.
 - **Recorded workarounds:** entries in the register's workaround log (see 5).
 
+- **Pain that is coming:** planned features or changed requirements (from step 0) that the current architecture would make hard. Name the plan and what would make it hard.
+
 A difference without evidence goes into the report as an observation, not as a proposal.
 
 ## 4. Proposals
@@ -58,6 +69,7 @@ A difference without evidence goes into the report as an observation, not as a p
 For each candidate with evidence, write a **Proposed** ADR in the project's decision records (the owner decides, as the autonomy rules say for architecture). It contains:
 
 - **Scope,** in the words from step 1.
+- **Drivers:** the requirements, plans and load it depends on (step 0), so a later change of drivers can reopen it.
 - **The pain,** with the evidence.
 - **The options,** always including **keep it as it is**, each with its cost, benefit and risk.
 - **An incremental migration path** for the options that change something: steps that can each be released, with the old and new structure side by side where needed (e.g. strangling one part at a time behind a stable interface). No big-bang rewrite unless the evidence shows smaller steps can't work.
@@ -70,12 +82,13 @@ Three well-argued proposals beat ten thin ones. When nothing hurts enough, say s
 
 Keep `docs/architecture/README.md` in the project, and create it on the first run. For a repository with several units, give each assessed unit its own `docs/architecture/<unit>.md` and keep the README as the map.
 
+- **Drivers:** per unit, what the architecture has to serve: key requirements, expected load and growth, planned features, the team. Each is marked confirmed by the owner (with the date) or unconfirmed.
 - **Unit map:** each unit with its path, purpose and dependencies, and when it was last assessed.
 - **As-is overview:** per unit, from step 2, updated when it changes.
-- **Debt table:** one row per known architectural problem: scope, description, status (`open`, `planned`, `accepted risk`, `done`), its ADR, and when to reconsider.
+- **Debt table:** one row per known architectural problem: scope, description, status (`open`, `planned`, `accepted risk`, `done`), its ADR, the drivers it depends on, when to reconsider, and for `accepted risk` the date it expires.
 - **Workaround log:** short entries that other work adds when it has to work around the architecture (date, scope, what and why). Each run turns them into evidence and clears the ones it has handled.
 
-Rejected proposals stay in the debt table as `accepted risk`, with their reconsider conditions. **Don't propose them again unless a condition has been met or new evidence appeared,** and say which.
+Rejected proposals stay in the debt table as `accepted risk`, with their reconsider conditions. **Don't propose them again unless a condition has been met, a driver they depend on changed, or new evidence appeared,** and say which. **Accepted risk expires after 12 months:** an expired entry is re-confirmed in the next run: briefly when nothing changed, as a full proposal when something did.
 
 ## Fixes you may make yourself
 

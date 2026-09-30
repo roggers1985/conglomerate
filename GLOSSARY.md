@@ -59,7 +59,7 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Monitoring checkup.** *Here:* a daily checkup that makes sure the owner looks at every monitoring service a project uses, like SonarQube (code quality scanning), Veracode and Snyk (security scanning) or Sentry (error tracking), through a short question set (ADR 0037).
 
-**Architecture checkup and register.** *Here:* a checkup that asks whether a project's architecture still fits, per explicitly scoped unit (an app or package, the boundary between two, or the whole repository), and turns each candidate into a proposed decision, including "keep it as it is". The register, `docs/architecture/`, holds the map of units, the known debt with its status and when to reconsider it, and a log of workarounds (ADR 0045).
+**Architecture checkup and register.** *Here:* a checkup that asks whether a project's architecture still fits, per explicitly scoped unit (an app or package, the boundary between two, or the whole repository), and turns each candidate into a proposed decision, including "keep it as it is". The register, `docs/architecture/`, holds the map of units, the known debt with its status and when to reconsider it, a log of workarounds, and the *drivers*: the requirements, plans and load the architecture has to serve. A changed driver reopens the decisions that depend on it (ADR 0045, 0046).
 
 **Hotspot and change coupling.** From git history: a *hotspot* is a file that changes often and is complex; *change coupling* means files that keep changing in the same commits. Both point to where an architecture hurts.
 
