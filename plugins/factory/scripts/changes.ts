@@ -18,6 +18,7 @@ import {
     criteriaIds,
     intentProblems,
     planProblems,
+    reviewProblems,
     sectionText,
     specProblems,
     spikeProblems,
@@ -203,10 +204,12 @@ export type StageDocuments = {
     readonly tasks: string | null;
     readonly verification: string | null;
     readonly spike: string | null;
+    readonly review: string | null;
+    readonly securityReview: string | null;
 };
 
 /**
- * Checks the documents of the stages marked done against their stage's gate (ADR 0052, 0053, 0054): a stage can't be done
+ * Checks the documents of the stages marked done against their stage's gate (ADR 0052 to 0055): a stage can't be done
  * while its document is missing or incomplete, while the plan's tasks don't cover the spec, or, for the build, while
  * a task isn't done.
  *
@@ -221,7 +224,9 @@ export type StageDocuments = {
  *     { name: "plan", level: "trusted", status: "pending" },
  * ] as const;
  *
- * const none = { intent: null, spec: null, plan: null, tasks: null, verification: null, spike: null };
+ * const none = {
+ *     intent: null, spec: null, plan: null, tasks: null, verification: null, spike: null, review: null, securityReview: null,
+ * };
  *
  * expect(gateProblems({ stages }, none)).toEqual([
  *     "spec is done, but spec.md is missing",
@@ -254,6 +259,14 @@ export function gateProblems(task: Pick<TaskDocument, "stages">, documents: Stag
               )
             : []),
         ...(isDone("spike") ? documentProblems(documents.spike, "spike", spikeProblems) : []),
+        ...(isDone("security-review")
+            ? documentProblems(documents.securityReview, "security-review", (review) =>
+                  reviewProblems(review, { file: "security-review.md" }),
+              )
+            : []),
+        ...(isDone("review")
+            ? documentProblems(documents.review, "review", (review) => reviewProblems(review, { file: "review.md" }))
+            : []),
         ...(isDone("build") && taskList !== null ? unfinishedTaskProblems(taskList, { file: taskListFile }) : []),
         ...(isDone("build") || isDone("verify")
             ? fileProblems(documents.verification, "verification.md", (verification) =>
@@ -401,8 +414,18 @@ async function readChange(
 
     const readDocument = (file: string): Promise<string | null> =>
         readText(path.join(changeDir, file), { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
-    const [intent, spec, plan, tasks, verification, spike] = await Promise.all(
-        ["intent.md", "spec.md", "plan.md", "tasks.md", "verification.md", "spike.md"].map(readDocument),
+    const files = [
+        "intent.md",
+        "spec.md",
+        "plan.md",
+        "tasks.md",
+        "verification.md",
+        "spike.md",
+        "review.md",
+        "security-review.md",
+    ];
+    const [intent, spec, plan, tasks, verification, spike, review, securityReview] = await Promise.all(
+        files.map(readDocument),
     );
     const problems = gateProblems(task.value, {
         intent: intent ?? null,
@@ -411,6 +434,8 @@ async function readChange(
         tasks: tasks ?? null,
         verification: verification ?? null,
         spike: spike ?? null,
+        review: review ?? null,
+        securityReview: securityReview ?? null,
     });
 
     return problems.length === 0 ? task : { kind: "invalid", errors: problems };

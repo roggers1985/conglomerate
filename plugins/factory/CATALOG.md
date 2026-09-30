@@ -58,6 +58,7 @@ _No skills yet._
 | `factory-build` | The factory's build, verify and spike stages. | `code` (sonnet, medium) |
 | `factory-intake` | The factory's intake stages. | `planning` (opus, high) |
 | `factory-planning` | The factory's planning stages. | `planning` (opus, high) |
+| `factory-review` | The factory's review and security-review stages. | `review` (opus, high) |
 | `factory-triage` | Stage 0 of the factory. | `planning` (opus, high) |
 
 ## toolbox: The owner's trusted tools and plugins (ADR 0033)

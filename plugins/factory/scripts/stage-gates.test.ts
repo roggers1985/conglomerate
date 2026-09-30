@@ -5,6 +5,7 @@ import {
     intentProblems,
     PLAN_SECTIONS,
     planProblems,
+    reviewProblems,
     SPEC_SECTIONS,
     specProblems,
     spikeProblems,
@@ -289,5 +290,66 @@ describe("spikeProblems", () => {
             'spike.md has no "## Findings" section',
             'spike.md has no "## Recommendation" section',
         ]);
+    });
+});
+
+describe("reviewProblems", () => {
+    const header = "| # | Severity | Finding | Where | Status |\n| - | -------- | ------- | ----- | ------ |";
+    const review = (...rows: readonly string[]): string =>
+        `## Summary\n\nFollows the spec.\n\n## Findings\n\n${[header, ...rows].join("\n")}`;
+    const check = (markdown: string): string[] => reviewProblems(markdown, { file: "review.md" });
+
+    it("passes a review whose findings are all fixed or accepted with a reason", () => {
+        expect(
+            check(
+                review(
+                    "| 1 | high | No auth check | `api.ts:9` | fixed |",
+                    "| 2 | high | Slow query | `db.ts:4` | accepted by owner: runs once a day |",
+                    "| 3 | medium | Unclear name | `a.ts:3` | accepted: matches the domain term |",
+                    "| 4 | low | Typo | `b.ts:1` | fixed |",
+                ),
+            ),
+        ).toEqual([]);
+    });
+
+    it("passes a review without findings", () => {
+        expect(check("## Summary\n\nClean.\n\n## Findings\n\nNone.")).toEqual([]);
+    });
+
+    it("refuses open findings, with a hint that fits the severity", () => {
+        expect(
+            check(review("| 1 | high | No auth check | `api.ts:9` | open |", "| 2 | low | Typo | `b.ts:1` | todo |")),
+        ).toEqual([
+            'review.md: finding 1 (high) is "open"; a high finding is fixed, or "accepted by owner: <reason>"',
+            'review.md: finding 2 (low) is "todo"; use "fixed" or "accepted: <reason>"',
+        ]);
+    });
+
+    it("lets only the owner accept a high finding, and requires a reason for any acceptance", () => {
+        expect(check(review("| 1 | high | No auth check | `api.ts:9` | accepted: later |"))).toEqual([
+            "review.md: finding 1 is high, so only the owner can accept it",
+        ]);
+        expect(check(review("| 1 | low | Typo | `b.ts:1` | accepted |"))).toEqual([
+            'review.md: finding 1 (low) is "accepted"; use "fixed" or "accepted: <reason>"',
+        ]);
+    });
+
+    it("rejects an unknown severity and a row without five columns", () => {
+        expect(check(review("| 1 | critical | Leak | `c.ts:2` | fixed |", "| 2 | low | Typo | fixed |"))).toEqual([
+            'review.md: finding 1 has severity "critical"; use high, medium, low',
+            "review.md: finding 2 needs 5 columns: # | Severity | Finding | Where | Status",
+        ]);
+    });
+
+    it("requires a summary and the findings section", () => {
+        expect(check("## Findings\n\nNone.")).toEqual(['review.md has no "## Summary" section']);
+    });
+
+    it("accepts up to 200 findings, and no more", () => {
+        const rows = (count: number) =>
+            Array.from({ length: count }, (_, index) => `| ${index + 1} | low | Typo | \`b.ts:1\` | fixed |`);
+
+        expect(check(review(...rows(200)))).toEqual([]);
+        expect(check(review(...rows(201)))).toEqual(["review.md has more than 200 findings: go back to planning"]);
     });
 });
