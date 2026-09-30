@@ -341,6 +341,19 @@ describe("changes CLI", () => {
         expect(result.stderr).toContain("✗ spec is done, but spec.md is missing");
     });
 
+    it("skips the gates of finished changes at session start, but not in an explicit check", async () => {
+        projectDir = await mkdtemp(path.join(tmpdir(), "changes-"));
+        const stages = TRACKS.standard.map((name) => stage(name, { status: "done" }));
+        await writeTask("finished", asMarkdown(task({ stages })));
+
+        const status = await run("status", projectDir);
+        const check = await run("check", path.join(projectDir, "docs/changes/finished/task.md"));
+
+        expect(status.stdout).toBe("No unfinished changes in `docs/changes/`.\n");
+        expect(check.exitCode).toBe(1);
+        expect(check.stderr).toContain("✗ spec is done, but spec.md is missing");
+    });
+
     it("prints nothing at session start in a project without changes", async () => {
         projectDir = await mkdtemp(path.join(tmpdir(), "changes-"));
 
