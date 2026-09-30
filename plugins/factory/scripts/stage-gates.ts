@@ -149,3 +149,215 @@ function criteriaProblems(text: string): string[] {
 }
 
 const isEars = (text: string): boolean => EARS_START.test(text) && EARS_SHALL.test(text);
+
+/** The sections `plan.md` must have, each with content. `Tasks` is added when the route has no tasks stage. */
+export const PLAN_SECTIONS = [
+    "Approach",
+    "Files and data",
+    "Trade-offs",
+    "Costs",
+    "Conventions and decisions",
+] as const;
+
+const TASKS_MAX = 100; // tasks of a few minutes each; more means the change should be split
+const TASK_HEADING = /^### (T-\d+):\s*(.*)$/;
+const TASK_FIELD = /^\s*[-*] (Files|Covers|Verify|Depends on|Parallel|Status):\s*(.*)$/;
+const TASK_STATUSES = ["pending", "in-progress", "done"];
+const REQUIRED_TASK_FIELDS = ["Files", "Covers", "Verify", "Status"] as const;
+const CRITERION_ID = /\bAC-\d+\b/g;
+const TASK_ID = /\bT-\d+\b/g;
+const NO_CRITERIA = /^none\b.{3,}/i;
+
+/** One task from a task list, with its fields as written. */
+type TaskBlock = { readonly id: string; readonly fields: ReadonlyMap<string, string> };
+
+/**
+ * The text of one `## ` section of a markdown document.
+ *
+ * @param markdown - The document.
+ * @param heading - The section's heading, without `## `.
+ * @returns The section's text up to the next `## ` heading, or `null` when there is no such section.
+ *
+ * @example
+ * ```ts
+ * expect(sectionText("## Tasks\n\n### T-1: Parse\n\n## Notes\n", "Tasks")?.trim()).toBe("### T-1: Parse");
+ * expect(sectionText("## Notes\n", "Tasks")).toBeNull();
+ * ```
+ */
+export function sectionText(markdown: string, heading: string): string | null {
+    return sections(markdown).get(heading) ?? null;
+}
+
+/**
+ * The acceptance criteria ids in a spec, split into active and dropped ones (marked "(dropped)", ADR 0052).
+ *
+ * @param spec - The contents of `spec.md`.
+ * @returns The ids, in order.
+ *
+ * @example
+ * ```ts
+ * const spec = "## Acceptance criteria\n\n- **AC-1**: THE SYSTEM SHALL export.\n- **AC-2** (dropped): THE SYSTEM SHALL print.";
+ *
+ * expect(criteriaIds(spec)).toEqual({ active: ["AC-1"], dropped: ["AC-2"] });
+ * ```
+ */
+export function criteriaIds(spec: string): { readonly active: readonly string[]; readonly dropped: readonly string[] } {
+    const lines = (sections(spec).get("Acceptance criteria") ?? "").split("\n");
+    const numbered = lines.flatMap((line) => {
+        const id = /^\s*[-*] \*\*(AC-\d+)\*\*/.exec(line)?.[1];
+
+        return id === undefined ? [] : [{ id, isDropped: line.includes("(dropped)") }];
+    });
+
+    return {
+        active: numbered.filter((criterion) => !criterion.isDropped).map((criterion) => criterion.id),
+        dropped: numbered.filter((criterion) => criterion.isDropped).map((criterion) => criterion.id),
+    };
+}
+
+function taskBlocks(markdown: string): TaskBlock[] {
+    const blocks: { id: string; fields: Map<string, string> }[] = [];
+
+    // Stateful on purpose: each field line belongs to the task heading above it.
+    for (const line of markdown.split("\n")) {
+        const heading = TASK_HEADING.exec(line);
+
+        if (heading !== null) {
+            blocks.push({ id: heading[1] ?? "", fields: new Map() });
+            continue;
+        }
+
+        const field = TASK_FIELD.exec(line);
+
+        if (field !== null) {
+            blocks.at(-1)?.fields.set(field[1] ?? "", (field[2] ?? "").trim());
+        }
+    }
+
+    return blocks;
+}
+
+/**
+ * Checks `plan.md` before the plan stage may be done: every required section has content (including "Conventions and
+ * decisions", the convention gate), and nothing is left marked `[NEEDS CLARIFICATION]`.
+ *
+ * @param markdown - The contents of `plan.md`.
+ * @param options.hasTasksSection - `true` when the route has no tasks stage, so the plan holds the task list itself.
+ * @returns Every problem found; empty when the gate passes.
+ *
+ * @example
+ * ```ts
+ * const plan = ["Approach", "Files and data", "Trade-offs", "Costs", "Conventions and decisions"]
+ *     .map((heading) => `## ${heading}\n\nSomething.\n`)
+ *     .join("\n");
+ *
+ * expect(planProblems(plan, { hasTasksSection: false })).toEqual([]);
+ * expect(planProblems(plan, { hasTasksSection: true })).toEqual(['plan.md has no "## Tasks" section']);
+ * ```
+ */
+export function planProblems(markdown: string, { hasTasksSection }: { readonly hasTasksSection: boolean }): string[] {
+    const required = hasTasksSection ? [...PLAN_SECTIONS, "Tasks"] : PLAN_SECTIONS;
+
+    return [
+        ...sectionProblems(markdown, required, { file: "plan.md" }),
+        ...clarificationProblems(markdown, { file: "plan.md" }),
+    ];
+}
+
+/**
+ * Checks a task list (`tasks.md`, or the "Tasks" section of `plan.md`): every task has an id `T-<n>`, its files, the
+ * criteria it covers, how to verify it and a status; dependencies only point to earlier tasks; and every active
+ * acceptance criterion of the spec is covered by a task, while no task covers one that doesn't exist.
+ *
+ * @param markdown - The task list.
+ * @param options.file - How the list is named in messages.
+ * @param options.criteria - The spec's active and dropped criteria ids; `null` when the route has no spec.
+ * @returns Every problem found; empty when the gate passes.
+ *
+ * @example
+ * ```ts
+ * const tasks = "### T-1: Export\n\n- Files: `src/export.ts`\n- Covers: AC-1\n- Verify: `bun test`\n- Status: pending";
+ *
+ * expect(taskListProblems(tasks, { file: "tasks.md", criteria: { active: ["AC-1"], dropped: [] } })).toEqual([]);
+ * expect(taskListProblems(tasks, { file: "tasks.md", criteria: { active: ["AC-1", "AC-2"], dropped: [] } })).toEqual([
+ *     "AC-2 isn't covered by any task in tasks.md",
+ * ]);
+ * ```
+ */
+export function taskListProblems(
+    markdown: string,
+    {
+        file,
+        criteria,
+    }: {
+        readonly file: string;
+        readonly criteria: { readonly active: readonly string[]; readonly dropped: readonly string[] } | null;
+    },
+): string[] {
+    const blocks = taskBlocks(markdown);
+    const ids = blocks.map((block) => block.id);
+    const duplicates = new Set(ids.filter((id, index) => ids.indexOf(id) !== index));
+    const covered = new Set(
+        blocks.flatMap((block) =>
+            [...(block.fields.get("Covers") ?? "").matchAll(CRITERION_ID)].map((match) => match[0]),
+        ),
+    );
+    const known = new Set([...(criteria?.active ?? []), ...(criteria?.dropped ?? [])]);
+    const uncovered = (criteria?.active ?? []).filter((id) => !covered.has(id));
+    const unknown = criteria === null ? [] : [...covered].filter((id) => !known.has(id));
+    const coversDropped = [...covered].filter((id) => criteria?.dropped.includes(id) === true);
+
+    return [
+        blocks.length === 0 ? `${file} has no tasks (### T-<n>: <title>)` : null,
+        blocks.length > TASKS_MAX ? `${file} has more than ${TASKS_MAX} tasks: split the change` : null,
+        ...[...duplicates].map((id) => `${id} is used more than once in ${file}`),
+        ...blocks.flatMap((block, index) => taskProblems(block, { earlierIds: ids.slice(0, index) })),
+        ...uncovered.map((id) => `${id} isn't covered by any task in ${file}`),
+        ...unknown.map((id) => `${file} covers ${id}, which the spec doesn't have`),
+        ...coversDropped.map((id) => `${file} covers ${id}, which the spec has dropped`),
+    ].filter((problem) => problem !== null);
+}
+
+function taskProblems(block: TaskBlock, { earlierIds }: { readonly earlierIds: readonly string[] }): string[] {
+    const missing = REQUIRED_TASK_FIELDS.filter((field) => (block.fields.get(field) ?? "").length === 0);
+    const covers = block.fields.get("Covers") ?? "";
+    const hasCriteria = [...covers.matchAll(CRITERION_ID)].length > 0;
+    const coversNothingWithoutReason = covers.length > 0 && !hasCriteria && !NO_CRITERIA.test(covers);
+    const status = block.fields.get("Status") ?? "";
+    const hasUnknownStatus = status.length > 0 && !TASK_STATUSES.includes(status);
+    const dependencies = [...(block.fields.get("Depends on") ?? "").matchAll(TASK_ID)].map((match) => match[0]);
+    const notEarlier = dependencies.filter((id) => !earlierIds.includes(id));
+
+    return [
+        ...missing.map((field) => `${block.id} has no "${field}"`),
+        coversNothingWithoutReason
+            ? `${block.id} covers no criterion: name them (AC-<n>), or write "none" with the reason`
+            : null,
+        hasUnknownStatus ? `${block.id} has status "${status}"; use ${TASK_STATUSES.join(", ")}` : null,
+        ...notEarlier.map((id) => `${block.id} depends on ${id}, which isn't an earlier task`),
+    ].filter((problem) => problem !== null);
+}
+
+/**
+ * Checks that every task in a task list is done, before the build stage may be done.
+ *
+ * @param markdown - The task list.
+ * @param options.file - How the list is named in messages.
+ * @returns A problem per task that isn't done; empty when all are.
+ *
+ * @example
+ * ```ts
+ * expect(unfinishedTaskProblems("### T-1: Export\n- Status: done", { file: "tasks.md" })).toEqual([]);
+ * expect(unfinishedTaskProblems("### T-1: Export\n- Status: pending", { file: "tasks.md" })).toEqual([
+ *     "the build is done, but T-1 in tasks.md is pending",
+ * ]);
+ * ```
+ */
+export function unfinishedTaskProblems(markdown: string, { file }: { readonly file: string }): string[] {
+    return taskBlocks(markdown)
+        .filter((block) => block.fields.get("Status") !== "done")
+        .map(
+            (block) =>
+                `the build is done, but ${block.id} in ${file} is ${block.fields.get("Status") || "without a status"}`,
+        );
+}

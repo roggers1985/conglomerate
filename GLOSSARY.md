@@ -48,6 +48,8 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Intake, EARS and stage gate.** *Here:* the stages after triage that decide *what* to build: `intent.md` and `spec.md` (ADR 0052). Acceptance criteria follow **EARS** (Easy Approach to Requirements Syntax): numbered lines like "WHEN the owner exports jobs, THE SYSTEM SHALL download them as CSV". A **stage gate** is a script check that a stage's document is complete before the stage may be marked done.
 
+**Plan, tasks and convention gate.** *Here:* the planning stages (ADR 0053). `plan.md` says how to build the spec, and its "Conventions and decisions" section is the *convention gate*. Tasks (`T-1`, `T-2`, …) each name their files, the criteria they cover and how to verify them; a script checks that every criterion is covered.
+
 **Autonomy level.** *Here:* how much Claude decides without asking: `guided` (the owner decides), `trusted` (Claude decides within the conventions) or `autonomous` (Claude runs the work end to end, the owner reviews afterwards). Set per project in `.claude/factory.json`, per session with `/factory:autonomy` (ADR 0044).
 
 **Convention.** A rule for how code is written. *Here:* the always-on ones are in `plugins/factory/conventions/core.md`, added to every session; the detailed ones are `code-*` skills.
