@@ -40,6 +40,7 @@ const DOMAINS: readonly Domain[] = [
     { name: "marketing", description: "Marketing plans, positioning and communication" },
     { name: "factory", description: "Factory stages: specification, planning, building" },
     { name: "toolbox", description: "The owner's trusted tools and plugins (ADR 0033)" },
+    { name: "autonomy", description: "How much Claude decides without asking (ADR 0044)" },
 ];
 
 /** The generated skills overview in the plugin's root folder (ADR 0013). */
@@ -156,7 +157,7 @@ function skillSchema(directory: string, routes: Routes) {
  * expect(parseSkill({ name: "seo", description: "SEO.", model: "opus" }, { directory: "seo", routes: {} })).toEqual({
  *     kind: "invalid",
  *     errors: [
- *         "name: must start with a known domain (code, checkup, writing, marketing, factory, toolbox)",
+ *         "name: must start with a known domain (code, checkup, writing, marketing, factory, toolbox, autonomy)",
  *         "model: skills don't set this: model and effort come from the task agent (ADR 0015)",
  *     ],
  * });

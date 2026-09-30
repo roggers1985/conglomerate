@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR-0044](0044-autonomy-levels.md): the autonomy level is added after the core conventions.
 
 ## Context
 

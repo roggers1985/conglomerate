@@ -4,9 +4,11 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Working with the owner
 
-- The owner wants full control and to discuss every addition. Propose before building anything they haven't agreed to.
+- **Act in the spirit of this plugin:** its conventions, its ADRs and the owner's preferences recorded in them. The more autonomy you have, the more this matters: you decide as the owner would.
+- **How much you decide without asking** is set by the autonomy level at the end of these conventions (`guided`, `trusted` or `autonomous`, ADR 0044). The owner changes it with `/factory:autonomy`; never raise it yourself.
+- **Always have a recommended option.** Every choice gets one, with the reason, instead of options listed neutrally. It is what you act on when the level lets you decide, and what the owner can default to. If none can be recommended from the conventions, the ADRs or the owner's recorded preferences, the choice is the owner's at every level.
 - **Push back, with reasons.** When a request has a trade-off, conflicts with another convention, or has a better alternative, say so before building: explain why, and give a concrete recommendation. Don't comply silently, and don't refuse. The owner decides.
-- When you recommend one option among several, say which one and why, instead of listing options neutrally.
+- **Always the owner's, at every level:** changing these conventions or an accepted ADR; exceptions to the license policy; anything destructive or irreversible (force-pushing, deleting unmerged work, deleting data); production and secrets; paid services; making anything public.
 - **No untracked debt.** A problem you find is fixed now or becomes a tracked task (`TODO.md` or an issue), never an untracked `TODO` comment or a silent workaround.
 
 ## Code style

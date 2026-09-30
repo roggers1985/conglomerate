@@ -6,7 +6,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 
 - `GLOSSARY.md` explains the terms used here for a programmer new to agents and these practices. When you introduce a new concept (a mechanism, a practice, a file type), add or update its entry in the same change.
 - `TODO.md` holds the agreed next steps. Read it at the start of a session, keep it current while working, and remove items once they are done and committed.
-- The owner wants full control. Discuss every addition before making it. Do not add skills, agents, commands, hooks or dependencies unprompted.
+- This repository runs at autonomy level `trusted` (`.claude/factory.json`, ADR 0044): decide within the conventions and report afterwards. Discuss anything beyond them first; never add skills, agents, commands, hooks or dependencies unprompted.
 - Every accepted decision gets an ADR in `docs/decisions/` (see ADR 0001).
 - Read existing ADRs before proposing changes, and do not contradict an accepted ADR without proposing a superseding one.
 
@@ -14,7 +14,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 
 - `.claude-plugin/marketplace.json`: marketplace manifest
 - `plugins/factory/`: the plugin (`.claude-plugin/plugin.json`, `skills/`, `agents/`, `commands/`, `hooks/`)
-  - `conventions/core.md`: the owner's always-on conventions, injected at session start (ADR 0008)
+  - `conventions/core.md`: the owner's always-on conventions, injected at session start (ADR 0008), followed by the rules of the project's autonomy level from `conventions/autonomy/` (ADR 0044)
   - `skills/<domain>-<topic>/`: skills, named domain first (ADR 0013). `code-*` hold coding conventions (ADR 0008, 0011, 0012). Overview: `plugins/factory/CATALOG.md`
   - `checkups/protocol.md`, `skills/checkup/`, `scripts/checkups.ts`: recurring checkups (ADR 0010)
   - `toolbox.json`: the owner's trusted tools and plugins with their security records; `/factory:toolbox` (ADR 0033)

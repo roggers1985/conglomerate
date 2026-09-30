@@ -16,11 +16,9 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 ## Working with the owner
 
-- [ ] Discuss: make the owner's autonomy setting configurable in the plugin, so Claude can work autonomously within the conventions and ADRs, and the owner can adjust it when needed. Questions:
-  - the levels, e.g. "discuss every addition" (today's `core.md`), "act within the conventions and report afterwards", and something in between;
-  - what each level covers: commits, merging checkup branches, pushing, adding helpers or dependencies, writing ADRs, changing conventions;
-  - where it's set (per project, per session) and how it reaches `core.md` at session start;
-  - how it relates to Claude Code's own permission modes, and what always stays with the owner (e.g. conventions, licenses, anything destructive).
+- [ ] Autonomy levels, next steps (ADR 0044):
+  - per-stage levels in Stage 0 triage: the proposed route gives each stage a level, written at the top of the task's document;
+  - hooks that enforce what can be enforced, e.g. block `gh pr merge` at `guided`, and force-pushes and edits to accepted ADRs at every level.
 
 ## Factory stages
 

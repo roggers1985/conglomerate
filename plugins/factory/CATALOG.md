@@ -60,6 +60,12 @@ _No skills yet._
 | --- | --- | --- |
 | `toolbox` | The owner's toolbox of trusted command-line tools and Claude Code plugins. |  |
 
+## autonomy: How much Claude decides without asking (ADR 0044)
+
+| Skill | What it is | Task (model, effort) |
+| --- | --- | --- |
+| `autonomy` | Shows or changes how much Claude decides without asking (guided, trusted or autonomous), for this session or for the project. |  |
+
 ## Model routing (models.json, ADR 0014)
 
 | Task | Model | Effort | Use for |

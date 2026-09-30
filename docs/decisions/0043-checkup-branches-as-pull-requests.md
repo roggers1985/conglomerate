@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR-0044](0044-autonomy-levels.md): who merges depends on the autonomy level.
 
 Amends [ADR-0010](0010-recurring-checkups.md) (handing over a checkup).
 

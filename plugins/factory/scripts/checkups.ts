@@ -14,6 +14,7 @@ import { interruptSignal } from "../../../lib/interrupt.ts";
 import { KEBAB_CASE } from "../../../lib/kebab-case.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
+import { resolveProjectDir } from "./project-dir.ts";
 
 /**
  * How insistently a due checkup is brought up at session start (ADR 0030): `urgent` checkups are offered before
@@ -536,9 +537,11 @@ async function main(): Promise<void> {
         return;
     }
 
-    const projectDir =
-        [projectDirArgument, process.env["CLAUDE_PROJECT_DIR"]].find((dir) => dir !== undefined && dir.length > 0) ??
-        process.cwd();
+    const projectDir = resolveProjectDir({
+        argument: projectDirArgument,
+        envProjectDir: process.env["CLAUDE_PROJECT_DIR"],
+        cwd: process.cwd(),
+    });
     const today = formatDate(new Date());
     const project = await loadProjectCheckups(projectDir, { today, signal: interruptSignal() });
 
