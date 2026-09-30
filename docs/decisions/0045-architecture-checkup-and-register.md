@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted. Extended by [ADR-0046](0046-reassessing-architecture-when-drivers-change.md): drivers are recorded and rechecked, and accepted risk expires after 12 months.
+Accepted. Extended by [ADR-0051](0051-stage-0-triage.md): triage may add an architecture stage for tasks that touch open debt. Extended by [ADR-0046](0046-reassessing-architecture-when-drivers-change.md): drivers are recorded and rechecked, and accepted risk expires after 12 months.
 
 Amends [ADR-0023](0023-complete-generic-checkups-and-project-overrides.md) (one more generic checkup) and [ADR-0044](0044-autonomy-levels.md) (architecture changes are always the owner's).
 

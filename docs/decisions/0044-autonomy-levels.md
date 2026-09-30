@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted. Amended by [ADR-0045](0045-architecture-checkup-and-register.md): accepting or rejecting a change of architecture is always the owner's.
+Accepted. Extended by [ADR-0051](0051-stage-0-triage.md): triage sets a level per stage. Amended by [ADR-0045](0045-architecture-checkup-and-register.md): accepting or rejecting a change of architecture is always the owner's.
 
 Amends [ADR-0008](0008-deliver-owner-conventions-through-the-plugin.md) (what the session-start hook adds) and [ADR-0043](0043-checkup-branches-as-pull-requests.md) (who merges checkup PRs).
 

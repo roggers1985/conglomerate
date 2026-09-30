@@ -24,8 +24,9 @@ The checkup of the checkups. It turns what the other checkups found into lasting
    - checkups whose last runs found nothing: propose a longer interval;
    - checkups with many high-severity findings: propose a shorter one.
 4. **About the checkups**: collect the "About this checkup" feedback from the reports. Propose concrete changes to the checkup skills or the protocol. For the factory plugin's own checkups and protocol, these go to the owner, since the plugin lives in another repository.
-5. **Patterns**: the same kind of problem found by different checkups (e.g. missing parsing at several boundaries) points to a missing convention or helper. Propose it.
-6. **Coverage**: parts of the project no checkup looks at (see the runner's suggestions).
+5. **Routes**: the `deviations` in `docs/changes/*/task.md` (ADR 0051). A deviation that keeps recurring (e.g. "+ security-review" on most tasks) points to a track that needs changing or a new track; propose it.
+6. **Patterns**: the same kind of problem found by different checkups (e.g. missing parsing at several boundaries) points to a missing convention or helper. Propose it.
+7. **Coverage**: parts of the project no checkup looks at (see the runner's suggestions).
 
 ## Your report
 

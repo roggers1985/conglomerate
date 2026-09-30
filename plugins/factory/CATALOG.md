@@ -53,7 +53,9 @@ _No skills yet._
 
 ## factory: Factory stages: specification, planning, building
 
-_No skills yet._
+| Skill | What it is | Task (model, effort) |
+| --- | --- | --- |
+| `factory-triage` | Stage 0 of the factory. | `planning` (opus, high) |
 
 ## toolbox: The owner's trusted tools and plugins (ADR 0033)
 

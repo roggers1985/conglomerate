@@ -2,7 +2,7 @@
 
 Where the factory stands compared with the alternatives, and what's still missing before it's worth publishing. The owner reads this instead of asking again (ADR 0050).
 
-**Last updated:** 2026-09-30 (first version, from a research run with sources). The `readiness` checkup refreshes it every 60 days. Claude updates it whenever a milestone is finished, such as a factory stage.
+**Last updated:** 2026-09-30: Stage 0 (triage) is built (ADR 0051). First version from a research run the same day. The `readiness` checkup refreshes it every 60 days. Claude updates it whenever a milestone is finished, such as a factory stage.
 
 ## Verdict
 
@@ -19,7 +19,7 @@ Either way, it needs the packaging criteria below.
 | # | Criterion | Status | Notes |
 | - | --------- | ------ | ----- |
 | 1 | Clearly adds something over the alternatives (the owner's test, `TODO.md`) | ✓ for health and maintenance, ✗ for delivery | See the comparison below |
-| 2 | Delivery stages in first form: spec, plan, build, review | ✗ | The core of every alternative; or position it as complementary |
+| 2 | Delivery stages in first form: spec, plan, build, review | ~ | Stage 0 (triage, routes, resuming) is built; intake, planning, build, review and finish are next (`TODO.md`). Or position it as complementary |
 | 3 | One-command install from a public repository (`/plugin marketplace add owner/repo`), with the Bun requirement stated | ✗ | The repository is private; installs from a local clone today |
 | 4 | A README that shows what you get in five minutes, with a real example session | ✗ | The README lists the USPs, but has no walkthrough |
 | 5 | A "start here" path through the surface area (18 checkups, 12 `code-*` skills) | ✗ | `CATALOG.md` exists, but no recommended first step |
@@ -53,7 +53,7 @@ Facts from the projects' own repositories and documentation, read on 2026-09-30.
 | Dimension | factory | Superpowers | Spec Kit | OpenSpec | BMAD | Kiro | Playbook | Compound Eng. |
 | --------- | ------- | ----------- | -------- | -------- | ---- | ---- | -------- | ------------- |
 | Coding conventions | ✓ deep, enforced | ~ | ~ | ✗ | ~ | ✓ | ~ | ~ |
-| Spec, plan and task stages | ✗ planned | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Spec, plan and task stages | ~ triage built, stages planned | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Review | ✗ planned | ✓ | ~ | ~ | ✓ | ~ | ✓ | ✓ |
 | Recurring maintenance checks | ✓ 18, scheduled, as PRs | ✗ | ✗ | ✗ | ✗ | ✗ | ~ advice | ~ |
 | Architecture assessment | ✓ checkup and register | ✗ | ✗ | ✗ | ~ | ✗ | ✗ | ✗ |
@@ -76,7 +76,7 @@ Facts from the projects' own repositories and documentation, read on 2026-09-30.
 
 ## Where it lags
 
-- **The delivery stages** don't exist yet: the core of every alternative.
+- **The delivery stages** beyond triage don't exist yet: the core of every alternative. Triage (Stage 0) is built, with fixed tracks, recorded deviations and scripts that check every route.
 - **Reach:** Claude Code only; a local install that needs Bun. The leaders run on 14 to 40 hosts and install with one command.
 - **Packaging:** no releases, changelog, walkthrough or community channel.
 - **An opinion, not a methodology:** the conventions are one person's taste (TigerStyle-inspired, TypeScript-first). That's a strength for some users and a narrow audience for others.

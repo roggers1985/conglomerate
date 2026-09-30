@@ -17,7 +17,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 ## Working with the owner
 
 - [ ] Autonomy levels, next steps (ADR 0044):
-  - per-stage levels in Stage 0 triage: the proposed route gives each stage a level, written at the top of the task's document;
   - hooks that enforce what can be enforced, e.g. block `gh pr merge` at `guided`, and force-pushes and edits to accepted ADRs at every level.
 
 ## Factory stages
@@ -26,8 +25,7 @@ Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, 
 
 To build:
 
-- [ ] **Stage 0: triage.** Classify the task (type, size, risk, reversibility) and propose a route from a fixed set of stages; the owner confirms. Tracks: *quick* (build test-first → verify → short review), *standard* (spec → plan → build → review), *full* (intent → spec → plan → tasks → build → review → docs). Triage may add stages (research spike, security review, migration plan), collapse them (intent + spec in one file) or skip them. The route is written at the top of the task's document, so an interrupted session can resume. Any stage may stop and propose re-triage when the task turns out bigger or riskier. When a task touches an area with open debt in `docs/architecture/` (ADR 0045), triage may propose a route that fixes the architecture first.
-- [ ] **Intake:** `intent.md` (problem, outcome, affected users and systems, constraints, open questions; written with Claude, corrected by the owner) → `spec.md` (user stories, acceptance criteria, edge cases, no implementation; unclear points marked `[NEEDS CLARIFICATION]` instead of guessed). Owner review before anything is built.
+- [ ] **Intake:** specs per change, in the change's folder next to `task.md` (ADR 0051); living specs of the whole system may grow from them later. `intent.md` (problem, outcome, affected users and systems, constraints, open questions; written with Claude, corrected by the owner) → `spec.md` (user stories, acceptance criteria, edge cases, no implementation; unclear points marked `[NEEDS CLARIFICATION]` instead of guessed). Owner review before anything is built.
 - [ ] **Planning:** `plan.md` (architecture, files, data, trade-offs) and `tasks.md` (tasks of a few minutes, with exact files and a verification step each; tasks that can run in parallel marked). Includes back-of-the-envelope sketches of network, disk, memory and CPU costs, with batching as a design question (ADR 0038).
 - [ ] **Convention gate:** every plan states that it follows the conventions and ADRs, or justifies each deviation.
 - [ ] **Build:** a fresh subagent per task through the task agents (model routing), tests first, and "verify before claiming done".
@@ -37,7 +35,6 @@ To build:
 
 To consider:
 
-- [ ] Decide for Intake: specs per change (Spec Kit) or living specs of the current system, with change proposals that are archived when done (OpenSpec)
 - [ ] Acceptance criteria in EARS format ("WHEN … THE SYSTEM SHALL …"), which makes them directly testable (Kiro)
 - [ ] A consistency check across spec, plan and tasks, e.g. in the validator (Spec Kit's `/analyze`)
 - [ ] A skill for writing skills in the owner's style (Superpowers' `writing-skills`)
