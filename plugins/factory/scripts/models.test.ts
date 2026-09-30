@@ -37,6 +37,41 @@ describe("parseRoutes", () => {
             errors: ["tasks.Code: task names must be kebab-case"],
         });
     });
+
+    it("accepts 1 to 20 task types, and no fewer or more", () => {
+        const tasks = (count: number) =>
+            Object.fromEntries(Array.from({ length: count }, (_, index) => [`task-${index}`, code]));
+
+        expect(parseRoutes({ tasks: tasks(1) }).kind).toBe("valid");
+        expect(parseRoutes({ tasks: tasks(20) }).kind).toBe("valid");
+        expect(parseRoutes({ tasks: tasks(0) })).toEqual({
+            kind: "invalid",
+            errors: ["tasks: must list at least one task type"],
+        });
+        expect(parseRoutes({ tasks: tasks(21) })).toEqual({
+            kind: "invalid",
+            errors: ["tasks: must list at most 20 task types"],
+        });
+    });
+
+    it("accepts task names of up to 50 characters", () => {
+        const name50 = "a".repeat(50);
+        const name51 = "a".repeat(51);
+
+        expect(parseRoutes({ tasks: { [name50]: code } }).kind).toBe("valid");
+        expect(parseRoutes({ tasks: { [name51]: code } })).toEqual({
+            kind: "invalid",
+            errors: [`tasks.${name51}: task names must be at most 50 characters`],
+        });
+    });
+
+    it("requires a description of what the task type is for, of up to 300 characters", () => {
+        const withUse = (use: string) => parseRoutes({ tasks: { code: { ...code, use } } });
+
+        expect(withUse("x".repeat(300)).kind).toBe("valid");
+        expect(failedPaths(withUse("x".repeat(301)))).toEqual(["tasks.code.use"]);
+        expect(failedPaths(withUse("  "))).toEqual(["tasks.code.use"]);
+    });
 });
 
 describe("renderRoutingTable", () => {

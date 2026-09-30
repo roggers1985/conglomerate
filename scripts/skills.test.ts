@@ -61,6 +61,29 @@ describe("parseSkill", () => {
         });
     });
 
+    it("accepts names of up to 64 characters, the Agent Skills limit", () => {
+        const name64 = `code-${"a".repeat(59)}`;
+        const name65 = `code-${"a".repeat(60)}`;
+
+        expect(parseSkill({ name: name64, description: "A." }, { directory: name64, routes }).kind).toBe("valid");
+        expect(parseSkill({ name: name65, description: "A." }, { directory: name65, routes })).toEqual({
+            kind: "invalid",
+            errors: ["name: must be at most 64 characters"],
+        });
+    });
+
+    it("requires a description of up to 1,024 characters, the Agent Skills limit", () => {
+        const withDescription = (description: string) =>
+            parseSkill({ name: "code-react", description }, { directory: "code-react", routes });
+
+        expect(withDescription("x".repeat(1_024)).kind).toBe("valid");
+        expect(withDescription("x".repeat(1_025))).toEqual({
+            kind: "invalid",
+            errors: ["description: must be at most 1024 characters"],
+        });
+        expect(withDescription("   ")).toEqual({ kind: "invalid", errors: ["description: is required"] });
+    });
+
     it("rejects a skill without frontmatter", () => {
         expect(parseSkill(null, { directory: "code-react", routes })).toEqual({
             kind: "invalid",
@@ -147,6 +170,17 @@ describe("readPluginSkills", () => {
             errors: [
                 "skills/go: name: must start with a known domain (code, checkup, writing, marketing, factory, toolbox)",
             ],
+        });
+    });
+
+    it("skips files next to the skill folders, such as .DS_Store", async () => {
+        pluginDir = await mkdtemp(path.join(tmpdir(), "plugin-"));
+        await Bun.write(path.join(pluginDir, "skills/code-go/SKILL.md"), "---\nname: code-go\ndescription: Go.\n---\n");
+        await Bun.write(path.join(pluginDir, "skills/.DS_Store"), "");
+
+        expect(await readPluginSkills(pluginDir, { routes, signal: AbortSignal.timeout(5_000) })).toEqual({
+            skills: [{ name: "code-go", description: "Go.", task: null }],
+            errors: [],
         });
     });
 

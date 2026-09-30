@@ -57,6 +57,13 @@ describe("parseToolbox", () => {
         ]);
     });
 
+    it("rejects text that is only whitespace", () => {
+        expect(failedPaths({ tools: [{ ...jq, purpose: "  ", command: " " }], plugins: [] })).toEqual([
+            "tools[0].purpose",
+            "tools[0].command",
+        ]);
+    });
+
     it("rejects unknown keys, which are usually typos", () => {
         const parsed = parseToolbox({ tools: [{ ...jq, homepage: "https://example.com" }], plugins: [] });
 

@@ -1,12 +1,12 @@
 // Skills of a plugin: the naming rules (ADR 0013), their task types (ADR 0014, 0015) and the generated catalog.
 
-import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { readText } from "../lib/files.ts";
+import { readDir, readText, TEXT_BYTES_MAX } from "../lib/files.ts";
 import { KEBAB_CASE } from "../lib/kebab-case.ts";
 import type { Parsed } from "../lib/parse.ts";
 import { parse } from "../lib/parse.ts";
+import { requiredText } from "../lib/schemas.ts";
 import type { Routes } from "../plugins/factory/scripts/models.ts";
 import { renderRoutingTable } from "../plugins/factory/scripts/models.ts";
 
@@ -28,6 +28,11 @@ export type Skill = {
 export type ParsedSkill = Parsed<Skill>;
 
 /** Every skill name starts with one of these domains: `<domain>` or `<domain>-<topic>`. */
+// The Agent Skills limits for a skill's name and description.
+const NAME_LENGTH_MAX = 64;
+const DESCRIPTION_LENGTH_MAX = 1_024;
+const SKILLS_MAX = 200; // there are 30; each skill costs a line of Claude's context
+
 const DOMAINS: readonly Domain[] = [
     { name: "code", description: "Coding conventions and practices" },
     { name: "checkup", description: "Recurring checkups and their runner (ADR 0010)" },
@@ -109,10 +114,11 @@ function skillSchema(directory: string, routes: Routes) {
     return z.looseObject({
         name: z
             .string()
+            .max(NAME_LENGTH_MAX, `must be at most ${NAME_LENGTH_MAX} characters`)
             .regex(KEBAB_CASE, "must be kebab-case")
             .refine((name) => name === directory, `must match its directory "${directory}"`)
             .refine((name) => domainOf(name) !== null, `must start with a known domain (${domains})`),
-        description: z.string().min(1, "is required"),
+        description: requiredText({ maxLength: DESCRIPTION_LENGTH_MAX }),
         model: z.never(setByTaskAgent).optional(),
         effort: z.never(setByTaskAgent).optional(),
         metadata: z
@@ -279,15 +285,15 @@ export async function readPluginSkills(
 ): Promise<PluginSkills> {
     const skillsDir = path.join(pluginDir, "skills");
 
-    // readdir takes no signal: check before starting instead.
-    signal.throwIfAborted();
-
-    const entries = await readdir(skillsDir, { withFileTypes: true });
+    const entries = await readDir(skillsDir, { maxEntries: SKILLS_MAX, signal });
     const parsed = await Promise.all(
         entries
-            .filter((entry) => entry.isDirectory())
+            .filter((entry) => entry.isDirectory)
             .map(async (entry) => {
-                const markdown = await readText(path.join(skillsDir, entry.name, "SKILL.md"), { signal });
+                const markdown = await readText(path.join(skillsDir, entry.name, "SKILL.md"), {
+                    maxBytes: TEXT_BYTES_MAX,
+                    signal,
+                });
 
                 return {
                     directory: entry.name,

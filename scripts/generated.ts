@@ -1,7 +1,10 @@
 // Generated files (ADR 0013, 0015, 0020): written by `bun run generate`, checked by `bun run validate`.
 
 import path from "node:path";
-import { readDirIfExists, readText } from "../lib/files.ts";
+import { readDir, readText, whenMissing } from "../lib/files.ts";
+
+const GENERATED_FILES_MAX = 100; // one generated folder: 9 task agents, 4 bundles
+const GENERATED_BYTES_MAX = 5 * 1024 * 1024; // the largest is a bundle of about 100 KB
 
 /** Generated files by file name, with their content. */
 export type GeneratedFiles = ReadonlyMap<string, string>;
@@ -13,6 +16,7 @@ export type GeneratedFiles = ReadonlyMap<string, string>;
  * @param options.extension - Only files ending in this extension are read, e.g. `".md"`.
  * @param options.signal - Cancels the reads.
  * @returns File name → content; empty when the folder doesn't exist yet.
+ * @throws Error when the folder has more than 100 entries, or a file is larger than 5 MiB.
  * @throws DOMException named `AbortError` when `signal` aborts.
  *
  * @example
@@ -34,10 +38,14 @@ export async function readGeneratedFiles(
     dir: string,
     { extension, signal }: { readonly extension: string; readonly signal: AbortSignal },
 ): Promise<GeneratedFiles> {
-    const fileNames = (await readDirIfExists(dir, { signal }))
+    const entries = await readDir(dir, { maxEntries: GENERATED_FILES_MAX, signal }).catch(whenMissing([]));
+    const fileNames = entries
+        .map((entry) => entry.name)
         .filter((fileName) => fileName.endsWith(extension))
         .toSorted();
-    const contents = await Promise.all(fileNames.map((fileName) => readText(path.join(dir, fileName), { signal })));
+    const contents = await Promise.all(
+        fileNames.map((fileName) => readText(path.join(dir, fileName), { maxBytes: GENERATED_BYTES_MAX, signal })),
+    );
 
     return new Map(fileNames.map((fileName, index) => [fileName, contents[index] ?? ""]));
 }

@@ -4,14 +4,15 @@
 import path from "node:path";
 import { z } from "zod";
 import { assert } from "../lib/assert.ts";
-import { isFileNotFound } from "../lib/errors.ts";
-import { readDirIfExists, readJson } from "../lib/files.ts";
+import { mapConcurrent } from "../lib/concurrency.ts";
+import { JSON_BYTES_MAX, readDir, readJson, whenMissing } from "../lib/files.ts";
 import { parse } from "../lib/parse.ts";
 import { isNotNil } from "../lib/predicates.ts";
 import { isAllowedLicense } from "../plugins/factory/scripts/licenses.ts";
 
 const NESTING_MAX = 5; // node_modules inside node_modules; package managers rarely nest more than two levels
 const PACKAGES_MAX = 5_000; // far above this repository's few dozen; a sign something is wrong
+const READS_IN_FLIGHT_MAX = 16; // enough to keep the disk busy without thousands of open files
 
 // npm's package.json: someone else's format, so extra fields are allowed (ADR 0020).
 const PackageJsonSchema = z.looseObject({
@@ -31,20 +32,11 @@ export type InstalledPackage = {
 
 type Options = { readonly signal: AbortSignal };
 
-/** The package.json of a folder, or `null` when the folder has none (e.g. a leftover empty folder). */
-async function readManifest(dir: string, { signal }: Options): Promise<unknown> {
-    try {
-        return await readJson(path.join(dir, "package.json"), { signal });
-    } catch (error: unknown) {
-        if (isFileNotFound(error)) {
-            return null;
-        }
-        throw error;
-    }
-}
-
 async function readPackage(dir: string, options: Options): Promise<InstalledPackage | null> {
-    const json = await readManifest(dir, options);
+    const json = await readJson(path.join(dir, "package.json"), { ...options, maxBytes: JSON_BYTES_MAX }).catch(
+        // A folder without a package.json, e.g. a leftover empty folder, holds no package.
+        whenMissing(null),
+    );
 
     if (json === null) {
         return null;
@@ -63,32 +55,46 @@ async function readPackage(dir: string, options: Options): Promise<InstalledPack
 }
 
 /** The package folders directly inside a `node_modules` folder, including scoped ones (`@scope/name`). */
-async function packageDirs(nodeModulesDir: string, options: Options): Promise<string[]> {
-    const entries = (await readDirIfExists(nodeModulesDir, options)).filter((entry) => !entry.startsWith("."));
-    const scoped = await Promise.all(
-        entries
-            .filter((entry) => entry.startsWith("@"))
-            .map(async (scope) =>
-                (await readDirIfExists(path.join(nodeModulesDir, scope), options)).map((name) =>
-                    path.join(scope, name),
-                ),
-            ),
-    );
-    const unscoped = entries.filter((entry) => !entry.startsWith("@"));
+async function packageDirs(nodeModulesDir: string, { signal }: Options): Promise<string[]> {
+    const list = async (dir: string): Promise<string[]> => {
+        const entries = await readDir(dir, { maxEntries: PACKAGES_MAX, signal }).catch(whenMissing([]));
 
-    return [...unscoped, ...scoped.flat()].map((entry) => path.join(nodeModulesDir, entry));
+        return entries.map((entry) => entry.name).filter((name) => !name.startsWith("."));
+    };
+    const names = await list(nodeModulesDir);
+    const scopes = names.filter((name) => name.startsWith("@"));
+    const unscoped = names.filter((name) => !name.startsWith("@"));
+    const scoped = await mapConcurrent(
+        scopes,
+        async (scope) => (await list(path.join(nodeModulesDir, scope))).map((name) => path.join(scope, name)),
+        { concurrency: READS_IN_FLIGHT_MAX, signal },
+    );
+
+    return [...unscoped, ...scoped.flat()].map((name) => path.join(nodeModulesDir, name));
 }
 
-async function collectPackages(nodeModulesDir: string, depth: number, options: Options): Promise<InstalledPackage[]> {
-    assert(depth <= NESTING_MAX, `node_modules nested deeper than ${NESTING_MAX} levels at ${nodeModulesDir}`);
+/** Every package folder in `node_modules` and the `node_modules` folders nested in it, one level at a time. */
+async function findPackageDirs(nodeModulesDir: string, options: Options): Promise<string[]> {
+    const found: string[] = [];
+    let level = [nodeModulesDir];
 
-    const dirs = await packageDirs(nodeModulesDir, options);
-    const packages = (await Promise.all(dirs.map((dir) => readPackage(dir, options)))).filter(isNotNil);
-    const nested = await Promise.all(
-        dirs.map((dir) => collectPackages(path.join(dir, "node_modules"), depth + 1, options)),
-    );
+    // Bounded by NESTING_MAX: each round goes one level deeper, and packages found too deep fail the assert.
+    for (let depth = 0; level.length > 0; depth += 1) {
+        const dirs = (
+            await mapConcurrent(level, (dir) => packageDirs(dir, options), {
+                concurrency: READS_IN_FLIGHT_MAX,
+                signal: options.signal,
+            })
+        ).flat();
+        const hasPackagesTooDeep = depth > NESTING_MAX && dirs.length > 0;
 
-    return [...packages, ...nested.flat()];
+        assert(!hasPackagesTooDeep, `node_modules nested deeper than ${NESTING_MAX} levels in ${nodeModulesDir}`);
+        found.push(...dirs);
+        assert(found.length <= PACKAGES_MAX, `more than ${PACKAGES_MAX} installed packages in ${nodeModulesDir}`);
+        level = dirs.map((dir) => path.join(dir, "node_modules"));
+    }
+
+    return found;
 }
 
 /**
@@ -110,10 +116,14 @@ async function collectPackages(nodeModulesDir: string, depth: number, options: O
  * ```
  */
 export async function readInstalledPackages(nodeModulesDir: string, options: Options): Promise<InstalledPackage[]> {
-    const packages = await collectPackages(nodeModulesDir, 0, options);
-    const unique = new Map(packages.map((installed) => [`${installed.name}@${installed.version}`, installed]));
-
-    assert(unique.size <= PACKAGES_MAX, `more than ${PACKAGES_MAX} installed packages`);
+    const dirs = await findPackageDirs(nodeModulesDir, options);
+    const packages = await mapConcurrent(dirs, (dir) => readPackage(dir, options), {
+        concurrency: READS_IN_FLIGHT_MAX,
+        signal: options.signal,
+    });
+    const unique = new Map(
+        packages.filter(isNotNil).map((installed) => [`${installed.name}@${installed.version}`, installed]),
+    );
 
     return [...unique.values()].toSorted((a, b) => a.name.localeCompare(b.name));
 }

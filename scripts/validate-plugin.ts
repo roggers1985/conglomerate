@@ -2,11 +2,12 @@
 
 import path from "node:path";
 import { z } from "zod";
-import { readJson, readTextIfExists } from "../lib/files.ts";
+import { JSON_BYTES_MAX, readJson, readText, TEXT_BYTES_MAX, whenMissing } from "../lib/files.ts";
 import { interruptSignal } from "../lib/interrupt.ts";
 import { KEBAB_CASE } from "../lib/kebab-case.ts";
 import type { Parsed } from "../lib/parse.ts";
 import { parse } from "../lib/parse.ts";
+import { requiredText } from "../lib/schemas.ts";
 import { readRoutes } from "../plugins/factory/scripts/models.ts";
 import { renderTaskAgents, TASK_AGENTS_DIR } from "./agents.ts";
 import { BUNDLE_DIR, renderBundles } from "./bundles.ts";
@@ -16,23 +17,43 @@ import { renderLegalFiles } from "./notices.ts";
 import { CATALOG_FILE, readPluginSkills, renderCatalog } from "./skills.ts";
 
 const SEMVER = /^\d+\.\d+\.\d+$/;
+const NAME_LENGTH_MAX = 64; // the same limit as a skill's name
+const VERSION_LENGTH_MAX = 50;
+const DESCRIPTION_LENGTH_MAX = 500;
+const OWNER_NAME_LENGTH_MAX = 100;
+const SOURCE_LENGTH_MAX = 200;
+const PLUGINS_MAX = 20; // one marketplace holds one plugin today
+
+const Name = z
+    .string()
+    .max(NAME_LENGTH_MAX, `must be at most ${NAME_LENGTH_MAX} characters`)
+    .regex(KEBAB_CASE, "must be kebab-case");
 
 // Claude Code's manifest formats have more fields than we check, so unknown keys are allowed (ADR 0020).
 const PluginManifestSchema = z.looseObject({
-    name: z.string().regex(KEBAB_CASE, "must be kebab-case"),
-    version: z.string().regex(SEMVER, "must be semver (x.y.z)"),
-    description: z.string().min(1, "is required"),
+    name: Name,
+    version: z
+        .string()
+        .max(VERSION_LENGTH_MAX, `must be at most ${VERSION_LENGTH_MAX} characters`)
+        .regex(SEMVER, "must be semver (x.y.z)"),
+    description: requiredText({ maxLength: DESCRIPTION_LENGTH_MAX }),
 });
 
 const MarketplaceEntrySchema = z.looseObject({
-    name: z.string().regex(KEBAB_CASE, "must be kebab-case"),
-    source: z.string().startsWith("./", 'must be a relative path starting with "./"'),
+    name: Name,
+    source: z
+        .string()
+        .max(SOURCE_LENGTH_MAX, `must be at most ${SOURCE_LENGTH_MAX} characters`)
+        .startsWith("./", 'must be a relative path starting with "./"'),
 });
 
 const MarketplaceSchema = z.looseObject({
-    name: z.string().regex(KEBAB_CASE, "must be kebab-case"),
-    owner: z.looseObject({ name: z.string().min(1, "is required") }),
-    plugins: z.array(MarketplaceEntrySchema).min(1, "must list at least one plugin"),
+    name: Name,
+    owner: z.looseObject({ name: requiredText({ maxLength: OWNER_NAME_LENGTH_MAX }) }),
+    plugins: z
+        .array(MarketplaceEntrySchema)
+        .min(1, "must list at least one plugin")
+        .max(PLUGINS_MAX, `must list at most ${PLUGINS_MAX} plugins`),
 });
 
 /** The fields of `.claude-plugin/plugin.json` that this repository requires. */
@@ -98,7 +119,7 @@ async function validateManifest(
     { entry, signal }: ValidateOptions & { readonly entry: MarketplaceEntry },
 ): Promise<string[]> {
     const manifestPath = path.join(pluginDir, ".claude-plugin", "plugin.json");
-    const manifest = parsePluginManifest(await readJson(manifestPath, { signal }));
+    const manifest = parsePluginManifest(await readJson(manifestPath, { maxBytes: JSON_BYTES_MAX, signal }));
 
     if (manifest.kind === "invalid") {
         return manifest.errors.map((error) => `plugin.json: ${error}`);
@@ -117,7 +138,9 @@ async function validateGenerated(
 ): Promise<string[]> {
     const routes = await readRoutes({ signal });
     const { skills, errors } = await readPluginSkills(pluginDir, { routes, signal });
-    const catalog = await readTextIfExists(path.join(pluginDir, CATALOG_FILE), { signal });
+    const catalog = await readText(path.join(pluginDir, CATALOG_FILE), { maxBytes: TEXT_BYTES_MAX, signal }).catch(
+        whenMissing(null),
+    );
     const catalogIsCurrent = catalog === renderCatalog(skills, { routes });
     const catalogErrors = catalogIsCurrent ? [] : [`${CATALOG_FILE} is out of date: run \`bun run generate\``];
     const [agents, bundles, currentBundles] = await Promise.all([
@@ -148,7 +171,9 @@ async function readExistingFiles(
     { signal }: ValidateOptions,
 ): Promise<ReadonlyMap<string, string>> {
     const contents = await Promise.all(
-        fileNames.map((fileName) => readTextIfExists(path.join(dir, fileName), { signal })),
+        fileNames.map((fileName) =>
+            readText(path.join(dir, fileName), { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null)),
+        ),
     );
 
     return new Map(
@@ -189,7 +214,7 @@ async function validatePlugin(
  */
 export async function validateRepository(root: string, { signal }: ValidateOptions): Promise<RepositoryValidation> {
     const marketplacePath = path.join(root, ".claude-plugin", "marketplace.json");
-    const marketplace = parseMarketplace(await readJson(marketplacePath, { signal }));
+    const marketplace = parseMarketplace(await readJson(marketplacePath, { maxBytes: JSON_BYTES_MAX, signal }));
 
     if (marketplace.kind === "invalid") {
         return { errors: marketplace.errors.map((error) => `marketplace.json: ${error}`) };

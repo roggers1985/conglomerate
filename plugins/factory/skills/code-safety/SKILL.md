@@ -32,6 +32,7 @@ Every quantity that can grow has an explicit upper bound, every quantity with a 
   ```
 
 - No `while (true)` without such a counter.
+- **Even without a natural limit, a loop gets a maximum.** Size it by the kind of collection it walks, generously, e.g. `999_999` for items in memory or `999_999_999` for rows in a database. A generous bound is still a bound: a runaway loop ends in an error instead of a hang.
 
 ### Recursion
 

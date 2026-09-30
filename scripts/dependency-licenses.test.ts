@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { licenseProblems, readInstalledPackages } from "./dependency-licenses.ts";
@@ -52,6 +52,42 @@ describe("readInstalledPackages", () => {
         ]);
 
         expect(await readInstalledPackages(root, { signal })).toEqual([]);
+    });
+
+    it("finds nothing in a node_modules folder that doesn't exist", async () => {
+        root = await mkdtemp(path.join(tmpdir(), "node-modules-"));
+
+        expect(await readInstalledPackages(path.join(root, "missing"), { signal })).toEqual([]);
+    });
+
+    it("accepts packages nested 5 levels deep, and fails at 6", async () => {
+        root = await mkdtemp(path.join(tmpdir(), "node-modules-"));
+        const nestedPath = (depth: number): string =>
+            Array.from({ length: depth + 1 }, (_, index) => `p${index}`).join("/node_modules/");
+        const writeLevels = (depth: number): Promise<number[]> =>
+            Promise.all(
+                Array.from({ length: depth + 1 }, (_, index) =>
+                    writePackage(nestedPath(index), { name: `p${index}`, version: "1.0.0", license: "MIT" }),
+                ),
+            );
+
+        await writeLevels(5);
+        expect(await readInstalledPackages(root, { signal })).toHaveLength(6);
+
+        await writeLevels(6);
+        await expect(readInstalledPackages(root, { signal })).rejects.toThrow(
+            "node_modules nested deeper than 5 levels",
+        );
+    });
+
+    it("accepts 5,000 package folders, and fails at 5,001", async () => {
+        root = await mkdtemp(path.join(tmpdir(), "node-modules-"));
+        await Promise.all(Array.from({ length: 5_000 }, (_, index) => mkdir(path.join(root, `p${index}`))));
+
+        expect(await readInstalledPackages(root, { signal })).toEqual([]);
+
+        await mkdir(path.join(root, "one-more"));
+        await expect(readInstalledPackages(root, { signal })).rejects.toThrow("has more than 5000 entries");
     });
 
     it("stops when aborted", async () => {

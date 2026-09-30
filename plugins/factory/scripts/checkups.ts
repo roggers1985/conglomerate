@@ -9,8 +9,7 @@
 import path from "node:path";
 import { z } from "zod";
 import { assert } from "../../../lib/assert.ts";
-import { isFileNotFound } from "../../../lib/errors.ts";
-import { readDirIfExists, readJson } from "../../../lib/files.ts";
+import { JSON_BYTES_MAX, readDir, readJson, whenMissing } from "../../../lib/files.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
 import { KEBAB_CASE } from "../../../lib/kebab-case.ts";
 import type { Parsed } from "../../../lib/parse.ts";
@@ -22,20 +21,27 @@ import { parse } from "../../../lib/parse.ts";
  */
 const PRIORITIES = ["urgent", "normal", "quiet"] as const;
 
+const CHECKUPS_MAX = 100; // more than any project needs; a longer list means something generated it wrongly
+const NAME_LENGTH_MAX = 50; // the longest checkup name today has 20 characters
+const INTERVAL_DAYS_MAX = 365; // every checkup runs at least once a year
+const REPORTS_MAX = 10_000; // one checkup's reports: a daily one for more than 25 years
+const SKILLS_MAX = 200; // a project's or the plugin's skills; each costs a line of Claude's context
+
+const CheckupName = z.string().max(NAME_LENGTH_MAX).regex(KEBAB_CASE, "must be kebab-case");
+
 const CheckupConfigSchema = z.strictObject({
-    name: z.string().regex(KEBAB_CASE, "must be kebab-case"),
-    intervalDays: z.number().int().positive(),
+    name: CheckupName,
+    intervalDays: z.number().int().min(1).max(INTERVAL_DAYS_MAX),
     priority: z.enum(PRIORITIES),
 });
 
 // Our own file, so strict: unknown keys are typos (ADR 0020).
-const CHECKUPS_MAX = 100; // more than any project needs; a longer list means something generated it wrongly
 
 const ScheduleSchema = z
     .strictObject({
         checkups: z.array(CheckupConfigSchema).max(CHECKUPS_MAX),
         /** Checkups the owner opted out of: the runner doesn't suggest them again (ADR 0037). */
-        declined: z.array(z.string().max(50).regex(KEBAB_CASE, "must be kebab-case")).max(CHECKUPS_MAX).optional(),
+        declined: z.array(CheckupName).max(CHECKUPS_MAX).optional(),
     })
     .superRefine(({ checkups, declined = [] }, context) => {
         const names = checkups.map((checkup) => checkup.name);
@@ -444,28 +450,28 @@ export function formatDate(date: Date): string {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function readReportFileNames(
+async function readReportFileNames(
     projectDir: string,
     { name, signal }: { readonly name: string; readonly signal: AbortSignal },
 ): Promise<string[]> {
-    return readDirIfExists(path.join(projectDir, REPORTS_DIR, name), { signal });
+    const dir = path.join(projectDir, REPORTS_DIR, name);
+    const entries = await readDir(dir, { maxEntries: REPORTS_MAX, signal }).catch(whenMissing([]));
+
+    return entries.map((entry) => entry.name);
 }
 
 /** The names of the skills in a folder; empty when the folder doesn't exist. */
 async function skillNames(dir: string, { signal }: { readonly signal: AbortSignal }): Promise<ReadonlySet<string>> {
-    return new Set(await readDirIfExists(dir, { signal }));
+    const entries = await readDir(dir, { maxEntries: SKILLS_MAX, signal }).catch(whenMissing([]));
+
+    return new Set(entries.map((entry) => entry.name));
 }
 
 /** The schedule's parsed JSON, or `null` when the project has no schedule. */
-async function readScheduleJson(projectDir: string, { signal }: { readonly signal: AbortSignal }): Promise<unknown> {
-    try {
-        return await readJson(path.join(projectDir, SCHEDULE_PATH), { signal });
-    } catch (error: unknown) {
-        if (isFileNotFound(error)) {
-            return null;
-        }
-        throw error;
-    }
+function readScheduleJson(projectDir: string, { signal }: { readonly signal: AbortSignal }): Promise<unknown> {
+    const schedulePath = path.join(projectDir, SCHEDULE_PATH);
+
+    return readJson(schedulePath, { maxBytes: JSON_BYTES_MAX, signal }).catch(whenMissing(null));
 }
 
 async function readSchedule(

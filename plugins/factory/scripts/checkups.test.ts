@@ -68,10 +68,35 @@ describe("parseSchedule", () => {
         });
     });
 
-    it("enforces an upper bound on the number of checkups", () => {
-        const many = Array.from({ length: 101 }, (_, index) => ({ ...legal, name: `checkup-${index}` }));
+    it("accepts up to 100 scheduled and 100 declined checkups, and no more", () => {
+        const names = (prefix: string, count: number): string[] =>
+            Array.from({ length: count }, (_, index) => `${prefix}-${index}`);
+        const scheduled = (count: number): CheckupConfig[] =>
+            names("checkup", count).map((name) => ({ ...legal, name }));
 
-        expect(failedPaths(parseSchedule({ checkups: many }))).toEqual(["checkups"]);
+        expect(parseSchedule({ checkups: scheduled(100), declined: names("declined", 100) }).kind).toBe("valid");
+        expect(failedPaths(parseSchedule({ checkups: scheduled(101) }))).toEqual(["checkups"]);
+        expect(failedPaths(parseSchedule({ checkups: [], declined: names("declined", 101) }))).toEqual(["declined"]);
+    });
+
+    it("accepts an interval from 1 to 365 days, and nothing outside it", () => {
+        const withInterval = (intervalDays: number) => parseSchedule({ checkups: [{ ...legal, intervalDays }] });
+
+        expect(withInterval(1).kind).toBe("valid");
+        expect(withInterval(365).kind).toBe("valid");
+        expect(failedPaths(withInterval(0))).toEqual(["checkups[0].intervalDays"]);
+        expect(failedPaths(withInterval(366))).toEqual(["checkups[0].intervalDays"]);
+    });
+
+    it("accepts names of up to 50 characters, scheduled or declined", () => {
+        const name50 = "a".repeat(50);
+        const name51 = "a".repeat(51);
+
+        expect(parseSchedule({ checkups: [{ ...legal, name: name50 }], declined: [`b${name50.slice(1)}`] }).kind).toBe(
+            "valid",
+        );
+        expect(failedPaths(parseSchedule({ checkups: [{ ...legal, name: name51 }] }))).toEqual(["checkups[0].name"]);
+        expect(failedPaths(parseSchedule({ checkups: [], declined: [name51] }))).toEqual(["declined[0]"]);
     });
 
     it("rejects a checkup that is listed twice", () => {

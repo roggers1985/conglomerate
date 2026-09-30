@@ -9,12 +9,12 @@
 import { homedir } from "node:os";
 import path from "node:path";
 import { z } from "zod";
-import { isFileNotFound } from "../../../lib/errors.ts";
-import { readJson } from "../../../lib/files.ts";
+import { JSON_BYTES_MAX, readJson, whenMissing } from "../../../lib/files.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
 import { KEBAB_CASE } from "../../../lib/kebab-case.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
+import { requiredText } from "../../../lib/schemas.ts";
 import type { ReminderOutput } from "./checkups.ts";
 import { isAllowedLicense } from "./licenses.ts";
 
@@ -25,7 +25,7 @@ const TOOLBOX_PATH = path.resolve(import.meta.dir, "..", "toolbox.json");
 const RUNNER = "/factory:toolbox";
 const PLUGIN_ID = /^[a-z0-9-]+@[a-z0-9-]+$/;
 
-const Text = z.string().min(1).max(TEXT_LENGTH_MAX);
+const Text = requiredText({ maxLength: TEXT_LENGTH_MAX });
 const Requires = z.array(z.string().min(1).max(100)).max(REQUIRES_MAX);
 const License = z
     .string()
@@ -36,7 +36,7 @@ const License = z
 const ToolSchema = z.strictObject({
     name: z.string().max(50).regex(KEBAB_CASE, "must be kebab-case"),
     purpose: Text,
-    command: z.string().min(1).max(50),
+    command: requiredText({ maxLength: 50 }),
     install: Text,
     source: Text,
     license: License,
@@ -224,7 +224,7 @@ export function toolboxReport(toolbox: Toolbox, status: ToolboxStatus): string {
 }
 
 async function readToolbox({ signal }: { readonly signal: AbortSignal }): Promise<Toolbox> {
-    const parsed = parseToolbox(await readJson(TOOLBOX_PATH, { signal }));
+    const parsed = parseToolbox(await readJson(TOOLBOX_PATH, { maxBytes: JSON_BYTES_MAX, signal }));
 
     if (parsed.kind === "invalid") {
         throw new Error(`toolbox.json is invalid: ${parsed.errors.join("; ")}`);
@@ -237,22 +237,16 @@ async function readToolbox({ signal }: { readonly signal: AbortSignal }): Promis
 async function readEnabledPlugins({ signal }: { readonly signal: AbortSignal }): Promise<ReadonlySet<string>> {
     const settingsPath = path.join(homedir(), ".claude", "settings.json");
 
-    try {
-        const parsed = parse(SettingsSchema, await readJson(settingsPath, { signal }));
+    const settings = await readJson(settingsPath, { maxBytes: JSON_BYTES_MAX, signal }).catch(whenMissing({}));
+    const parsed = parse(SettingsSchema, settings);
 
-        if (parsed.kind === "invalid") {
-            throw new Error(`${settingsPath} is invalid: ${parsed.errors.join("; ")}`);
-        }
-
-        const enabled = Object.entries(parsed.value.enabledPlugins ?? {}).filter(([, isEnabled]) => isEnabled);
-
-        return new Set(enabled.map(([id]) => id));
-    } catch (error: unknown) {
-        if (isFileNotFound(error)) {
-            return new Set();
-        }
-        throw error;
+    if (parsed.kind === "invalid") {
+        throw new Error(`${settingsPath} is invalid: ${parsed.errors.join("; ")}`);
     }
+
+    const enabled = Object.entries(parsed.value.enabledPlugins ?? {}).filter(([, isEnabled]) => isEnabled);
+
+    return new Set(enabled.map(([id]) => id));
 }
 
 const COMMANDS = ["reminder", "status"] as const;

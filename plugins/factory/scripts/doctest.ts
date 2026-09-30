@@ -6,9 +6,9 @@
 // fenced block. Examples run inside a `bun:test` test with the module's exports and `expect` in scope. Mark an
 // example ```ts no-run when it can't run in isolation (e.g. it needs the network); prefer runnable examples.
 
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
-import { readText } from "../../../lib/files.ts";
+import { readDirRecursive, readText, TEXT_BYTES_MAX } from "../../../lib/files.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
 
 /** What kind of declaration an export is, which decides the documentation it needs. */
@@ -42,6 +42,9 @@ const FUNCTION_INITIALIZER = /^\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>)?(?:\(|
 const FENCE = /^```(\w+)?(.*)$/;
 const TAG = /^@(\w+)/;
 const RUNNABLE_LANGUAGES = ["ts", "typescript", "tsx"];
+// Every entry below a target, folders included. Other projects run this too: a large source tree has a few
+// thousand, this repository about 60.
+const SOURCE_ENTRIES_MAX = 100_000;
 
 const KEYWORD_KINDS: Readonly<Record<string, ExportKind>> = {
     function: "function",
@@ -263,7 +266,7 @@ const isSourceFile = (fileName: string): boolean =>
     fileName.endsWith(".ts") && !fileName.endsWith(".test.ts") && !fileName.endsWith(".d.ts");
 
 async function sourceFiles(target: string, { signal }: { readonly signal: AbortSignal }): Promise<string[]> {
-    // Bun.file and readdir take no signal: check before starting instead.
+    // Bun.file takes no signal: check before starting instead.
     signal.throwIfAborted();
 
     const isSingleSourceFile = isSourceFile(target) && (await Bun.file(target).exists());
@@ -272,11 +275,12 @@ async function sourceFiles(target: string, { signal }: { readonly signal: AbortS
         return [target];
     }
 
-    const entries = await readdir(target, { recursive: true });
+    const entries = await readDirRecursive(target, { maxEntries: SOURCE_ENTRIES_MAX, signal });
 
     return entries
-        .filter((entry) => isSourceFile(entry) && !entry.split(path.sep).includes("node_modules"))
-        .map((entry) => path.join(target, entry))
+        .map((entry) => entry.name)
+        .filter((name) => isSourceFile(name) && !name.split(path.sep).includes("node_modules"))
+        .map((name) => path.join(target, name))
         .toSorted();
 }
 
@@ -295,7 +299,7 @@ async function main(): Promise<void> {
         files.map(async (file) => ({
             file,
             label: path.relative(process.cwd(), file),
-            exports: findDocumentedExports(await readText(file, { signal })),
+            exports: findDocumentedExports(await readText(file, { maxBytes: TEXT_BYTES_MAX, signal })),
         })),
     );
     const problems = modules.flatMap(({ label, exports }) =>

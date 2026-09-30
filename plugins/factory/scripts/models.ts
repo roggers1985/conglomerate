@@ -2,28 +2,51 @@
 
 import path from "node:path";
 import { z } from "zod";
-import { readJson } from "../../../lib/files.ts";
+import { JSON_BYTES_MAX, readJson } from "../../../lib/files.ts";
 import { KEBAB_CASE } from "../../../lib/kebab-case.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
+import { requiredText } from "../../../lib/schemas.ts";
 
 const MODELS = ["opus", "sonnet", "haiku", "fable"] as const;
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 const MODELS_PATH = path.resolve(import.meta.dir, "..", "models.json");
 
+const TASKS_MAX = 20; // there are 9 task types; more would make routing hard to choose from
+const TASK_NAME_LENGTH_MAX = 50;
+const USE_LENGTH_MAX = 300; // one line in the routing table
+
 const TaskRouteSchema = z.strictObject({
     model: z.enum(MODELS),
     effort: z.enum(EFFORTS),
-    use: z.string().min(1),
+    use: requiredText({ maxLength: USE_LENGTH_MAX }),
 });
 
 // Our own file, so strict: unknown keys are typos (ADR 0020).
 const ModelsFileSchema = z.strictObject({
     tasks: z.record(z.string(), TaskRouteSchema).superRefine((tasks, context) => {
-        const invalidNames = Object.keys(tasks).filter((task) => !KEBAB_CASE.test(task));
+        const names = Object.keys(tasks);
+        const invalidNames = names.filter((task) => !KEBAB_CASE.test(task));
+        const longNames = names.filter((task) => task.length > TASK_NAME_LENGTH_MAX);
+
+        if (names.length === 0) {
+            context.addIssue({ code: "custom", message: "must list at least one task type" });
+        }
+
+        if (names.length > TASKS_MAX) {
+            context.addIssue({ code: "custom", message: `must list at most ${TASKS_MAX} task types` });
+        }
 
         for (const task of invalidNames) {
             context.addIssue({ code: "custom", message: "task names must be kebab-case", path: [task] });
+        }
+
+        for (const task of longNames) {
+            context.addIssue({
+                code: "custom",
+                message: `task names must be at most ${TASK_NAME_LENGTH_MAX} characters`,
+                path: [task],
+            });
         }
     }),
 });
@@ -135,7 +158,7 @@ export function renderRoutingContext(tasks: Routes): string {
  * ```
  */
 export async function readRoutes({ signal }: { readonly signal: AbortSignal }): Promise<Routes> {
-    const parsed = parseRoutes(await readJson(MODELS_PATH, { signal }));
+    const parsed = parseRoutes(await readJson(MODELS_PATH, { maxBytes: JSON_BYTES_MAX, signal }));
 
     if (parsed.kind === "invalid") {
         throw new Error(`models.json is invalid: ${parsed.errors.join("; ")}`);

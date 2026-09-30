@@ -3,7 +3,7 @@
 
 import path from "node:path";
 import { z } from "zod";
-import { readDirIfExists, readJson, readText } from "../lib/files.ts";
+import { JSON_BYTES_MAX, readDir, readJson, readText, TEXT_BYTES_MAX } from "../lib/files.ts";
 import { parse } from "../lib/parse.ts";
 import type { GeneratedFiles } from "./generated.ts";
 
@@ -22,13 +22,15 @@ export type PackageNotice = {
 
 // Someone else's format, so extra fields are allowed (ADR 0020).
 const PackageJsonSchema = z.looseObject({
-    version: z.string().min(1),
+    version: z.string().min(1).max(100),
     license: z
         .string({ error: "is required: a bundled package must declare its license" })
-        .min(1, "is required: a bundled package must declare its license"),
+        .min(1, "is required: a bundled package must declare its license")
+        .max(200),
 });
 
 const LICENSE_FILE = /^licen[cs]e(\.(md|txt))?$/i;
+const PACKAGE_FILES_MAX = 1_000; // the top level of an installed package; most have a dozen entries
 
 /**
  * Reads a bundled package's version, license and license text from its installed files.
@@ -63,19 +65,23 @@ export async function readPackageNotice(
     }: { readonly nodeModulesDir: string; readonly bundles: readonly string[]; readonly signal: AbortSignal },
 ): Promise<PackageNotice> {
     const dir = path.join(nodeModulesDir, name);
-    const manifest = parse(PackageJsonSchema, await readJson(path.join(dir, "package.json"), { signal }));
+    const manifest = parse(
+        PackageJsonSchema,
+        await readJson(path.join(dir, "package.json"), { maxBytes: JSON_BYTES_MAX, signal }),
+    );
 
     if (manifest.kind === "invalid") {
         throw new Error(`${name}/package.json: ${manifest.errors.join("; ")}`);
     }
 
-    const licenseFile = (await readDirIfExists(dir, { signal })).find((fileName) => LICENSE_FILE.test(fileName));
+    const entries = await readDir(dir, { maxEntries: PACKAGE_FILES_MAX, signal });
+    const licenseFile = entries.map((entry) => entry.name).find((fileName) => LICENSE_FILE.test(fileName));
 
     if (licenseFile === undefined) {
         throw new Error(`${name} ships no LICENSE file, so its notice can't be generated`);
     }
 
-    const licenseText = await readText(path.join(dir, licenseFile), { signal });
+    const licenseText = await readText(path.join(dir, licenseFile), { maxBytes: TEXT_BYTES_MAX, signal });
 
     return {
         name,
@@ -164,7 +170,7 @@ export async function renderLegalFiles({
 }): Promise<GeneratedFiles> {
     const nodeModulesDir = path.join(repositoryRoot, "node_modules");
     const [license, notices] = await Promise.all([
-        readText(path.join(repositoryRoot, "LICENSE"), { signal }),
+        readText(path.join(repositoryRoot, "LICENSE"), { maxBytes: TEXT_BYTES_MAX, signal }),
         Promise.all(
             [...packages].map(([name, bundles]) => readPackageNotice(name, { nodeModulesDir, bundles, signal })),
         ),
