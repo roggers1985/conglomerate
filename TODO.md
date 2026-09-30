@@ -12,7 +12,7 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 ## Repository and CI
 
-- [ ] Discuss: `lib/` is growing (files, schemas, concurrency, parse, …). Move to a monorepo (e.g. Bun workspaces) with packages split by feature instead of one shared `lib/`? Consider what the plugin's bundles (ADR 0020), the doctest, the license notices (ADR 0027) and `bun run check` would need.
+- [ ] Discuss: `lib/` is growing (files, schemas, concurrency, parse, …). Move to a monorepo (e.g. Bun workspaces) with packages split by feature instead of one shared `lib/`? Consider what the plugin's bundles (ADR 0020), the doctest, the license notices (ADR 0027) and `bun run check` would need. The first `architecture` checkup proposes keeping it as it is, with conditions to reconsider: accept or reject ADR 0047 (Proposed), and confirm the drivers in `docs/architecture/README.md`.
 
 ## Working with the owner
 

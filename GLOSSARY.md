@@ -121,6 +121,8 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **CI (continuous integration).** Running the checks automatically on a server for every push and pull request. *Here:* GitHub Actions runs `bun run check` (ADR 0028).
 
+**Monorepo and workspaces.** A *monorepo* holds several packages or apps in one repository. *Workspaces* (in Bun, npm, pnpm or Yarn) are how a package manager links them: each package has its own `package.json` and exposes only what it exports, and they can depend on each other without being published. *Here:* one package so far; whether `lib/` should become workspace packages is ADR 0047.
+
 **Semver (semantic versioning).** Version numbers as `major.minor.patch`: a patch fixes, a minor adds without breaking, a major may break.
 
 ## Testing

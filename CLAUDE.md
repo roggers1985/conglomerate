@@ -26,6 +26,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 - `scripts/`: repository tooling (strict TypeScript, run directly by Bun)
 - `docs/decisions/`: architecture decision records
 - `docs/checkups/`: this repo's own checkup schedule (`checkups.json`) and reports (ADR 0010)
+- `docs/architecture/`: the architecture register: units, drivers, debt and the workaround log, kept by the `architecture` checkup (ADR 0045, 0046)
 - `.claude/skills/`: checkups specific to this repo, e.g. `checkup-model-routing` (ADR 0015) and `checkup-conventions`, which keeps the sources of the conventions (ADR 0039)
 
 ## TypeScript
