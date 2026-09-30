@@ -7,8 +7,10 @@ import {
     planProblems,
     SPEC_SECTIONS,
     specProblems,
+    spikeProblems,
     taskListProblems,
     unfinishedTaskProblems,
+    verificationProblems,
 } from "./stage-gates.ts";
 
 const document = (headings: readonly string[], overrides: ReadonlyMap<string, string> = new Map()): string =>
@@ -247,6 +249,45 @@ describe("unfinishedTaskProblems", () => {
         expect(unfinishedTaskProblems(tasks, { file: "tasks.md" })).toEqual([
             "the build is done, but T-2 in tasks.md is pending",
             "the build is done, but T-3 in tasks.md is without a status",
+        ]);
+    });
+});
+
+describe("verificationProblems", () => {
+    const criteria = { active: ["AC-1", "AC-2"], dropped: ["AC-3"] } as const;
+    const verification = (evidence: string): string =>
+        `## Checks\n\n\`bun run check\`: passed\n\n## Evidence\n\n${evidence}`;
+
+    it("passes when every active criterion has evidence, and ignores dropped ones", () => {
+        const evidence = "- AC-1: `export.test.ts` › exports as CSV\n- AC-2: `export.test.ts` › disables the button";
+
+        expect(verificationProblems(verification(evidence), { criteria })).toEqual([]);
+    });
+
+    it("names every criterion without evidence, including one listed without any", () => {
+        expect(verificationProblems(verification("- AC-1:\n"), { criteria })).toEqual([
+            "verification.md has no evidence for AC-1",
+            "verification.md has no evidence for AC-2",
+        ]);
+    });
+
+    it("requires the checks that ran", () => {
+        expect(
+            verificationProblems("## Evidence\n\n- AC-1: a test", { criteria: { active: ["AC-1"], dropped: [] } }),
+        ).toEqual(['verification.md has no "## Checks" section']);
+    });
+
+    it("only asks for the sections when the route has no spec", () => {
+        expect(verificationProblems(verification("None: no spec."), { criteria: null })).toEqual([]);
+    });
+});
+
+describe("spikeProblems", () => {
+    it("requires the question, the findings and a recommendation", () => {
+        expect(spikeProblems(document(["Question", "Findings", "Recommendation"]))).toEqual([]);
+        expect(spikeProblems(document(["Question"]))).toEqual([
+            'spike.md has no "## Findings" section',
+            'spike.md has no "## Recommendation" section',
         ]);
     });
 });

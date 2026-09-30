@@ -188,18 +188,41 @@ describe("gateProblems", () => {
     });
 
     it("checks nothing while no gated stage is done", () => {
-        expect(gateProblems(withDone(), { intent: null, spec: null, plan: null, tasks: null })).toEqual([]);
+        expect(
+            gateProblems(withDone(), {
+                intent: null,
+                spec: null,
+                plan: null,
+                tasks: null,
+                verification: null,
+                spike: null,
+            }),
+        ).toEqual([]);
     });
 
     it("reports a missing document for a stage that is done", () => {
-        expect(gateProblems(withDone("intent", "spec"), { intent: null, spec: null, plan: null, tasks: null })).toEqual(
-            ["intent is done, but intent.md is missing", "spec is done, but spec.md is missing"],
-        );
+        expect(
+            gateProblems(withDone("intent", "spec"), {
+                intent: null,
+                spec: null,
+                plan: null,
+                tasks: null,
+                verification: null,
+                spike: null,
+            }),
+        ).toEqual(["intent is done, but intent.md is missing", "spec is done, but spec.md is missing"]);
     });
 
     it("applies the stage's gate to its document", () => {
         expect(
-            gateProblems(withDone("intent"), { intent: "## Problem\n\nSlow.\n", spec: null, plan: null, tasks: null }),
+            gateProblems(withDone("intent"), {
+                intent: "## Problem\n\nSlow.\n",
+                spec: null,
+                plan: null,
+                tasks: null,
+                verification: null,
+                spike: null,
+            }),
         ).toContain('intent.md has no "## Outcome" section');
     });
 
@@ -218,9 +241,9 @@ describe("gateProblems", () => {
             )
             .join("\n\n");
 
-        expect(gateProblems(route, { intent: null, spec, plan, tasks: null })).toContain(
-            "AC-2 isn't covered by any task in plan.md's Tasks section",
-        );
+        expect(
+            gateProblems(route, { intent: null, spec, plan, tasks: null, verification: null, spike: null }),
+        ).toContain("AC-2 isn't covered by any task in plan.md's Tasks section");
     });
 
     it("refuses a build marked done while a task isn't", () => {
@@ -229,9 +252,27 @@ describe("gateProblems", () => {
         };
         const tasks = "### T-1: Export\n- Status: in-progress";
 
-        expect(gateProblems(route, { intent: null, spec: null, plan: null, tasks })).toEqual([
+        expect(
+            gateProblems(route, { intent: null, spec: null, plan: null, tasks, verification: null, spike: null }),
+        ).toEqual([
             "the build is done, but T-1 in tasks.md is in-progress",
+            "the build is done, but verification.md is missing",
         ]);
+    });
+
+    it("requires evidence for every criterion, and a spike's findings, once those stages are done", () => {
+        const done = new Set(["spike", "verify"]);
+        const route = {
+            stages: (["spec", "spike", "plan", "build", "verify", "review", "finish"] as const).map((name) =>
+                stage(name, { status: done.has(name) ? "done" : "skipped" }),
+            ),
+        };
+        const spec = "## Acceptance criteria\n\n- **AC-1**: THE SYSTEM SHALL export.";
+        const verification = "## Checks\n\n`bun run check`: passed\n\n## Evidence\n\n- AC-1:";
+
+        expect(gateProblems(route, { intent: null, spec, plan: null, tasks: null, verification, spike: null })).toEqual(
+            ["spike is done, but spike.md is missing", "verification.md has no evidence for AC-1"],
+        );
     });
 
     it("asks the spec for a Problem section when the route has no intent stage", () => {
@@ -239,9 +280,9 @@ describe("gateProblems", () => {
             stages: TRACKS.standard.map((name) => stage(name, { status: name === "spec" ? "done" : "pending" })),
         };
 
-        expect(gateProblems(route, { intent: null, spec: "", plan: null, tasks: null })).toContain(
-            'spec.md has no "## Problem" section',
-        );
+        expect(
+            gateProblems(route, { intent: null, spec: "", plan: null, tasks: null, verification: null, spike: null }),
+        ).toContain('spec.md has no "## Problem" section');
     });
 });
 

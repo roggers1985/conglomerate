@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted
+Accepted. Extended by [ADR-0054](0054-build-verify-and-spike.md): each build task runs in its own worktree too; checkups stay one at a time.
 
 Amends [ADR-0010](0010-recurring-checkups.md) (how checkups are dispatched).
 

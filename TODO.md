@@ -25,14 +25,12 @@ Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, 
 
 To build:
 
-- [ ] **Build:** a fresh subagent per task through the task agents (model routing), tests first, and "verify before claiming done".
-- [ ] **Git worktrees:** each task in its own worktree, as checkups already are (ADR 0042). Decide then whether checkups may also run in parallel.
 - [ ] **Review:** check the result against the plan, with findings by severity (`review` task type).
 - [ ] **Finish a branch:** a fixed ending with the choice of merge, PR or discard, and cleanup.
 
 To consider:
 
-- [ ] Extend the consistency check to tests: every `AC-<n>` covered by a test that names it (the coverage of criteria by tasks is checked since ADR 0053)
+- [ ] A script that checks the evidence in `verification.md`: each named test exists and names its criterion (today the gate checks that evidence is named, ADR 0054)
 - [ ] A skill for writing skills in the owner's style (Superpowers' `writing-skills`)
 - [ ] A systematic debugging skill (Superpowers)
 - [ ] Evals for the plugin's skills with `claude plugin eval`: do they trigger, and do they help?
