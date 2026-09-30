@@ -5,7 +5,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 ## Checkups (ADR 0010, 0023)
 
-- [ ] Test-coverage leftover: two untested error paths in `validateRepository` (invalid `plugin.json`, name mismatch)
 - [ ] Move the jobs project to the plugin's checkups (plugin installed, ADR 0024). Plan:
   - keep its project-specific checkups (legal, content-freshness, backfill, stale-data, seo, analytics) and any generic ones whose jobs version holds project knowledge, as overrides (ADR 0023);
   - drop the ones where the generic version is enough;

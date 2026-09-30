@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Parsed } from "../lib/parse.ts";
@@ -15,6 +15,30 @@ const validMarketplace: Marketplace = {
 };
 
 const errorsOf = <T>(parsed: Parsed<T>): readonly string[] => (parsed.kind === "invalid" ? parsed.errors : []);
+
+const repositoryRoot = path.resolve(import.meta.dir, "..");
+
+/**
+ * Validates a temporary copy of this repository with a different `plugin.json`. The rest of the plugin is copied
+ * as is, because the validation also rebuilds its generated files; `lib/` and `node_modules/` are linked.
+ */
+async function validateWithManifest(manifest: unknown): Promise<{ readonly errors: readonly string[] }> {
+    const root = await mkdtemp(path.join(tmpdir(), "validate-"));
+
+    try {
+        await cp(path.join(repositoryRoot, ".claude-plugin"), path.join(root, ".claude-plugin"), { recursive: true });
+        await cp(path.join(repositoryRoot, "plugins/factory"), path.join(root, "plugins/factory"), { recursive: true });
+        await cp(path.join(repositoryRoot, "LICENSE"), path.join(root, "LICENSE"));
+        await cp(path.join(repositoryRoot, "package.json"), path.join(root, "package.json"));
+        await symlink(path.join(repositoryRoot, "lib"), path.join(root, "lib"));
+        await symlink(path.join(repositoryRoot, "node_modules"), path.join(root, "node_modules"));
+        await Bun.write(path.join(root, "plugins/factory/.claude-plugin/plugin.json"), JSON.stringify(manifest));
+
+        return await validateRepository(root, { signal: AbortSignal.timeout(30_000) });
+    } finally {
+        await rm(root, { recursive: true, force: true });
+    }
+}
 
 describe("parsePluginManifest", () => {
     it("accepts a valid manifest, including fields this repository doesn't check", () => {
@@ -102,6 +126,24 @@ describe("validateRepository", () => {
         } finally {
             await rm(root, { recursive: true, force: true });
         }
+    });
+
+    it("finds no errors in an unchanged copy, so the tests below only see their own change", async () => {
+        const manifest = await Bun.file(path.join(repositoryRoot, "plugins/factory/.claude-plugin/plugin.json")).json();
+
+        expect(await validateWithManifest(manifest)).toEqual({ errors: [] });
+    });
+
+    it("reports an invalid plugin.json, prefixed with the plugin's name", async () => {
+        expect(await validateWithManifest({ ...validManifest, version: "1.0" })).toEqual({
+            errors: ["factory/plugin.json: version: must be semver (x.y.z)"],
+        });
+    });
+
+    it("reports a plugin.json whose name differs from its marketplace entry", async () => {
+        expect(await validateWithManifest({ ...validManifest, name: "other" })).toEqual({
+            errors: ['factory/plugin.json: name does not match marketplace entry "factory"'],
+        });
     });
 });
 
