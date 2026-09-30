@@ -14,6 +14,7 @@ import { parse } from "../../../lib/parse.ts";
 import { requiredText } from "../../../lib/schemas.ts";
 import { AUTONOMY_LEVELS } from "./autonomy.ts";
 import { resolveProjectDir } from "./project-dir.ts";
+import { intentProblems, specProblems } from "./stage-gates.ts";
 
 /**
  * Every stage a route can contain, in the only order they may appear in: a route is a subset of this list, so its
@@ -184,6 +185,44 @@ export function resumePoint(stages: readonly StageEntry[]): StageEntry | null {
     );
 }
 
+/**
+ * Checks the documents of the stages marked done against their stage's gate (ADR 0052): a stage can't be done while
+ * its document is missing or incomplete.
+ *
+ * @param task - The change's valid task document.
+ * @param documents - The contents of `intent.md` and `spec.md` next to it; `null` when a file doesn't exist.
+ * @returns Every problem found; empty when every done stage passes its gate.
+ *
+ * @example
+ * ```ts
+ * const stages = [
+ *     { name: "spec", level: "guided", status: "done" },
+ *     { name: "plan", level: "trusted", status: "pending" },
+ * ] as const;
+ *
+ * expect(gateProblems({ stages }, { intent: null, spec: null })).toEqual(["spec is done, but spec.md is missing"]);
+ * ```
+ */
+export function gateProblems(
+    task: Pick<TaskDocument, "stages">,
+    documents: { readonly intent: string | null; readonly spec: string | null },
+): string[] {
+    const isDone = (name: Stage): boolean =>
+        task.stages.some((stage) => stage.name === name && stage.status === "done");
+    const needsProblem = !task.stages.some((stage) => stage.name === "intent");
+
+    return [
+        ...(isDone("intent") ? documentProblems(documents.intent, "intent", intentProblems) : []),
+        ...(isDone("spec")
+            ? documentProblems(documents.spec, "spec", (spec) => specProblems(spec, { needsProblem }))
+            : []),
+    ];
+}
+
+function documentProblems(markdown: string | null, stage: Stage, check: (markdown: string) => string[]): string[] {
+    return markdown === null ? [`${stage} is done, but ${stage}.md is missing`] : check(markdown);
+}
+
 /** One change folder: its route, or why it couldn't be read. */
 export type Change =
     | { readonly kind: "valid"; readonly name: string; readonly task: TaskDocument }
@@ -301,6 +340,25 @@ async function readTaskDocument(
     }
 }
 
+/** A change's task document, with the gates of its done stages applied. */
+async function readChange(
+    changeDir: string,
+    { signal }: { readonly signal: AbortSignal },
+): Promise<Parsed<TaskDocument>> {
+    const task = await readTaskDocument(path.join(changeDir, "task.md"), { signal });
+
+    if (task.kind === "invalid") {
+        return task;
+    }
+
+    const readDocument = (file: string): Promise<string | null> =>
+        readText(path.join(changeDir, file), { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
+    const [intent, spec] = await Promise.all([readDocument("intent.md"), readDocument("spec.md")]);
+    const problems = gateProblems(task.value, { intent, spec });
+
+    return problems.length === 0 ? task : { kind: "invalid", errors: problems };
+}
+
 async function readChanges(projectDir: string, { signal }: { readonly signal: AbortSignal }): Promise<Change[]> {
     const changesDir = path.join(projectDir, CHANGES_DIR);
     const entries = await readDir(changesDir, { maxEntries: CHANGES_MAX, signal }).catch(whenMissing([]));
@@ -311,7 +369,7 @@ async function readChanges(projectDir: string, { signal }: { readonly signal: Ab
 
     return Promise.all(
         folders.map(async (name): Promise<Change> => {
-            const task = await readTaskDocument(path.join(changesDir, name, "task.md"), { signal });
+            const task = await readChange(path.join(changesDir, name), { signal });
 
             return task.kind === "valid"
                 ? { kind: "valid", name, task: task.value }
@@ -337,7 +395,7 @@ async function main(): Promise<void> {
     }
 
     if (command === "check") {
-        const task = await readTaskDocument(path.resolve(argument ?? "task.md"), { signal });
+        const task = await readChange(path.dirname(path.resolve(argument ?? "task.md")), { signal });
 
         if (task.kind === "invalid") {
             console.error(task.errors.map((error) => `✗ ${error}`).join("\n"));

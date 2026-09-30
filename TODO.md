@@ -25,7 +25,6 @@ Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, 
 
 To build:
 
-- [ ] **Intake:** specs per change, in the change's folder next to `task.md` (ADR 0051); living specs of the whole system may grow from them later. `intent.md` (problem, outcome, affected users and systems, constraints, open questions; written with Claude, corrected by the owner) → `spec.md` (user stories, acceptance criteria, edge cases, no implementation; unclear points marked `[NEEDS CLARIFICATION]` instead of guessed). Owner review before anything is built.
 - [ ] **Planning:** `plan.md` (architecture, files, data, trade-offs) and `tasks.md` (tasks of a few minutes, with exact files and a verification step each; tasks that can run in parallel marked). Includes back-of-the-envelope sketches of network, disk, memory and CPU costs, with batching as a design question (ADR 0038).
 - [ ] **Convention gate:** every plan states that it follows the conventions and ADRs, or justifies each deviation.
 - [ ] **Build:** a fresh subagent per task through the task agents (model routing), tests first, and "verify before claiming done".
@@ -35,8 +34,7 @@ To build:
 
 To consider:
 
-- [ ] Acceptance criteria in EARS format ("WHEN … THE SYSTEM SHALL …"), which makes them directly testable (Kiro)
-- [ ] A consistency check across spec, plan and tasks, e.g. in the validator (Spec Kit's `/analyze`)
+- [ ] A consistency check across spec, plan and tasks, e.g. in the validator (Spec Kit's `/analyze`): every `AC-<n>` covered by a task and a test (ADR 0052)
 - [ ] A skill for writing skills in the owner's style (Superpowers' `writing-skills`)
 - [ ] A systematic debugging skill (Superpowers)
 - [ ] Evals for the plugin's skills with `claude plugin eval`: do they trigger, and do they help?

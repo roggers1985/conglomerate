@@ -46,6 +46,8 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Triage and route.** *Here:* Stage 0 of the factory. Triage classifies a new task and proposes a *route*: a list of stages (intent, spec, plan, build, review, …) from one of three tracks (quick, standard, full), adjusted with recorded deviations, and an autonomy level per stage. A standard or full route is kept in `docs/changes/<date>-<name>/task.md` (ADR 0051).
 
+**Intake, EARS and stage gate.** *Here:* the stages after triage that decide *what* to build: `intent.md` and `spec.md` (ADR 0052). Acceptance criteria follow **EARS** (Easy Approach to Requirements Syntax): numbered lines like "WHEN the owner exports jobs, THE SYSTEM SHALL download them as CSV". A **stage gate** is a script check that a stage's document is complete before the stage may be marked done.
+
 **Autonomy level.** *Here:* how much Claude decides without asking: `guided` (the owner decides), `trusted` (Claude decides within the conventions) or `autonomous` (Claude runs the work end to end, the owner reviews afterwards). Set per project in `.claude/factory.json`, per session with `/factory:autonomy` (ADR 0044).
 
 **Convention.** A rule for how code is written. *Here:* the always-on ones are in `plugins/factory/conventions/core.md`, added to every session; the detailed ones are `code-*` skills.

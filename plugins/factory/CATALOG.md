@@ -55,6 +55,7 @@ _No skills yet._
 
 | Skill | What it is | Task (model, effort) |
 | --- | --- | --- |
+| `factory-intake` | The factory's intake stages. | `planning` (opus, high) |
 | `factory-triage` | Stage 0 of the factory. | `planning` (opus, high) |
 
 ## toolbox: The owner's trusted tools and plugins (ADR 0033)

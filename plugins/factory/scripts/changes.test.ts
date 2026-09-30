@@ -3,7 +3,15 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Stage, TaskDocument } from "./changes.ts";
-import { changesReminder, changesStatus, parseTaskDocument, resumePoint, STAGES, TRACKS } from "./changes.ts";
+import {
+    changesReminder,
+    changesStatus,
+    gateProblems,
+    parseTaskDocument,
+    resumePoint,
+    STAGES,
+    TRACKS,
+} from "./changes.ts";
 
 type StageEntry = TaskDocument["stages"][number];
 
@@ -174,6 +182,37 @@ describe("resumePoint", () => {
     });
 });
 
+describe("gateProblems", () => {
+    const withDone = (...done: readonly Stage[]): Pick<TaskDocument, "stages"> => ({
+        stages: TRACKS.full.map((name) => stage(name, { status: done.includes(name) ? "done" : "pending" })),
+    });
+
+    it("checks nothing while no gated stage is done", () => {
+        expect(gateProblems(withDone(), { intent: null, spec: null })).toEqual([]);
+    });
+
+    it("reports a missing document for a stage that is done", () => {
+        expect(gateProblems(withDone("intent", "spec"), { intent: null, spec: null })).toEqual([
+            "intent is done, but intent.md is missing",
+            "spec is done, but spec.md is missing",
+        ]);
+    });
+
+    it("applies the stage's gate to its document", () => {
+        expect(gateProblems(withDone("intent"), { intent: "## Problem\n\nSlow.\n", spec: null })).toContain(
+            'intent.md has no "## Outcome" section',
+        );
+    });
+
+    it("asks the spec for a Problem section when the route has no intent stage", () => {
+        const route = {
+            stages: TRACKS.standard.map((name) => stage(name, { status: name === "spec" ? "done" : "pending" })),
+        };
+
+        expect(gateProblems(route, { intent: null, spec: "" })).toContain('spec.md has no "## Problem" section');
+    });
+});
+
 describe("changesStatus and changesReminder", () => {
     const finished = task({ stages: TRACKS.standard.map((name) => stage(name, { status: "done" })) });
 
@@ -257,6 +296,17 @@ describe("changes CLI", () => {
 
         expect(stdout).toContain("- `broken`: task.md's frontmatter is not valid YAML");
         expect(stdout).toContain("- `empty`: has no task.md");
+    });
+
+    it("refuses a route whose spec is done while spec.md is missing", async () => {
+        projectDir = await mkdtemp(path.join(tmpdir(), "changes-"));
+        const stages = TRACKS.standard.map((name) => stage(name, { status: name === "spec" ? "done" : "pending" }));
+        await writeTask("specced", asMarkdown(task({ stages })));
+
+        const result = await run("check", path.join(projectDir, "docs/changes/specced/task.md"));
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain("✗ spec is done, but spec.md is missing");
     });
 
     it("prints nothing at session start in a project without changes", async () => {

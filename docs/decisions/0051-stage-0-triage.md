@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted
+Accepted. Extended by [ADR-0052](0052-intake-intent-and-spec.md): the intent and spec stages, with a gate.
 
 Extends [ADR-0044](0044-autonomy-levels.md) (autonomy per stage) and [ADR-0045](0045-architecture-checkup-and-register.md) (architecture debt in triage).
 
