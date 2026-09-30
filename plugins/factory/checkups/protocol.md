@@ -47,7 +47,7 @@ Terms used below:
    - The report's date is what marks this checkup as done; there is nothing else to update.
    - **A run with no findings still gets a report.** Write "No findings." in the summary, leave the findings table with a single row `| - | - | No findings | <what you checked> | - |`, and write "None." under the other sections.
 2. **Commit** the report together with any fixes.
-3. **Hand over the branch.** If the repository has a GitHub remote, push the branch and open a PR titled `Checkup: <name> (<today>)` with the summary as description. Otherwise leave the branch for the owner to merge. Until it is merged, the checkup still shows as due.
+3. **Hand over the branch.** If the repository has a GitHub remote, push the branch and open a PR titled `Checkup: <name> (<today>)` with the summary as description (ADR 0043). If `gh` is missing or not logged in, push the branch anyway and say in your reply that the PR still has to be opened. Without a remote, leave the branch for the owner to merge. Until it is merged, the checkup still shows as due.
 4. **Reply with:**
    - the branch or PR link;
    - the commits (`git log --oneline <default branch>..<branch>`);

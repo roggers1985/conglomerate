@@ -12,8 +12,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 ## Repository and CI
 
-- [ ] Decide: push checkup branches and open PRs now that there is a (private) GitHub remote? Opening PRs needs the `gh` CLI (not installed) and `gh auth login`.
-
 - [ ] Discuss: `lib/` is growing (files, schemas, concurrency, parse, …). Move to a monorepo (e.g. Bun workspaces) with packages split by feature instead of one shared `lib/`? Consider what the plugin's bundles (ADR 0020), the doctest, the license notices (ADR 0027) and `bun run check` would need.
 
 ## Working with the owner

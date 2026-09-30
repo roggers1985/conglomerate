@@ -2,7 +2,7 @@
 name: checkup
 description: Run the project's recurring checkups (dependencies, security, code and frontend quality, tests, docs, accessibility, and project-specific ones like legal). Shows which are due according to docs/checkups/checkups.json and runs the chosen ones, priority first. Use when asked to "run the checkups", "do a checkup", or to see which checkups are due or overdue.
 argument-hint: "[due | all | <name>…]"
-allowed-tools: Bash(bun "${CLAUDE_PLUGIN_ROOT}/dist/checkups.js" *), Bash(git branch --list *), Bash(git worktree remove *), Bash(git branch -d *)
+allowed-tools: Bash(bun "${CLAUDE_PLUGIN_ROOT}/dist/checkups.js" *), Bash(git branch --list *), Bash(git worktree remove *), Bash(git branch -d *), Bash(git pull --ff-only)
 ---
 
 # Checkup runner
@@ -22,6 +22,7 @@ Unmerged checkup branches (their reports don't count yet):
 ## Steps
 
 1. Show the status table above to the user.
+   - If the repository has a remote and checkup PRs were merged there since the last run, pull the default branch first (`git pull --ff-only`) and run the status again, since merged reports only count once they are local (ADR 0043). Delete the local branches of merged checkups with `git branch -d`.
    - If no checkups are scheduled, explain how to start: create `docs/checkups/checkups.json` with entries like `{ "name": "outdated-packages", "intervalDays": 30, "priority": "normal" }` (`priority` is `urgent`, `normal` or `quiet`, ADR 0030), and propose a starting schedule from the plugin's `factory:checkup-*` skills that fit this project (see step 2). Stop there.
    - If a checkup's skill is **missing**, say so: it can't run until the project adds `.claude/skills/checkup-<name>/SKILL.md` or the name is corrected.
 2. Look for checkups the project is missing, skipping those listed as declined under the table. Check the project briefly (structure, `package.json`, pages, config) and suggest, without adding them yourself:
