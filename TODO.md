@@ -14,9 +14,7 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 - [ ] Decide: push checkup branches and open PRs now that there is a (private) GitHub remote? Opening PRs needs the `gh` CLI (not installed) and `gh auth login`.
 
-## Conventions
-
-- [ ] Decide: a `conventions` checkup (in `.claude/skills/`) that re-reads the sources of the conventions (Power of 10, TigerStyle, React docs, …), looks for newer or better practices, and checks the conventions for contradictions; it only proposes (would be ADR 0039)
+- [ ] Discuss: `lib/` is growing (files, schemas, concurrency, parse, …). Move to a monorepo (e.g. Bun workspaces) with packages split by feature instead of one shared `lib/`? Consider what the plugin's bundles (ADR 0020), the doctest, the license notices (ADR 0027) and `bun run check` would need.
 
 ## Factory stages
 

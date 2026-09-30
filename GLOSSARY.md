@@ -57,6 +57,8 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Monitoring checkup.** *Here:* a daily checkup that makes sure the owner looks at every monitoring service a project uses, like SonarQube (code quality scanning), Veracode and Snyk (security scanning) or Sentry (error tracking), through a short question set (ADR 0037).
 
+**Conventions checkup.** *Here:* a checkup of this repository that re-reads the sources of the owner's conventions, looks for better practices, and checks the conventions for contradictions. It only proposes (ADR 0039).
+
 **Model routing.** Choosing which model does which kind of work. *Here:* `plugins/factory/models.json` (ADR 0014).
 
 **Toolbox.** *Here:* the list of trusted tools and plugins in `plugins/factory/toolbox.json`, with a security record for each, and `/factory:toolbox` (ADR 0033).

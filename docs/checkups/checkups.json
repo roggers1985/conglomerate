@@ -13,6 +13,7 @@
         { "name": "unused-code", "intervalDays": 60, "priority": "normal" },
         { "name": "todos", "intervalDays": 60, "priority": "quiet" },
         { "name": "licenses", "intervalDays": 90, "priority": "quiet" },
-        { "name": "retro", "intervalDays": 90, "priority": "quiet" }
+        { "name": "retro", "intervalDays": 90, "priority": "quiet" },
+        { "name": "conventions", "intervalDays": 90, "priority": "quiet" }
     ]
 }
