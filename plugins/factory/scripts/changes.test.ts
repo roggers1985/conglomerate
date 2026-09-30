@@ -188,20 +188,50 @@ describe("gateProblems", () => {
     });
 
     it("checks nothing while no gated stage is done", () => {
-        expect(gateProblems(withDone(), { intent: null, spec: null })).toEqual([]);
+        expect(gateProblems(withDone(), { intent: null, spec: null, plan: null, tasks: null })).toEqual([]);
     });
 
     it("reports a missing document for a stage that is done", () => {
-        expect(gateProblems(withDone("intent", "spec"), { intent: null, spec: null })).toEqual([
-            "intent is done, but intent.md is missing",
-            "spec is done, but spec.md is missing",
-        ]);
+        expect(gateProblems(withDone("intent", "spec"), { intent: null, spec: null, plan: null, tasks: null })).toEqual(
+            ["intent is done, but intent.md is missing", "spec is done, but spec.md is missing"],
+        );
     });
 
     it("applies the stage's gate to its document", () => {
-        expect(gateProblems(withDone("intent"), { intent: "## Problem\n\nSlow.\n", spec: null })).toContain(
-            'intent.md has no "## Outcome" section',
+        expect(
+            gateProblems(withDone("intent"), { intent: "## Problem\n\nSlow.\n", spec: null, plan: null, tasks: null }),
+        ).toContain('intent.md has no "## Outcome" section');
+    });
+
+    it("on the standard track, checks the plan's own Tasks section against the spec's criteria", () => {
+        const route = {
+            stages: TRACKS.standard.map((name) =>
+                stage(name, { status: ["spec", "plan"].includes(name) ? "done" : "pending" }),
+            ),
+        };
+        const spec =
+            "## Acceptance criteria\n\n- **AC-1**: THE SYSTEM SHALL export.\n- **AC-2**: THE SYSTEM SHALL log.";
+        const plan = ["Approach", "Files and data", "Trade-offs", "Costs", "Conventions and decisions"]
+            .map((heading) => `## ${heading}\n\nSomething.`)
+            .concat(
+                "## Tasks\n\n### T-1: Export\n- Files: `a.ts`\n- Covers: AC-1\n- Verify: `bun test`\n- Status: pending",
+            )
+            .join("\n\n");
+
+        expect(gateProblems(route, { intent: null, spec, plan, tasks: null })).toContain(
+            "AC-2 isn't covered by any task in plan.md's Tasks section",
         );
+    });
+
+    it("refuses a build marked done while a task isn't", () => {
+        const route = {
+            stages: TRACKS.full.map((name) => stage(name, { status: name === "build" ? "done" : "skipped" })),
+        };
+        const tasks = "### T-1: Export\n- Status: in-progress";
+
+        expect(gateProblems(route, { intent: null, spec: null, plan: null, tasks })).toEqual([
+            "the build is done, but T-1 in tasks.md is in-progress",
+        ]);
     });
 
     it("asks the spec for a Problem section when the route has no intent stage", () => {
@@ -209,7 +239,9 @@ describe("gateProblems", () => {
             stages: TRACKS.standard.map((name) => stage(name, { status: name === "spec" ? "done" : "pending" })),
         };
 
-        expect(gateProblems(route, { intent: null, spec: "" })).toContain('spec.md has no "## Problem" section');
+        expect(gateProblems(route, { intent: null, spec: "", plan: null, tasks: null })).toContain(
+            'spec.md has no "## Problem" section',
+        );
     });
 });
 
@@ -307,6 +339,19 @@ describe("changes CLI", () => {
 
         expect(result.exitCode).toBe(1);
         expect(result.stderr).toContain("✗ spec is done, but spec.md is missing");
+    });
+
+    it("skips the gates of finished changes at session start, but not in an explicit check", async () => {
+        projectDir = await mkdtemp(path.join(tmpdir(), "changes-"));
+        const stages = TRACKS.standard.map((name) => stage(name, { status: "done" }));
+        await writeTask("finished", asMarkdown(task({ stages })));
+
+        const status = await run("status", projectDir);
+        const check = await run("check", path.join(projectDir, "docs/changes/finished/task.md"));
+
+        expect(status.stdout).toBe("No unfinished changes in `docs/changes/`.\n");
+        expect(check.exitCode).toBe(1);
+        expect(check.stderr).toContain("✗ spec is done, but spec.md is missing");
     });
 
     it("prints nothing at session start in a project without changes", async () => {

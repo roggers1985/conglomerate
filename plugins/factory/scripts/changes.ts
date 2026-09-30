@@ -6,6 +6,7 @@
 
 import path from "node:path";
 import { z } from "zod";
+import { mapConcurrent } from "../../../lib/concurrency.ts";
 import { readDir, readText, TEXT_BYTES_MAX, whenMissing } from "../../../lib/files.ts";
 import { parseFrontmatter } from "../../../lib/frontmatter.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
@@ -14,7 +15,15 @@ import { parse } from "../../../lib/parse.ts";
 import { requiredText } from "../../../lib/schemas.ts";
 import { AUTONOMY_LEVELS } from "./autonomy.ts";
 import { resolveProjectDir } from "./project-dir.ts";
-import { intentProblems, specProblems } from "./stage-gates.ts";
+import {
+    criteriaIds,
+    intentProblems,
+    planProblems,
+    sectionText,
+    specProblems,
+    taskListProblems,
+    unfinishedTaskProblems,
+} from "./stage-gates.ts";
 
 /**
  * Every stage a route can contain, in the only order they may appear in: a route is a subset of this list, so its
@@ -52,6 +61,7 @@ const OWNER_STAGES: readonly Stage[] = ["intent", "spec"];
 const STATUSES = ["pending", "in-progress", "done", "skipped"] as const;
 const TASK_TYPES = ["feature", "bug", "refactor", "chore", "docs", "spike"] as const;
 
+const READS_IN_FLIGHT_MAX = 16; // change folders read at once at session start
 const CHANGES_MAX = 10_000; // change folders in one project: years of daily work
 const LIST_ITEMS_MAX = 20; // deviations or debt items per task; more means the route needs rethinking
 const TEXT_LENGTH_MAX = 300;
@@ -185,12 +195,21 @@ export function resumePoint(stages: readonly StageEntry[]): StageEntry | null {
     );
 }
 
+/** The stage documents next to a change's `task.md`; `null` for a file that doesn't exist. */
+export type StageDocuments = {
+    readonly intent: string | null;
+    readonly spec: string | null;
+    readonly plan: string | null;
+    readonly tasks: string | null;
+};
+
 /**
- * Checks the documents of the stages marked done against their stage's gate (ADR 0052): a stage can't be done while
- * its document is missing or incomplete.
+ * Checks the documents of the stages marked done against their stage's gate (ADR 0052, 0053): a stage can't be done
+ * while its document is missing or incomplete, while the plan's tasks don't cover the spec, or, for the build, while
+ * a task isn't done.
  *
  * @param task - The change's valid task document.
- * @param documents - The contents of `intent.md` and `spec.md` next to it; `null` when a file doesn't exist.
+ * @param documents - The stage documents next to it.
  * @returns Every problem found; empty when every done stage passes its gate.
  *
  * @example
@@ -200,22 +219,37 @@ export function resumePoint(stages: readonly StageEntry[]): StageEntry | null {
  *     { name: "plan", level: "trusted", status: "pending" },
  * ] as const;
  *
- * expect(gateProblems({ stages }, { intent: null, spec: null })).toEqual(["spec is done, but spec.md is missing"]);
+ * expect(gateProblems({ stages }, { intent: null, spec: null, plan: null, tasks: null })).toEqual([
+ *     "spec is done, but spec.md is missing",
+ * ]);
  * ```
  */
-export function gateProblems(
-    task: Pick<TaskDocument, "stages">,
-    documents: { readonly intent: string | null; readonly spec: string | null },
-): string[] {
+export function gateProblems(task: Pick<TaskDocument, "stages">, documents: StageDocuments): string[] {
+    const hasStage = (name: Stage): boolean => task.stages.some((stage) => stage.name === name);
     const isDone = (name: Stage): boolean =>
         task.stages.some((stage) => stage.name === name && stage.status === "done");
-    const needsProblem = !task.stages.some((stage) => stage.name === "intent");
+    const needsProblem = !hasStage("intent");
+    const hasTasksStage = hasStage("tasks");
+    const criteria = documents.spec === null ? null : criteriaIds(documents.spec);
+    const taskList = hasTasksStage ? documents.tasks : sectionText(documents.plan ?? "", "Tasks");
+    const taskListFile = hasTasksStage ? "tasks.md" : "plan.md's Tasks section";
+    const planWithTasks = (plan: string): string[] => [
+        ...planProblems(plan, { hasTasksSection: !hasTasksStage }),
+        ...(hasTasksStage ? [] : taskListProblems(sectionText(plan, "Tasks") ?? "", { file: taskListFile, criteria })),
+    ];
 
     return [
         ...(isDone("intent") ? documentProblems(documents.intent, "intent", intentProblems) : []),
         ...(isDone("spec")
             ? documentProblems(documents.spec, "spec", (spec) => specProblems(spec, { needsProblem }))
             : []),
+        ...(isDone("plan") ? documentProblems(documents.plan, "plan", planWithTasks) : []),
+        ...(isDone("tasks")
+            ? documentProblems(documents.tasks, "tasks", (tasks) =>
+                  taskListProblems(tasks, { file: "tasks.md", criteria }),
+              )
+            : []),
+        ...(isDone("build") && taskList !== null ? unfinishedTaskProblems(taskList, { file: taskListFile }) : []),
     ];
 }
 
@@ -340,10 +374,13 @@ async function readTaskDocument(
     }
 }
 
-/** A change's task document, with the gates of its done stages applied. */
+/**
+ * A change's task document, with the gates of its done stages applied. `gates: "unfinished"` skips the gates of a
+ * change whose every stage is done or skipped, so session start doesn't read the documents of the whole history.
+ */
 async function readChange(
     changeDir: string,
-    { signal }: { readonly signal: AbortSignal },
+    { gates, signal }: { readonly gates: "always" | "unfinished"; readonly signal: AbortSignal },
 ): Promise<Parsed<TaskDocument>> {
     const task = await readTaskDocument(path.join(changeDir, "task.md"), { signal });
 
@@ -351,10 +388,23 @@ async function readChange(
         return task;
     }
 
+    const isFinished = resumePoint(task.value.stages) === null;
+
+    if (isFinished && gates === "unfinished") {
+        return task;
+    }
+
     const readDocument = (file: string): Promise<string | null> =>
         readText(path.join(changeDir, file), { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
-    const [intent, spec] = await Promise.all([readDocument("intent.md"), readDocument("spec.md")]);
-    const problems = gateProblems(task.value, { intent, spec });
+    const [intent, spec, plan, tasks] = await Promise.all(
+        ["intent.md", "spec.md", "plan.md", "tasks.md"].map(readDocument),
+    );
+    const problems = gateProblems(task.value, {
+        intent: intent ?? null,
+        spec: spec ?? null,
+        plan: plan ?? null,
+        tasks: tasks ?? null,
+    });
 
     return problems.length === 0 ? task : { kind: "invalid", errors: problems };
 }
@@ -367,15 +417,15 @@ async function readChanges(projectDir: string, { signal }: { readonly signal: Ab
         .map((entry) => entry.name)
         .toSorted();
 
-    return Promise.all(
-        folders.map(async (name): Promise<Change> => {
-            const task = await readChange(path.join(changesDir, name), { signal });
+    const readOne = async (name: string): Promise<Change> => {
+        const task = await readChange(path.join(changesDir, name), { gates: "unfinished", signal });
 
-            return task.kind === "valid"
-                ? { kind: "valid", name, task: task.value }
-                : { kind: "invalid", name, errors: task.errors };
-        }),
-    );
+        return task.kind === "valid"
+            ? { kind: "valid", name, task: task.value }
+            : { kind: "invalid", name, errors: task.errors };
+    };
+
+    return mapConcurrent(folders, readOne, { concurrency: READS_IN_FLIGHT_MAX, signal });
 }
 
 const COMMANDS = ["check", "status", "reminder"] as const;
@@ -395,7 +445,7 @@ async function main(): Promise<void> {
     }
 
     if (command === "check") {
-        const task = await readChange(path.dirname(path.resolve(argument ?? "task.md")), { signal });
+        const task = await readChange(path.dirname(path.resolve(argument ?? "task.md")), { gates: "always", signal });
 
         if (task.kind === "invalid") {
             console.error(task.errors.map((error) => `✗ ${error}`).join("\n"));

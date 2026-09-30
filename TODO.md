@@ -25,8 +25,6 @@ Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, 
 
 To build:
 
-- [ ] **Planning:** `plan.md` (architecture, files, data, trade-offs) and `tasks.md` (tasks of a few minutes, with exact files and a verification step each; tasks that can run in parallel marked). Includes back-of-the-envelope sketches of network, disk, memory and CPU costs, with batching as a design question (ADR 0038).
-- [ ] **Convention gate:** every plan states that it follows the conventions and ADRs, or justifies each deviation.
 - [ ] **Build:** a fresh subagent per task through the task agents (model routing), tests first, and "verify before claiming done".
 - [ ] **Git worktrees:** each task in its own worktree, as checkups already are (ADR 0042). Decide then whether checkups may also run in parallel.
 - [ ] **Review:** check the result against the plan, with findings by severity (`review` task type).
@@ -34,7 +32,7 @@ To build:
 
 To consider:
 
-- [ ] A consistency check across spec, plan and tasks, e.g. in the validator (Spec Kit's `/analyze`): every `AC-<n>` covered by a task and a test (ADR 0052)
+- [ ] Extend the consistency check to tests: every `AC-<n>` covered by a test that names it (the coverage of criteria by tasks is checked since ADR 0053)
 - [ ] A skill for writing skills in the owner's style (Superpowers' `writing-skills`)
 - [ ] A systematic debugging skill (Superpowers)
 - [ ] Evals for the plugin's skills with `claude plugin eval`: do they trigger, and do they help?

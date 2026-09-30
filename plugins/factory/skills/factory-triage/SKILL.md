@@ -105,5 +105,7 @@ At session start, the factory reports unfinished changes. When the owner wants t
 ## The stages themselves
 
 - **intent** and **spec:** the `factory-intake` skill (ADR 0052).
+- **migration-plan**, **plan** and **tasks:** the `factory-planning` skill (ADR 0053).
+- **architecture:** the `checkup-architecture` skill, scoped to the units the change touches (ADR 0045).
 
 The other stages are being built one at a time (`TODO.md`). Until a stage's own skill exists, do its work as the route describes, following the conventions, and say that the stage has no skill yet.
