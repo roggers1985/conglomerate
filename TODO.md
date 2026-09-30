@@ -12,7 +12,7 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 ## Repository and CI
 
-- [ ] Discuss: `lib/` is growing (files, schemas, concurrency, parse, …). Move to a monorepo (e.g. Bun workspaces) with packages split by feature instead of one shared `lib/`? Consider what the plugin's bundles (ADR 0020), the doctest, the license notices (ADR 0027) and `bun run check` would need. The first `architecture` checkup proposes keeping it as it is, with conditions to reconsider: accept or reject ADR 0047 (Proposed), and confirm the drivers in `docs/architecture/README.md`.
+- [ ] Later, when other work allows: move to Bun workspaces (the owner's intention; ADR 0047 keeps `lib/` as one folder for now). Follow ADR 0047's migration path, and let the `architecture` checkup reassess first: it may advise grouping `lib/` by feature (option 3) or enforcing the dependency direction (option 2, once the second plugin arrives) as the first step, or staying.
 
 ## Working with the owner
 

@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Proposed (by the `architecture` checkup, 2026-09-30)
+Accepted by the owner on 2026-09-30, as a decision for now (proposed by the `architecture` checkup the same day). See "The owner's decision" below.
 
 ## Context
 
@@ -109,3 +109,14 @@ If this is accepted:
 - **If accepted,** nothing changes in the code. The open question in `TODO.md` gets a recorded answer, with the conditions under which it changes.
 - **The sense that `lib/` is growing** becomes a trigger the owner sets and the next run measures, instead of a feeling.
 - **If rejected** in favour of option 2, 3 or 4, its migration path above becomes the tracked tasks.
+
+## The owner's decision (2026-09-30)
+
+- **Keep it as it is, for now.** The owner does intend to move to Bun workspaces eventually, once the other work allows it. That move is tracked in `TODO.md`. Until then, the `architecture` checkup keeps reassessing, and may still find that staying is better.
+- **Drivers confirmed or changed:**
+  - **a second plugin is planned.** That is this ADR's trigger for option 2 (enforcing the dependency direction) once the plugin actually arrives;
+  - **more people will work on the repository,** so R1 no longer holds as "one owner";
+  - **nothing outside this repository will use `lib/`,** and publishing packages isn't planned;
+  - **session-start latency isn't noticeable.**
+- **New evidence from the owner:** `lib/` feels like **unrelated things mixed together** (files, schemas, concurrency, parsing). That is evidence for option 3 (grouping by feature), which the next run weighs first.
+
