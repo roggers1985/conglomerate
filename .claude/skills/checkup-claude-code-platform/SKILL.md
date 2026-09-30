@@ -2,6 +2,8 @@
 name: checkup-claude-code-platform
 description: Claude Code platform checkup for the factory plugin. Compares what the plugin uses (manifests, hooks, skill and agent frontmatter, environment variables) with Claude Code's current plugin platform, and finds new features, deprecations and breaking changes. Also tracks whether GitHub Copilot can run the plugin's skills. Use for "platform checkup", "is the plugin up to date with Claude Code", after Claude Code releases, or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 30
+  priority: normal
   task: checkup
 ---
 

@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR-0049](0049-checkup-defaults-in-skills.md): each checkup skill declares a default priority.
 
 Amends [ADR-0010](0010-recurring-checkups.md): `priority` becomes a level instead of a boolean.
 

@@ -2,6 +2,8 @@
 name: checkup-new-features
 description: New features checkup. Finds features of the language, runtime, framework, libraries and tools that became available since the last run and would improve this codebase, adopts clear wins, and revisits settings and lint rules. Use for "new features checkup", "what can we modernise", after major releases, or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 60
+  priority: normal
   task: checkup
 ---
 

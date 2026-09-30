@@ -2,6 +2,8 @@
 name: checkup-monitoring
 description: "Daily monitoring checkup, run with the owner in the main session. Detects which monitoring and scanning services the project uses (e.g. SonarQube, Veracode, Sentry, Snyk, GitHub code scanning and Dependabot alerts, Datadog), summarises what changed since the last run where there is API access, and asks the owner a short question set that can only be answered by looking. Use when the runner dispatches it, or when asked to check the project's monitoring, errors or scan results."
 metadata:
+  intervalDays: 1
+  priority: urgent
   task: checkup
   interactive: true
 ---

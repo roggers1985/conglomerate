@@ -2,6 +2,8 @@
 name: checkup-performance
 description: Performance checkup. Measures page speed and bundle size, then looks at client JavaScript, rendering and caching, data access (N+1 queries, indexes) and assets, and applies measured improvements. Use for "performance checkup", "why is it slow", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 60
+  priority: normal
   task: checkup
 ---
 

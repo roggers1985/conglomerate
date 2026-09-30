@@ -2,6 +2,8 @@
 name: checkup-seo
 description: SEO checkup. Checks sitemaps, robots rules, page metadata and canonicals, structured data against search engines' current requirements, redirects, 404s and internal linking. Use for "SEO checkup", "search visibility", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 60
+  priority: normal
   task: checkup
 ---
 

@@ -2,6 +2,8 @@
 name: checkup-accessibility
 description: Accessibility checkup. Runs the automated accessibility suites (axe, Lighthouse), checks that key pages are covered, reviews key flows against WCAG 2.2 AA, and checks that interactive components have accessibility tests. Use for "accessibility checkup", "a11y checkup", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 60
+  priority: normal
   task: checkup
 ---
 

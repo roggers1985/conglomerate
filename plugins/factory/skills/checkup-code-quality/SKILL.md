@@ -2,6 +2,8 @@
 name: checkup-code-quality
 description: Code quality checkup. Checks code against the owner's conventions (readability, conditions, optionality, API design, parsing, cancellation, documentation), and looks for real bugs and structural problems. Use for "code quality checkup", "review the codebase", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 60
+  priority: normal
   task: checkup
 ---
 

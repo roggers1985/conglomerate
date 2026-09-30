@@ -2,6 +2,8 @@
 name: checkup-todos
 description: TODOs and suppressions checkup. Finds TODO, FIXME and HACK comments, lint and type-check suppressions, and resolves them, turns them into tracked tasks, or removes them when obsolete. Use for "TODO checkup", "clean up suppressions", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 60
+  priority: quiet
   task: checkup
 ---
 

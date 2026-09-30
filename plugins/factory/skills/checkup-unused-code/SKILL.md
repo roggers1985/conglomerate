@@ -2,6 +2,8 @@
 name: checkup-unused-code
 description: Unused code checkup. Finds and removes unused dependencies, files, exports, scripts, assets and leftovers such as commented-out code and always-on feature flags. Use for "unused code checkup", "dead code", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 60
+  priority: normal
   task: checkup
 ---
 

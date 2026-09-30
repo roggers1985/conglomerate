@@ -1,20 +1,20 @@
 {
     "checkups": [
-        { "name": "security", "intervalDays": 30, "priority": "urgent" },
-        { "name": "outdated-packages", "intervalDays": 30, "priority": "normal" },
-        { "name": "docs-drift", "intervalDays": 30, "priority": "normal" },
-        { "name": "model-routing", "intervalDays": 30, "priority": "normal" },
-        { "name": "claude-code-platform", "intervalDays": 30, "priority": "normal" },
-        { "name": "code-quality", "intervalDays": 60, "priority": "normal" },
-        { "name": "test-coverage", "intervalDays": 60, "priority": "normal" },
-        { "name": "new-features", "intervalDays": 60, "priority": "normal" },
-        { "name": "agent-setup", "intervalDays": 60, "priority": "normal" },
-        { "name": "repo-health", "intervalDays": 60, "priority": "normal" },
-        { "name": "unused-code", "intervalDays": 60, "priority": "normal" },
-        { "name": "todos", "intervalDays": 60, "priority": "quiet" },
-        { "name": "licenses", "intervalDays": 90, "priority": "quiet" },
-        { "name": "architecture", "intervalDays": 90, "priority": "normal" },
-        { "name": "retro", "intervalDays": 90, "priority": "quiet" },
-        { "name": "conventions", "intervalDays": 90, "priority": "quiet" }
+        { "name": "security" },
+        { "name": "outdated-packages" },
+        { "name": "docs-drift" },
+        { "name": "model-routing" },
+        { "name": "claude-code-platform" },
+        { "name": "code-quality" },
+        { "name": "test-coverage" },
+        { "name": "new-features" },
+        { "name": "agent-setup" },
+        { "name": "repo-health" },
+        { "name": "unused-code" },
+        { "name": "todos" },
+        { "name": "licenses" },
+        { "name": "architecture" },
+        { "name": "retro" },
+        { "name": "conventions" }
     ]
 }

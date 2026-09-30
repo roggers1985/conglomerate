@@ -3,10 +3,12 @@
 import path from "node:path";
 import { z } from "zod";
 import { readDir, readText, TEXT_BYTES_MAX } from "../lib/files.ts";
+import { parseFrontmatter } from "../lib/frontmatter.ts";
 import { KEBAB_CASE } from "../lib/kebab-case.ts";
 import type { Parsed } from "../lib/parse.ts";
 import { parse } from "../lib/parse.ts";
 import { requiredText } from "../lib/schemas.ts";
+import { parseCheckupDefaults } from "../plugins/factory/scripts/checkups.ts";
 import type { Routes } from "../plugins/factory/scripts/models.ts";
 import { renderRoutingTable } from "../plugins/factory/scripts/models.ts";
 
@@ -31,6 +33,7 @@ export type ParsedSkill = Parsed<Skill>;
 // The Agent Skills limits for a skill's name and description.
 const NAME_LENGTH_MAX = 64;
 const DESCRIPTION_LENGTH_MAX = 1_024;
+const CHECKUP_PREFIX = "checkup-";
 const SKILLS_MAX = 200; // there are 30; each skill costs a line of Claude's context
 
 const DOMAINS: readonly Domain[] = [
@@ -45,8 +48,6 @@ const DOMAINS: readonly Domain[] = [
 
 /** The generated skills overview in the plugin's root folder (ADR 0013). */
 export const CATALOG_FILE = "CATALOG.md";
-
-const FRONTMATTER = /^---\n([\s\S]*?)\n---/;
 
 /**
  * Finds the domain a skill name belongs to.
@@ -63,29 +64,6 @@ const FRONTMATTER = /^---\n([\s\S]*?)\n---/;
  */
 export function domainOf(skillName: string): Domain | null {
     return DOMAINS.find((domain) => skillName === domain.name || skillName.startsWith(`${domain.name}-`)) ?? null;
-}
-
-/**
- * Reads the YAML frontmatter block at the top of a markdown file.
- *
- * @param markdown - The file's contents.
- * @returns The parsed YAML (not yet validated), or `null` when the file doesn't start with a frontmatter block.
- * @throws Error when the frontmatter is not valid YAML.
- *
- * @example
- * ```ts
- * expect(parseFrontmatter("---\nname: code-react\n---\n# React")).toEqual({ name: "code-react" });
- * expect(parseFrontmatter("# No frontmatter")).toBeNull();
- * ```
- */
-export function parseFrontmatter(markdown: string): unknown {
-    const match = FRONTMATTER.exec(markdown);
-
-    if (match === null) {
-        return null;
-    }
-
-    return Bun.YAML.parse(match[1] ?? "");
 }
 
 /** Parses a skill file; frontmatter that isn't valid YAML is a problem of that skill, not a crash of the whole run. */
@@ -134,7 +112,8 @@ function skillSchema(directory: string, routes: Routes) {
 }
 
 /**
- * Parses a skill's frontmatter against the naming rules (ADR 0013) and task types (ADR 0015).
+ * Parses a skill's frontmatter against the naming rules (ADR 0013), the task types (ADR 0015) and, for checkups, the
+ * required default interval and priority (ADR 0049).
  *
  * @param frontmatter - The skill's parsed frontmatter, not yet trusted.
  * @param options.directory - The skill's folder name, which must equal its `name`.
@@ -144,7 +123,8 @@ function skillSchema(directory: string, routes: Routes) {
  * @example
  * ```ts
  * const routes = { checkup: { model: "sonnet", effort: "high", use: "Audits" } } as const;
- * const frontmatter = { name: "checkup-seo", description: "SEO checkup.", metadata: { task: "checkup" } };
+ * const metadata = { task: "checkup", intervalDays: 60, priority: "normal" };
+ * const frontmatter = { name: "checkup-seo", description: "SEO checkup.", metadata };
  *
  * expect(parseSkill(frontmatter, { directory: "checkup-seo", routes })).toEqual({
  *     kind: "valid",
@@ -178,6 +158,13 @@ export function parseSkill(
     }
 
     const { name, description, metadata } = parsed.value;
+    const isCheckup = name.startsWith(CHECKUP_PREFIX);
+    const defaults = isCheckup ? parseCheckupDefaults(frontmatter) : null;
+
+    // A checkup's default interval and priority are required: schedules may leave them out (ADR 0049).
+    if (defaults?.kind === "invalid") {
+        return { kind: "invalid", errors: defaults.errors };
+    }
 
     return { kind: "valid", value: { name, description, task: metadata?.task ?? null } };
 }

@@ -2,6 +2,8 @@
 name: checkup-retro
 description: Checkup retrospective. Reviews the recent checkup reports for findings that keep coming back, intervals that are too frequent or too rare, feedback about the checkups themselves, and patterns that should become a convention, lint rule or decision. Use for "checkup retro", "review the checkups", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 90
+  priority: quiet
   task: checkup
 ---
 

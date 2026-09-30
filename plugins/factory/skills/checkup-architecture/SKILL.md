@@ -2,6 +2,8 @@
 name: checkup-architecture
 description: Architecture checkup. Assesses whether a project's architecture still fits what it does, per explicitly scoped unit (an app or package in a monorepo, the boundaries between them, or the whole repository). Checks first whether the business requirements, plans and load it serves have changed, compares the architecture as it is with the one a good team would choose today, backs every candidate with evidence from git history and earlier findings, and turns each into a proposed decision, including "keep it as it is", with an incremental migration path. Keeps the architecture register. Never restructures. Use for "architecture checkup", "is our architecture still right", before a large feature, or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 90
+  priority: normal
   task: planning
 ---
 

@@ -2,6 +2,8 @@
 name: checkup-repo-health
 description: Repository health checkup. Checks CI (failures, speed, pinned actions, permissions), skipped, focused and flaky tests, git hooks, stale branches and pull requests, and repository hygiene. Use for "repo health checkup", "CI checkup", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 60
+  priority: normal
   task: checkup
 ---
 

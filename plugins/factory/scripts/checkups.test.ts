@@ -2,24 +2,29 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { CheckupConfig, CheckupStatus } from "./checkups.ts";
+import type { CheckupStatus, ScheduleEntry } from "./checkups.ts";
 import {
     buildReminder,
     checkupStatus,
     formatDate,
     isDue,
     latestReportDate,
+    parseCheckupDefaults,
     parseSchedule,
     reminderOutput,
+    resolveCheckup,
     skillSource,
     statusReport,
 } from "./checkups.ts";
 
-const legal: CheckupConfig = { name: "legal", intervalDays: 30, priority: "urgent" };
-const seo: CheckupConfig = { name: "seo", intervalDays: 60, priority: "normal" };
+const legal = { name: "legal", intervalDays: 30, priority: "urgent" } as const;
+const seo = { name: "seo", intervalDays: 60, priority: "normal" } as const;
+const own = { hasOwnInterval: true, hasOwnPriority: true } as const;
 
 const status = (overrides: Partial<CheckupStatus>): CheckupStatus => ({
     ...seo,
+    hasOwnInterval: false,
+    hasOwnPriority: false,
     lastRun: null,
     due: false,
     skill: "plugin",
@@ -71,7 +76,7 @@ describe("parseSchedule", () => {
     it("accepts up to 100 scheduled and 100 declined checkups, and no more", () => {
         const names = (prefix: string, count: number): string[] =>
             Array.from({ length: count }, (_, index) => `${prefix}-${index}`);
-        const scheduled = (count: number): CheckupConfig[] =>
+        const scheduled = (count: number): ScheduleEntry[] =>
             names("checkup", count).map((name) => ({ ...legal, name }));
 
         expect(parseSchedule({ checkups: scheduled(100), declined: names("declined", 100) }).kind).toBe("valid");
@@ -103,6 +108,69 @@ describe("parseSchedule", () => {
         expect(parseSchedule({ checkups: [legal, legal] })).toEqual({
             kind: "invalid",
             errors: ['checkups: "legal" is listed more than once'],
+        });
+    });
+});
+
+describe("parseSchedule with defaults", () => {
+    it("accepts an entry with only a name, or with only one of its values", () => {
+        expect(parseSchedule({ checkups: [{ name: "security" }, { name: "seo", intervalDays: 14 }] }).kind).toBe(
+            "valid",
+        );
+    });
+});
+
+describe("parseCheckupDefaults", () => {
+    const frontmatter = (metadata: object) => ({ name: "checkup-seo", metadata });
+
+    it("reads the interval and priority from the skill's metadata, ignoring its other fields", () => {
+        expect(parseCheckupDefaults(frontmatter({ task: "checkup", intervalDays: 60, priority: "normal" }))).toEqual({
+            kind: "valid",
+            value: { intervalDays: 60, priority: "normal" },
+        });
+    });
+
+    it("rejects missing or out-of-range defaults", () => {
+        expect(parseCheckupDefaults(frontmatter({ priority: "normal" })).kind).toBe("invalid");
+        expect(parseCheckupDefaults(frontmatter({ intervalDays: 0, priority: "normal" })).kind).toBe("invalid");
+        expect(parseCheckupDefaults(frontmatter({ intervalDays: 366, priority: "normal" })).kind).toBe("invalid");
+        expect(parseCheckupDefaults(frontmatter({ intervalDays: 30, priority: "sometimes" })).kind).toBe("invalid");
+        expect(parseCheckupDefaults(null).kind).toBe("invalid");
+    });
+});
+
+describe("resolveCheckup", () => {
+    const defaults = { intervalDays: 30, priority: "urgent" } as const;
+
+    it("uses the skill's defaults for what the schedule leaves out", () => {
+        expect(resolveCheckup({ name: "security" }, { defaults })).toEqual({
+            kind: "valid",
+            value: { name: "security", ...defaults, hasOwnInterval: false, hasOwnPriority: false },
+        });
+    });
+
+    it("lets the schedule's own values win, and marks them", () => {
+        expect(resolveCheckup({ name: "security", intervalDays: 7, priority: "quiet" }, { defaults })).toEqual({
+            kind: "valid",
+            value: { name: "security", intervalDays: 7, priority: "quiet", hasOwnInterval: true, hasOwnPriority: true },
+        });
+    });
+
+    it("needs no defaults when the schedule sets both values", () => {
+        expect(resolveCheckup({ ...legal }, { defaults: null })).toEqual({
+            kind: "valid",
+            value: { ...legal, ...own },
+        });
+    });
+
+    it("reports a value that is missing from both", () => {
+        expect(resolveCheckup({ name: "legal" }, { defaults: null })).toEqual({
+            kind: "invalid",
+            errors: ['"legal" has no intervalDays in the schedule, and its skill declares no default'],
+        });
+        expect(resolveCheckup({ name: "legal", intervalDays: 30 }, { defaults: null })).toEqual({
+            kind: "invalid",
+            errors: ['"legal" has no priority in the schedule, and its skill declares no default'],
         });
     });
 });
@@ -154,8 +222,11 @@ describe("skillSource", () => {
 describe("checkupStatus", () => {
     it("takes the last run from the newest report, and keeps the skill source", () => {
         expect(
-            checkupStatus(legal, { reportFileNames: ["2026-09-27.md"], skill: "project", today: "2026-09-29" }),
-        ).toEqual({ ...legal, lastRun: "2026-09-27", due: false, skill: "project" });
+            checkupStatus(
+                { ...legal, ...own },
+                { reportFileNames: ["2026-09-27.md"], skill: "project", today: "2026-09-29" },
+            ),
+        ).toEqual({ ...legal, ...own, lastRun: "2026-09-27", due: false, skill: "project" });
     });
 });
 
@@ -232,6 +303,16 @@ describe("statusReport", () => {
         expect(report).toContain("| seo | normal | 60 days | never | **due** | plugin |");
     });
 
+    it("marks the values the schedule sets itself, and explains the mark", () => {
+        const report = statusReport(
+            { kind: "scheduled", declined: [], statuses: [status({ intervalDays: 14, hasOwnInterval: true })] },
+            { today: "2026-09-29" },
+        );
+
+        expect(report).toContain("| seo | normal | 14 days (own) | never |  | plugin |");
+        expect(report).toContain("Values marked (own) are set in the schedule; the others are the checkup's defaults.");
+    });
+
     it("marks checkups without a skill", () => {
         const report = statusReport(
             { kind: "scheduled", declined: [], statuses: [status({ skill: null })] },
@@ -268,7 +349,7 @@ describe("checkups CLI", () => {
     };
 
     const createProject = async (
-        checkups: readonly CheckupConfig[],
+        checkups: readonly ScheduleEntry[],
         reports: Record<string, string[]>,
     ): Promise<void> => {
         projectDir = await mkdtemp(path.join(tmpdir(), "checkups-"));
@@ -318,7 +399,7 @@ describe("checkups CLI", () => {
     it("prints the status table", async () => {
         await createProject([legal], {});
 
-        expect(await run("status")).toContain("| legal | urgent | 30 days | never | **due** | project |");
+        expect(await run("status")).toContain("| legal | urgent (own) | 30 days (own) | never | **due** | project |");
     });
 
     it("warns about a scheduled checkup that has no skill anywhere", async () => {
@@ -330,6 +411,32 @@ describe("checkups CLI", () => {
 
         expect(JSON.parse(await run("reminder")).systemMessage).toBe(
             "No skill found for: no-such-checkup; see /factory:checkup.",
+        );
+    });
+
+    it("fills in the defaults of the project's own skill, and marks the schedule's own values", async () => {
+        await createProject([{ name: "legal" }, { name: "seo", intervalDays: 14 }], {});
+        const skill = "---\nname: checkup-x\nmetadata:\n  intervalDays: 90\n  priority: quiet\n---\n";
+        await Bun.write(path.join(projectDir, ".claude/skills/checkup-legal/SKILL.md"), skill);
+        await Bun.write(path.join(projectDir, ".claude/skills/checkup-seo/SKILL.md"), skill);
+
+        const status = await run("status");
+
+        expect(status).toContain("| legal | quiet | 90 days | never | **due** | project |");
+        expect(status).toContain("| seo | quiet | 14 days (own) | never | **due** | project |");
+    });
+
+    it("falls back to the plugin's defaults when the project's override declares none", async () => {
+        await createProject([{ name: "security" }], {});
+
+        expect(await run("status")).toContain("| security | urgent | 30 days | never | **due** | project |");
+    });
+
+    it("reports a checkup without values in the schedule or defaults in its skill", async () => {
+        await createProject([{ name: "legal" }], {});
+
+        expect(await run("status")).toContain(
+            '- "legal" has no intervalDays in the schedule, and its skill declares no default',
         );
     });
 });

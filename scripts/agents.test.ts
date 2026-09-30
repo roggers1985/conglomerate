@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import { parseFrontmatter } from "../lib/frontmatter.ts";
 import type { Routes } from "../plugins/factory/scripts/models.ts";
 import { renderTaskAgent, renderTaskAgents } from "./agents.ts";
-import { parseFrontmatter } from "./skills.ts";
 
 const routes: Routes = {
     "code-small": { model: "haiku", effort: "low", use: "Mechanical edits: renames" },

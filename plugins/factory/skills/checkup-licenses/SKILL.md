@@ -2,6 +2,8 @@
 name: checkup-licenses
 description: Licenses checkup. Checks the project's own license, the licenses of its dependencies and bundled code against how the project is used and distributed, and required attributions. Use for "license checkup", "can we use these dependencies", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 90
+  priority: quiet
   task: checkup
 ---
 

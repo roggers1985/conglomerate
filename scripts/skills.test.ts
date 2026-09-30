@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Routes } from "../plugins/factory/scripts/models.ts";
-import { domainOf, parseFrontmatter, parseSkill, readPluginSkills, renderCatalog } from "./skills.ts";
+import { domainOf, parseSkill, readPluginSkills, renderCatalog } from "./skills.ts";
 
 const routes: Routes = { checkup: { model: "sonnet", effort: "high", use: "Audits" } };
 
@@ -18,19 +18,6 @@ describe("domainOf", () => {
 
     it("does not match a domain that is only a prefix of the first word", () => {
         expect(domainOf("codex-tools")).toBeNull();
-    });
-});
-
-describe("parseFrontmatter", () => {
-    it("reads the YAML block at the top of a skill", () => {
-        expect(parseFrontmatter("---\nname: code-react\ndescription: React.\n---\n\n# Body")).toEqual({
-            name: "code-react",
-            description: "React.",
-        });
-    });
-
-    it("returns null without a frontmatter block", () => {
-        expect(parseFrontmatter("# Just a heading")).toBeNull();
     });
 });
 
@@ -86,6 +73,25 @@ describe("parseSkill", () => {
         expect(withDescription("   ")).toEqual({ kind: "invalid", errors: ["description: is required"] });
     });
 
+    it("requires a checkup skill to declare its default interval and priority", () => {
+        const checkup = { name: "checkup-seo", description: "SEO." };
+        const withMetadata = (metadata: object) =>
+            parseSkill({ ...checkup, metadata }, { directory: "checkup-seo", routes });
+
+        expect(withMetadata({ intervalDays: 60, priority: "normal" }).kind).toBe("valid");
+        expect(parseSkill(checkup, { directory: "checkup-seo", routes })).toEqual({
+            kind: "invalid",
+            errors: ["metadata: Invalid input: expected object, received undefined"],
+        });
+        expect(withMetadata({ intervalDays: 400, priority: "normal" }).kind).toBe("invalid");
+    });
+
+    it("doesn't ask other skills, including the checkup runner, for checkup defaults", () => {
+        expect(parseSkill({ name: "checkup", description: "Runner." }, { directory: "checkup", routes }).kind).toBe(
+            "valid",
+        );
+    });
+
     it("rejects a skill without frontmatter", () => {
         expect(parseSkill(null, { directory: "code-react", routes })).toEqual({
             kind: "invalid",
@@ -95,7 +101,8 @@ describe("parseSkill", () => {
 });
 
 describe("parseSkill with a task type", () => {
-    const checkupSkill = { name: "checkup-seo", description: "SEO.", metadata: { task: "checkup" } };
+    const checkupMetadata = { task: "checkup", intervalDays: 60, priority: "normal" };
+    const checkupSkill = { name: "checkup-seo", description: "SEO.", metadata: checkupMetadata };
 
     it("accepts a skill with a known task type", () => {
         expect(parseSkill(checkupSkill, { directory: "checkup-seo", routes })).toEqual({
@@ -106,7 +113,10 @@ describe("parseSkill with a task type", () => {
 
     it("rejects an unknown task type", () => {
         expect(
-            parseSkill({ ...checkupSkill, metadata: { task: "gardening" } }, { directory: "checkup-seo", routes }),
+            parseSkill(
+                { ...checkupSkill, metadata: { ...checkupMetadata, task: "gardening" } },
+                { directory: "checkup-seo", routes },
+            ),
         ).toEqual({
             kind: "invalid",
             errors: ["metadata.task: must be one of checkup"],

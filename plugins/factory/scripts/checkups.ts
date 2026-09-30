@@ -9,7 +9,8 @@
 import path from "node:path";
 import { z } from "zod";
 import { assert } from "../../../lib/assert.ts";
-import { JSON_BYTES_MAX, readDir, readJson, whenMissing } from "../../../lib/files.ts";
+import { JSON_BYTES_MAX, readDir, readJson, readText, TEXT_BYTES_MAX, whenMissing } from "../../../lib/files.ts";
+import { parseFrontmatter } from "../../../lib/frontmatter.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
 import { KEBAB_CASE } from "../../../lib/kebab-case.ts";
 import type { Parsed } from "../../../lib/parse.ts";
@@ -22,6 +23,9 @@ import { resolveProjectDir } from "./project-dir.ts";
  */
 const PRIORITIES = ["urgent", "normal", "quiet"] as const;
 
+/** How insistently a due checkup is brought up (ADR 0030). */
+export type Priority = (typeof PRIORITIES)[number];
+
 const CHECKUPS_MAX = 100; // more than any project needs; a longer list means something generated it wrongly
 const NAME_LENGTH_MAX = 50; // the longest checkup name today has 20 characters
 const INTERVAL_DAYS_MAX = 365; // every checkup runs at least once a year
@@ -30,17 +34,24 @@ const SKILLS_MAX = 200; // a project's or the plugin's skills; each costs a line
 
 const CheckupName = z.string().max(NAME_LENGTH_MAX).regex(KEBAB_CASE, "must be kebab-case");
 
-const CheckupConfigSchema = z.strictObject({
+const IntervalDays = z.number().int().min(1).max(INTERVAL_DAYS_MAX);
+
+// Without `intervalDays` or `priority`, the checkup's skill supplies the default (ADR 0049).
+const ScheduleEntrySchema = z.strictObject({
     name: CheckupName,
-    intervalDays: z.number().int().min(1).max(INTERVAL_DAYS_MAX),
-    priority: z.enum(PRIORITIES),
+    intervalDays: IntervalDays.optional(),
+    priority: z.enum(PRIORITIES).optional(),
+});
+
+// A skill's frontmatter is Claude Code's format, so extra keys are allowed (ADR 0020).
+const CheckupDefaultsSchema = z.looseObject({
+    metadata: z.looseObject({ intervalDays: IntervalDays, priority: z.enum(PRIORITIES) }),
 });
 
 // Our own file, so strict: unknown keys are typos (ADR 0020).
-
 const ScheduleSchema = z
     .strictObject({
-        checkups: z.array(CheckupConfigSchema).max(CHECKUPS_MAX),
+        checkups: z.array(ScheduleEntrySchema).max(CHECKUPS_MAX),
         /** Checkups the owner opted out of: the runner doesn't suggest them again (ADR 0037). */
         declined: z.array(CheckupName).max(CHECKUPS_MAX).optional(),
     })
@@ -62,8 +73,22 @@ const ScheduleSchema = z
         }
     });
 
-/** One entry of a project's checkup schedule (`docs/checkups/checkups.json`): settings only, no state. */
-export type CheckupConfig = Readonly<z.infer<typeof CheckupConfigSchema>>;
+/** One entry of a project's checkup schedule (`docs/checkups/checkups.json`), as written: only `name` is required. */
+export type ScheduleEntry = Readonly<z.infer<typeof ScheduleEntrySchema>>;
+
+/** The defaults a checkup's skill declares in its frontmatter (`metadata.intervalDays`, `metadata.priority`). */
+export type CheckupDefaults = { readonly intervalDays: number; readonly priority: Priority };
+
+/** A checkup's complete settings: its schedule entry, with the skill's defaults filled in. */
+export type CheckupConfig = {
+    readonly name: string;
+    readonly intervalDays: number;
+    readonly priority: Priority;
+    /** `true` when the schedule sets the interval itself, instead of using the skill's default. */
+    readonly hasOwnInterval: boolean;
+    /** `true` when the schedule sets the priority itself, instead of using the skill's default. */
+    readonly hasOwnPriority: boolean;
+};
 
 /** Where a checkup's skill comes from. A project's own `checkup-<name>` overrides the plugin's (ADR 0023). */
 export type SkillSource = "project" | "plugin";
@@ -78,7 +103,7 @@ export type CheckupStatus = CheckupConfig & {
 
 /** A project's checkup schedule: what runs how often, and what the owner opted out of. */
 export type Schedule = {
-    readonly checkups: readonly CheckupConfig[];
+    readonly checkups: readonly ScheduleEntry[];
     /** Checkups the owner declined; empty when the schedule has no `declined` list. */
     readonly declined: readonly string[];
 };
@@ -155,6 +180,80 @@ export function parseSchedule(value: unknown): ParsedSchedule {
     }
 
     return { kind: "valid", value: { checkups: parsed.value.checkups, declined: parsed.value.declined ?? [] } };
+}
+
+/**
+ * Reads a checkup skill's defaults from its parsed frontmatter.
+ *
+ * @param frontmatter - The skill's parsed frontmatter, not yet trusted.
+ * @returns The skill's default interval and priority, or every problem found.
+ *
+ * @example
+ * ```ts
+ * expect(parseCheckupDefaults({ name: "checkup-seo", metadata: { intervalDays: 60, priority: "normal" } })).toEqual({
+ *     kind: "valid",
+ *     value: { intervalDays: 60, priority: "normal" },
+ * });
+ * expect(parseCheckupDefaults({ name: "checkup-seo" }).kind).toBe("invalid");
+ * ```
+ */
+export function parseCheckupDefaults(frontmatter: unknown): Parsed<CheckupDefaults> {
+    const parsed = parse(CheckupDefaultsSchema, frontmatter);
+
+    if (parsed.kind === "invalid") {
+        return parsed;
+    }
+
+    const { intervalDays, priority } = parsed.value.metadata;
+
+    return { kind: "valid", value: { intervalDays, priority } };
+}
+
+/**
+ * Completes a schedule entry with its skill's defaults: a value in the schedule wins, the skill's default fills the gap
+ * (ADR 0049).
+ *
+ * @param entry - The checkup's entry in the schedule.
+ * @param options.defaults - The skill's defaults; `null` when the checkup has no skill, or its skill declares none.
+ * @returns The complete settings, or the problem when a value is missing from both.
+ *
+ * @example
+ * ```ts
+ * const defaults = { intervalDays: 30, priority: "urgent" } as const;
+ *
+ * expect(resolveCheckup({ name: "security", intervalDays: 14 }, { defaults })).toEqual({
+ *     kind: "valid",
+ *     value: { name: "security", intervalDays: 14, priority: "urgent", hasOwnInterval: true, hasOwnPriority: false },
+ * });
+ * expect(resolveCheckup({ name: "legal" }, { defaults: null }).kind).toBe("invalid");
+ * ```
+ */
+export function resolveCheckup(
+    entry: ScheduleEntry,
+    { defaults }: { readonly defaults: CheckupDefaults | null },
+): Parsed<CheckupConfig> {
+    const intervalDays = entry.intervalDays ?? defaults?.intervalDays;
+    const priority = entry.priority ?? defaults?.priority;
+    const noDefault = "and its skill declares no default";
+
+    if (intervalDays === undefined) {
+        return { kind: "invalid", errors: [`"${entry.name}" has no intervalDays in the schedule, ${noDefault}`] };
+    }
+
+    if (priority === undefined) {
+        return { kind: "invalid", errors: [`"${entry.name}" has no priority in the schedule, ${noDefault}`] };
+    }
+
+    return {
+        kind: "valid",
+        value: {
+            name: entry.name,
+            intervalDays,
+            priority,
+            hasOwnInterval: entry.intervalDays !== undefined,
+            hasOwnPriority: entry.priority !== undefined,
+        },
+    };
 }
 
 /**
@@ -387,6 +486,8 @@ export function reminderOutput(project: ProjectCheckups): ReminderOutput | null 
     };
 }
 
+const ownMark = (isOwn: boolean): string => (isOwn ? " (own)" : "");
+
 /**
  * Renders the status table that the `/factory:checkup` runner shows.
  *
@@ -421,7 +522,7 @@ export function statusReport(project: ProjectCheckups, { today }: { readonly tod
 
     const rows = project.statuses.map(
         (status) =>
-            `| ${status.name} | ${status.priority} | ${status.intervalDays} days | ${status.lastRun ?? "never"} | ${status.due ? "**due**" : ""} | ${status.skill ?? "**missing**"} |`,
+            `| ${status.name} | ${status.priority}${ownMark(status.hasOwnPriority)} | ${status.intervalDays} days${ownMark(status.hasOwnInterval)} | ${status.lastRun ?? "never"} | ${status.due ? "**due**" : ""} | ${status.skill ?? "**missing**"} |`,
     );
 
     return [
@@ -430,6 +531,8 @@ export function statusReport(project: ProjectCheckups, { today }: { readonly tod
         "| Checkup | Priority | Every | Last run | Due | Skill |",
         "| --- | --- | --- | --- | --- | --- |",
         ...rows,
+        "",
+        "Values marked (own) are set in the schedule; the others are the checkup's defaults.",
         ...declinedLine,
     ].join("\n");
 }
@@ -475,6 +578,44 @@ function readScheduleJson(projectDir: string, { signal }: { readonly signal: Abo
     return readJson(schedulePath, { maxBytes: JSON_BYTES_MAX, signal }).catch(whenMissing(null));
 }
 
+/** A skill's checkup defaults; `null` when the skill doesn't exist, or its frontmatter declares no valid defaults. */
+async function readSkillDefaults(
+    skillFile: string,
+    { signal }: { readonly signal: AbortSignal },
+): Promise<CheckupDefaults | null> {
+    const markdown = await readText(skillFile, { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
+
+    if (markdown === null) {
+        return null;
+    }
+
+    try {
+        const defaults = parseCheckupDefaults(parseFrontmatter(markdown));
+
+        return defaults.kind === "valid" ? defaults.value : null;
+    } catch (error: unknown) {
+        // Invalid YAML means no usable defaults; `resolveCheckup` then reports the checkup, and validate the skill.
+        if (error instanceof SyntaxError) {
+            return null;
+        }
+        throw error;
+    }
+}
+
+/** A checkup's defaults: from the project's own skill when it has one that declares them, else from the plugin's. */
+async function readCheckupDefaults(
+    projectDir: string,
+    { name, signal }: { readonly name: string; readonly signal: AbortSignal },
+): Promise<CheckupDefaults | null> {
+    const skillDir = `checkup-${name}`;
+    const [projectDefaults, pluginDefaults] = await Promise.all([
+        readSkillDefaults(path.join(projectDir, PROJECT_SKILLS_DIR, skillDir, "SKILL.md"), { signal }),
+        readSkillDefaults(path.join(PLUGIN_SKILLS_DIR, skillDir, "SKILL.md"), { signal }),
+    ]);
+
+    return projectDefaults ?? pluginDefaults;
+}
+
 async function readSchedule(
     projectDir: string,
     { signal }: { readonly signal: AbortSignal },
@@ -505,12 +646,24 @@ async function loadProjectCheckups(
         return schedule;
     }
 
+    const resolved = await Promise.all(
+        schedule.value.checkups.map(async (entry) =>
+            resolveCheckup(entry, { defaults: await readCheckupDefaults(projectDir, { name: entry.name, signal }) }),
+        ),
+    );
+    const errors = resolved.flatMap((result) => (result.kind === "invalid" ? result.errors : []));
+
+    if (errors.length > 0) {
+        return { kind: "invalid", errors };
+    }
+
+    const checkups = resolved.flatMap((result) => (result.kind === "valid" ? [result.value] : []));
     const [projectSkills, pluginSkills] = await Promise.all([
         skillNames(path.join(projectDir, PROJECT_SKILLS_DIR), { signal }),
         skillNames(PLUGIN_SKILLS_DIR, { signal }),
     ]);
     const statuses = await Promise.all(
-        schedule.value.checkups.map(async (checkup) =>
+        checkups.map(async (checkup) =>
             checkupStatus(checkup, {
                 reportFileNames: await readReportFileNames(projectDir, { name: checkup.name, signal }),
                 skill: skillSource(checkup.name, { projectSkills, pluginSkills }),

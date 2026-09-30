@@ -2,6 +2,8 @@
 name: checkup-model-routing
 description: Model routing checkup for the factory plugin. Compares plugins/factory/models.json with Anthropic's current models, aliases, effort levels, deprecations and pricing, and proposes changes. Use for "model checkup", "are our model choices still right", after a new Claude model is released, or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 30
+  priority: normal
   task: checkup
 ---
 

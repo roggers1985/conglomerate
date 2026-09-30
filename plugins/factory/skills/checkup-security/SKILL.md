@@ -2,6 +2,8 @@
 name: checkup-security
 description: Security checkup. Looks for vulnerable dependencies, committed or exposed secrets, missing authentication, authorisation and input parsing on entry points, unsafe rendering, weak headers, and prompt-injection risks. Use for "security checkup", "security audit", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 30
+  priority: urgent
   task: checkup
 ---
 

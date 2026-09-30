@@ -2,6 +2,8 @@
 name: checkup-test-coverage
 description: Test coverage checkup. Measures coverage, finds the riskiest untested behaviour (error paths, cancellation, invalid input, UI accessibility), and improves test quality according to the owner's testing conventions. Use for "test checkup", "coverage checkup", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 60
+  priority: normal
   task: checkup
 ---
 

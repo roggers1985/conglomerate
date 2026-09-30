@@ -54,6 +54,7 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 - **Report:** what a run found, in `docs/checkups/<name>/<date>.md`. The newest report's date is the checkup's last run.
 - **Runner:** `/factory:checkup`, which shows what's due and starts the checkups.
 - **Override:** a project's own version of a checkup, which replaces the plugin's (ADR 0023).
+- **Defaults:** each checkup skill declares a default interval and priority; the schedule only overrides them where the owner wants to (ADR 0049).
 - **Declined:** a checkup the owner opted out of, listed under `declined` in the schedule, so the runner doesn't suggest it again (ADR 0037).
 - **Interactive checkup:** one that runs in the main session with the owner, because it needs their answers, e.g. `monitoring` (ADR 0037).
 

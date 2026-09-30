@@ -23,7 +23,7 @@ Unmerged checkup branches (their reports don't count yet):
 
 1. Show the status table above to the user.
    - If the repository has a remote and checkup PRs were merged there since the last run, pull the default branch first (`git pull --ff-only`) and run the status again, since merged reports only count once they are local (ADR 0043). Delete the local branches of merged checkups with `git branch -d`.
-   - If no checkups are scheduled, explain how to start: create `docs/checkups/checkups.json` with entries like `{ "name": "outdated-packages", "intervalDays": 30, "priority": "normal" }` (`priority` is `urgent`, `normal` or `quiet`, ADR 0030), and propose a starting schedule from the plugin's `factory:checkup-*` skills that fit this project (see step 2). Stop there.
+   - If no checkups are scheduled, explain how to start: create `docs/checkups/checkups.json` with entries like `{ "name": "outdated-packages" }`. Each checkup's skill declares a sensible default interval and priority; an entry overrides them only when the owner wants to, e.g. `{ "name": "security", "intervalDays": 14 }` (`priority` is `urgent`, `normal` or `quiet`, ADR 0030, 0049). Propose a starting schedule from the plugin's `factory:checkup-*` skills that fit this project (see step 2). Stop there.
    - If a checkup's skill is **missing**, say so: it can't run until the project adds `.claude/skills/checkup-<name>/SKILL.md` or the name is corrected.
 2. Look for checkups the project is missing, skipping those listed as declined under the table. Check the project briefly (structure, `package.json`, pages, config) and suggest, without adding them yourself:
    - generic ones from the plugin that fit but aren't scheduled, e.g. `frontend-quality`, `accessibility` and `performance` when there is a UI, and `seo` for a public website;
@@ -53,4 +53,4 @@ Unmerged checkup branches (their reports don't count yet):
 
 - Don't do the checkups' work yourself. Your job is choosing and dispatching.
 - If a checkup fails, report why and continue with the next one.
-- Never change `intervalDays` or `priority` unless the user asks.
+- Never change `intervalDays` or `priority` unless the user asks. When they ask to go back to a checkup's default, remove the value from its entry rather than copying the default in.

@@ -2,6 +2,8 @@
 name: checkup-conventions
 description: Conventions checkup for the factory plugin. Re-reads the sources the owner's conventions come from (Power of 10, TigerStyle, Parse don't validate, the React docs, Testing Library, WCAG, …), looks for newer or better practices on the same topics, and checks the conventions for contradictions and rules that don't earn their place. Only proposes. Use for "conventions checkup", "are our conventions still right", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 90
+  priority: quiet
   task: checkup
 ---
 

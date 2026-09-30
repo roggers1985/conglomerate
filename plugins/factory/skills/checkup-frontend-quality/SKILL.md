@@ -2,6 +2,8 @@
 name: checkup-frontend-quality
 description: Frontend quality checkup. Moves UI code to modern framework and CSS features, removes effect-driven state, checks server/client boundaries, component structure and the owner's React and UI conventions. Use for "frontend checkup", "modernise the frontend", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 60
+  priority: normal
   task: checkup
 ---
 

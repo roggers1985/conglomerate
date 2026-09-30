@@ -2,6 +2,8 @@
 name: checkup-agent-setup
 description: Agent setup checkup. Checks that the project's Claude Code setup (CLAUDE.md, skills, settings, permissions, hooks, checkup schedule) is accurate, concise and effective, and finds relevant new Claude Code features. Use for "agent setup checkup", "is our CLAUDE.md any good", or when the checkup runner dispatches it.
 metadata:
+  intervalDays: 60
+  priority: normal
   task: checkup
 ---
 
