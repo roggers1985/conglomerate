@@ -407,10 +407,16 @@ export function verificationProblems(
         evidence.filter((match) => (match[2] ?? "").trim().length > 0).map((match) => match[1] ?? ""),
     );
     const missing = (criteria?.active ?? []).filter((id) => !withEvidence.has(id));
+    const named = new Set(evidence.map((match) => match[1] ?? ""));
+    const known = new Set([...(criteria?.active ?? []), ...(criteria?.dropped ?? [])]);
+    const unknown = criteria === null ? [] : [...named].filter((id) => !known.has(id));
+    const dropped = [...named].filter((id) => criteria?.dropped.includes(id) === true);
 
     return [
         ...sectionProblems(markdown, VERIFICATION_SECTIONS, { file: "verification.md" }),
         ...missing.map((id) => `verification.md has no evidence for ${id}`),
+        ...unknown.map((id) => `verification.md has evidence for ${id}, which the spec doesn't have`),
+        ...dropped.map((id) => `verification.md has evidence for ${id}, which the spec has dropped`),
     ];
 }
 

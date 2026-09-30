@@ -239,6 +239,8 @@ export function gateProblems(task: Pick<TaskDocument, "stages">, documents: Stag
     const criteria = documents.spec === null ? null : criteriaIds(documents.spec);
     const taskList = hasTasksStage ? documents.tasks : sectionText(documents.plan ?? "", "Tasks");
     const taskListFile = hasTasksStage ? "tasks.md" : "plan.md's Tasks section";
+    // verification.md is required once the build or the verify stage is done; name the stage that asks for it.
+    const verifiedBy = (["verify", "build"] as const).find(isDone) ?? null;
     const planWithTasks = (plan: string): string[] => [
         ...planProblems(plan, { hasTasksSection: !hasTasksStage }),
         ...(hasTasksStage ? [] : taskListProblems(sectionText(plan, "Tasks") ?? "", { file: taskListFile, criteria })),
@@ -257,11 +259,11 @@ export function gateProblems(task: Pick<TaskDocument, "stages">, documents: Stag
             : []),
         ...(isDone("spike") ? documentProblems(documents.spike, "spike", spikeProblems) : []),
         ...(isDone("build") && taskList !== null ? unfinishedTaskProblems(taskList, { file: taskListFile }) : []),
-        ...(isDone("build") || isDone("verify")
-            ? fileProblems(documents.verification, "verification.md", (verification) =>
+        ...(verifiedBy === null
+            ? []
+            : fileProblems(documents.verification, { file: "verification.md", stage: verifiedBy }, (verification) =>
                   verificationProblems(verification, { criteria }),
-              )
-            : []),
+              )),
     ];
 }
 
@@ -269,8 +271,12 @@ function documentProblems(markdown: string | null, stage: Stage, check: (markdow
     return markdown === null ? [`${stage} is done, but ${stage}.md is missing`] : check(markdown);
 }
 
-function fileProblems(markdown: string | null, file: string, check: (markdown: string) => string[]): string[] {
-    return markdown === null ? [`the build is done, but ${file} is missing`] : check(markdown);
+function fileProblems(
+    markdown: string | null,
+    { file, stage }: { readonly file: string; readonly stage: Stage },
+    check: (markdown: string) => string[],
+): string[] {
+    return markdown === null ? [`${stage} is done, but ${file} is missing`] : check(markdown);
 }
 
 /** One change folder: its route, or why it couldn't be read. */

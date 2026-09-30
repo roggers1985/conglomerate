@@ -256,7 +256,7 @@ describe("gateProblems", () => {
             gateProblems(route, { intent: null, spec: null, plan: null, tasks, verification: null, spike: null }),
         ).toEqual([
             "the build is done, but T-1 in tasks.md is in-progress",
-            "the build is done, but verification.md is missing",
+            "build is done, but verification.md is missing",
         ]);
     });
 
@@ -273,6 +273,18 @@ describe("gateProblems", () => {
         expect(gateProblems(route, { intent: null, spec, plan: null, tasks: null, verification, spike: null })).toEqual(
             ["spike is done, but spike.md is missing", "verification.md has no evidence for AC-1"],
         );
+    });
+
+    it("names the verify stage when it is the one that asks for verification.md", () => {
+        const route = {
+            stages: (["plan", "build", "verify", "review", "finish"] as const).map((name) =>
+                stage(name, { status: name === "verify" ? "done" : "skipped" }),
+            ),
+        };
+
+        expect(
+            gateProblems(route, { intent: null, spec: null, plan: null, tasks: null, verification: null, spike: null }),
+        ).toEqual(["verify is done, but verification.md is missing"]);
     });
 
     it("asks the spec for a Problem section when the route has no intent stage", () => {
