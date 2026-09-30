@@ -37,7 +37,7 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Licenses
 
-- Only permissive open-source licenses, for dependencies (including development tools), tools and plugins: MIT, ISC, BSD-2/3-Clause, Apache-2.0, 0BSD, MIT-0, Unlicense, CC0-1.0, Zlib, BlueOak-1.0.0. Never copyleft (GPL, AGPL, LGPL, MPL), source-available (BSL, SSPL, Elastic, Commons Clause), non-commercial or proprietary licenses. Check the license before proposing a dependency.
+- Only permissive open-source licenses, for dependencies (including development tools), tools and plugins: MIT, ISC, BSD-2/3-Clause, Apache-2.0, 0BSD, MIT-0, Unlicense, CC0-1.0, Zlib, BlueOak-1.0.0. Never copyleft (GPL, AGPL, LGPL, MPL, EPL), source-available (BSL, SSPL, Elastic, Commons Clause), non-commercial or proprietary licenses. For an SPDX expression, `A OR B` needs one allowed side and `A AND B` needs both. Check the license before proposing a dependency.
 
 ## Helpers
 
@@ -47,7 +47,7 @@ These conventions apply to all work in this session. They come from the factory 
 ## API design
 
 - Positional parameters only for what a function is *about*; everything that controls *how* goes in an options object as the last parameter. No positional booleans.
-- Results of operations are objects or discriminated unions, so they can grow; predicates and conversions return plain values.
+- Results of operations that report an outcome as data (parse, validate, partial failure) are objects or discriminated unions, so they can grow; predicates, conversions, and operations that return one value or throw return plain values.
 - Options that change meaning or are risky are required; tuning knobs may have a default, but only a visible, documented one. Dangerous or costly behaviour is opt-in.
 
 ## Cancellation

@@ -40,10 +40,16 @@ export function isAbortError(error: unknown): boolean {
     return error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError");
 }
 
-export async function fetchJob(id: string, { signal }: { signal: AbortSignal }): Promise<Job> {
-    const response = await fetch(`/api/jobs/${id}`, { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]) });
+const FETCH_TIMEOUT_MS = 10_000; // one job is a small record; the API answers well within a second
+const JOB_BYTES_MAX = 64 * 1024;
 
-    return parseJob(await response.json());
+export async function fetchJob(id: string, { signal }: { signal: AbortSignal }): Promise<Job> {
+    const timeoutSignal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
+    const response = await fetch(`/api/jobs/${id}`, { signal: AbortSignal.any([signal, timeoutSignal]) });
+    // Reads the body as a stream and fails past the limit, instead of `response.json()` (see `code-safety`).
+    const body = await readBodyText(response, { maxBytes: JOB_BYTES_MAX, signal });
+
+    return parseJob(JSON.parse(body));
 }
 
 export async function syncJobs(ids: readonly string[], { signal }: { signal: AbortSignal }): Promise<void> {

@@ -16,6 +16,14 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 - [ ] Discuss: `lib/` is growing (files, schemas, concurrency, parse, …). Move to a monorepo (e.g. Bun workspaces) with packages split by feature instead of one shared `lib/`? Consider what the plugin's bundles (ADR 0020), the doctest, the license notices (ADR 0027) and `bun run check` would need.
 
+## Working with the owner
+
+- [ ] Discuss: make the owner's autonomy setting configurable in the plugin, so Claude can work autonomously within the conventions and ADRs, and the owner can adjust it when needed. Questions:
+  - the levels, e.g. "discuss every addition" (today's `core.md`), "act within the conventions and report afterwards", and something in between;
+  - what each level covers: commits, merging checkup branches, pushing, adding helpers or dependencies, writing ADRs, changing conventions;
+  - where it's set (per project, per session) and how it reaches `core.md` at session start;
+  - how it relates to Claude Code's own permission modes, and what always stays with the owner (e.g. conventions, licenses, anything destructive).
+
 ## Factory stages
 
 Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, Kiro, and Anthropic's AI-native SDLC playbook.

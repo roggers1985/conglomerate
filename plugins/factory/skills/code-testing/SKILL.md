@@ -57,6 +57,7 @@ Most tests are unit and component tests; end-to-end tests are fewer and focus on
 - **Critical failure paths**: validation errors, missing permissions or a logged-out user, a failing payment or external service, and not-found pages.
 - An axe accessibility scan on every page the flows visit (`@axe-core/playwright`).
 - Locate by role and name (`getByRole`), never by CSS selectors. Rely on Playwright's automatic waiting; never `waitForTimeout`.
+- Assert with Playwright's web-first assertions (`await expect(locator).toBeVisible()`), never on a value you read first (`expect(await locator.isVisible()).toBe(true)`): the former waits and retries, the latter checks once.
 - Run against a production build, with isolated test data per test, so tests can run in parallel.
 - Visual comparison screenshots only where the visual result *is* the feature, e.g. a chart or a generated image.
 

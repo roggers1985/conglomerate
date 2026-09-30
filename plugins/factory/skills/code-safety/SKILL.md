@@ -44,7 +44,7 @@ Everything from outside has a maximum size, set in its schema (see `code-parsing
 
 ```ts
 const CommentSchema = z.strictObject({
-    body: z.string().min(1).max(10_000),
+    body: z.string().max(10_000).refine((text) => text.trim().length > 0, "is required"),
     tags: z.array(z.string().max(50)).max(20),
     rating: z.number().int().min(1).max(5),
 });
@@ -87,17 +87,18 @@ Assert what the types can't express, and skip what they already guarantee. There
 - **Worth asserting:** numeric ranges (`maxBytes >= 1`, a remaining budget `>= 0`), whole numbers, non-blank strings, relations between values (`start <= end`, a default at most its maximum), and state a function relies on (a list is sorted, a map has the key it's about to read).
 - **Not worth asserting:** that a `string` is a string, that a required field is present, that a discriminated union has one of its kinds. The type checker already proves these.
 - **Pair assertions:** where data is written in one place and read in another, check the same property on both sides. The writer asserts what it produces, and the reader parses what it receives, so a bug on either side is caught near its cause. This repository's `generate` and `validate` are an example.
+- **One condition per `assert`:** `assert(start >= 0, "start is negative"); assert(start <= end, "start is after end");` rather than `assert(start >= 0 && start <= end, …)`, so the failure says which one broke. It's "one condition per `if`", applied to assertions.
 - `assert` is for bugs in our own code; invalid input from outside is a parse error with a readable message (see `code-parsing`).
 
 ## Functions
 
-A function fits on a screen: **at most 70 lines**, blank lines not counted (TigerStyle; NASA's rule 4 says 60). Biome's `noExcessiveLinesPerFunction` enforces it; test files are exempt, since a `describe` block groups many tests. A longer function is split where it has a name for a part, not at an arbitrary line.
+A function fits on a screen: **at most 70 lines**, blank lines not counted (TigerStyle; NASA's rule 4 says 60). Biome's `noExcessiveLinesPerFunction` enforces it; test files are exempt, since a `describe` block groups many tests. A longer function is split where it has a name for a part, not at an arbitrary line. When splitting, keep the branching (`if`, `switch`) in the parent function and move the work that doesn't branch into helpers; helpers that only compute stay pure, and the parent applies the result (TigerStyle: "push `if`s up and `for`s down").
 
 ## Errors
 
 Every error is handled or passed on on purpose. TigerStyle cites a study in which 92% of catastrophic failures came from mishandled non-fatal errors.
 
-- **No empty `catch`,** and no `catch` that only logs and carries on as if nothing happened. Handle the specific error you expect (e.g. `whenMissing` for a missing file) and rethrow the rest.
+- **No empty `catch`** (Biome's `noEmptyBlockStatements`), and no `catch` that only logs and carries on as if nothing happened. Handle the specific error you expect (e.g. `whenMissing` for a missing file) and rethrow the rest.
 - **No ignored results:** every promise is awaited, returned or explicitly handed to something that handles its rejection. Biome's `noFloatingPromises` and `noMisusedPromises` enforce this.
 - A result object with a failure kind is checked before its value is used; the discriminated union makes skipping it a type error.
 

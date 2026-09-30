@@ -17,7 +17,7 @@ The database is the last line of defence for data. Every rule that can live in t
 
 ### Keys and relations
 
-- **Primary keys:** a surrogate key on every table. In PostgreSQL, `bigint GENERATED ALWAYS AS IDENTITY`, or a UUIDv7 when ids are created outside the database or exposed publicly. In SQLite, `INTEGER PRIMARY KEY`.
+- **Primary keys:** a surrogate key on every table. In PostgreSQL, `bigint GENERATED ALWAYS AS IDENTITY`, or a UUIDv7 when ids are created outside the database or exposed publicly (from PostgreSQL 18, `DEFAULT uuidv7()` generates it in the database). In SQLite, `INTEGER PRIMARY KEY`.
 - **Natural keys** (an email address, a slug, an external id) get a `UNIQUE` constraint, composite where uniqueness is per parent (`UNIQUE (company_id, slug)`).
 - **Every relation is a foreign key**, with `ON DELETE` chosen explicitly: `RESTRICT` by default, `CASCADE` only for rows that can't exist without their parent, `SET NULL` only for nullable references that mean "no longer linked".
 - **SQLite checks foreign keys only after `PRAGMA foreign_keys = ON`**, and it has to be set on every connection. Set it where connections are opened, and test that it's on.
@@ -58,7 +58,7 @@ PostgreSQL enums can gain values but can't lose or rename them without rebuildin
 
 ### SQLite specifics
 
-- **`STRICT` tables** (`CREATE TABLE … (…) STRICT;`), so a column only accepts its declared type.
+- **`STRICT` tables** (`CREATE TABLE … (…) STRICT;`), so a column only accepts its declared type. Values are still converted by the usual affinity rules where the conversion is lossless (the text `'123'` is stored as the integer 123); never declare a column `ANY`.
 - **Per connection:** `PRAGMA foreign_keys = ON`, `PRAGMA journal_mode = WAL` for concurrent reads, and a `busy_timeout` (a bound on waiting, see `code-safety`).
 - `WITHOUT ROWID` only for tables with a natural, non-integer primary key that are read by that key.
 

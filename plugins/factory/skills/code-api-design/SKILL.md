@@ -18,7 +18,7 @@ A signature should read clearly at the call site, and be able to grow without br
 ## 2. Design for extension
 
 - **Inputs:** the options object is the extension point. Adding an option breaks no existing call.
-- **The result of an operation** (parse, validate, fetch, I/O, anything that can partly fail) is an **object or a discriminated union**, never a bare value. Such results tend to grow extra information: warnings, a cursor, timings, partial errors.
+- **The result of an operation that reports an expected outcome as data** (parse, validate, anything that can partly fail, or whose callers branch on the outcome) is an **object or a discriminated union**, never a bare value. Such results tend to grow extra information: warnings, a cursor, timings, partial errors.
 
   ```ts
   type ParsedConfig = { kind: "valid"; config: Config; warnings: string[] } | { kind: "invalid"; errors: string[] };
@@ -26,6 +26,7 @@ A signature should read clearly at the call site, and be able to grow without br
 
   A new outcome becomes a new `kind`, and a new detail becomes a new field.
 - **Predicates and conversions** return a plain value: `isDue(): boolean`, `formatDate(): string`. There the value *is* the concept, and a wrapper is noise.
+- **An operation that either returns its one value or throws** (reading a file, fetching one record) may return the value itself: `readText(): Promise<string>`. Failure is an exception, not an outcome the caller branches on.
 - **Rule of thumb:** could a caller ever want to know *more* about this result? Then return an object.
 
 ## 3. Explicit over hidden defaults

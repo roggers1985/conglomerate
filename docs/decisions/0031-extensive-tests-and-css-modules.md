@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Extended by [ADR-0041](0041-conventions-checkup-first-round.md): web-first assertions in Playwright tests.
 
 ## Context
 

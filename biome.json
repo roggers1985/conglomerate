@@ -69,7 +69,10 @@
                 "useNamingConvention": "error"
             },
             "suspicious": {
-                "noExplicitAny": "error"
+                "noExplicitAny": "error",
+                "noEmptyBlockStatements": "error",
+                "noSkippedTests": "error",
+                "noFocusedTests": "error"
             },
             "nursery": {
                 "noFloatingPromises": "error",

@@ -87,6 +87,7 @@ for (const route of routes) {
 ## Rules
 
 - Fix the markup; never disable an axe rule or exclude an element just to get a test green. For a violation in third-party markup you can't change, exclude that one selector narrowly, with a comment explaining why.
+- The one rule that component tests may turn off is `color-contrast`: jsdom can't compute colours, so the result would be meaningless. The page-level scan in a real browser covers it, so it must never be off there.
 - Prefer native elements (`button`, `a`, `label`, `dialog`) over ARIA on `div`s. The first rule of ARIA is not to use it when HTML can do the job.
 - `axe-core` is tested against jsdom. If it misbehaves in the project's DOM environment (e.g. happy-dom), keep the component behaviour tests and move the rule scan to page level.
 - Automated scans find only part of all accessibility problems. The keyboard and focus tests cover what axe can't see, so don't drop them because axe passes.

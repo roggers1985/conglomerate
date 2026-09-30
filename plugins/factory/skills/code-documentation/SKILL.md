@@ -33,7 +33,7 @@ Types and constants need at least a summary. Functions and classes also need an 
  * Fetches a job by its id.
  *
  * @remarks
- * Adds a 10-second timeout to the caller's signal (ADR 0012).
+ * Adds a 10-second timeout (`FETCH_TIMEOUT_MS`) to the caller's signal: one job is a small record (ADR 0012).
  *
  * @param id - The job's public id, e.g. `"j_123"`.
  * @param options.signal - Cancels the request.

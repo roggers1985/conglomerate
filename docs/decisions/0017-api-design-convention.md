@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. Extended by [ADR-0038](0038-safety-practices-from-power-of-10-and-tigerstyle.md): explicit options for libraries too.
+Accepted. Extended by [ADR-0041](0041-conventions-checkup-first-round.md): operations that return one value or throw may return it plainly. Extended by [ADR-0038](0038-safety-practices-from-power-of-10-and-tigerstyle.md): explicit options for libraries too.
 
 ## Context
 
