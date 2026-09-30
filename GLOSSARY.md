@@ -38,7 +38,7 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **MCP server (Model Context Protocol).** A small program that gives an agent extra tools or data, e.g. access to a database or an issue tracker, through a standard protocol.
 
-**Git worktree.** A second working folder for the same Git repository, on another branch, so two tasks can work side by side without touching each other's files. *Here:* planned for the factory's build stage and for running checkups in parallel.
+**Git worktree.** A second working folder for the same Git repository, on another branch, so two tasks can work side by side without touching each other's files. *Here:* every checkup runs in its own worktree under `.claude/worktrees/` (ADR 0042); planned for the build stage too.
 
 ## The factory
 

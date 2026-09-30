@@ -18,6 +18,9 @@ Terms used below:
 - **Read the project's `CLAUDE.md`,** and any conventions or ADRs it points to (e.g. `docs/decisions/`). Note which files are **generated** and how they are regenerated.
 - **Find the project's check commands** (typecheck, lint, tests, build) in `CLAUDE.md`, `README.md` or `package.json`. You will need them before committing.
 - **Create a branch** `checkup/<name>-<today>` from the default branch, unless the person running you says otherwise.
+  - **In a worktree** (under `.claude/worktrees/`, ADR 0042), create it from the *local* default branch: `git switch -c checkup/<name>-<today> <default branch>`. The worktree starts from the remote's default branch, which can be behind the local one. Then read your skill, `CLAUDE.md` and everything else from disk again.
+  - A fresh worktree has no dependencies installed. Install them from the lockfile (e.g. `bun install --frozen-lockfile`) before running the check commands.
+  - Stay in your worktree: never `cd` to the main checkout or run git there.
 
 ## 2. Hard rules
 

@@ -35,7 +35,7 @@ To build:
 - [ ] **Planning:** `plan.md` (architecture, files, data, trade-offs) and `tasks.md` (tasks of a few minutes, with exact files and a verification step each; tasks that can run in parallel marked). Includes back-of-the-envelope sketches of network, disk, memory and CPU costs, with batching as a design question (ADR 0038).
 - [ ] **Convention gate:** every plan states that it follows the conventions and ADRs, or justifies each deviation.
 - [ ] **Build:** a fresh subagent per task through the task agents (model routing), tests first, and "verify before claiming done".
-- [ ] **Git worktrees:** each task, and each checkup, in its own worktree. This also lets checkups run in parallel instead of one after another.
+- [ ] **Git worktrees:** each task in its own worktree, as checkups already are (ADR 0042). Decide then whether checkups may also run in parallel.
 - [ ] **Review:** check the result against the plan, with findings by severity (`review` task type).
 - [ ] **Finish a branch:** a fixed ending with the choice of merge, PR or discard, and cleanup.
 

@@ -2,7 +2,7 @@
 name: checkup
 description: Run the project's recurring checkups (dependencies, security, code and frontend quality, tests, docs, accessibility, and project-specific ones like legal). Shows which are due according to docs/checkups/checkups.json and runs the chosen ones, priority first. Use when asked to "run the checkups", "do a checkup", or to see which checkups are due or overdue.
 argument-hint: "[due | all | <name>…]"
-allowed-tools: Bash(bun "${CLAUDE_PLUGIN_ROOT}/dist/checkups.js" *), Bash(git branch --list *)
+allowed-tools: Bash(bun "${CLAUDE_PLUGIN_ROOT}/dist/checkups.js" *), Bash(git branch --list *), Bash(git worktree remove *), Bash(git branch -d *)
 ---
 
 # Checkup runner
@@ -36,13 +36,15 @@ Unmerged checkup branches (their reports don't count yet):
    - `due`, or nothing: run the due ones, but ask for confirmation first.
 4. Order: `urgent` checkups first, then `normal`, then `quiet`; within a level, schedule order.
 5. For each chosen checkup, use the skill in the table's Skill column: the project's own `checkup-<name>` (from `.claude/skills/`) when it says `project` (it overrides the plugin's version), otherwise the plugin's `factory:checkup-<name>`. Skip checkups whose skill is missing, and say so.
-6. Run **interactive checkups** (`metadata.interactive: true` in the skill's frontmatter, such as `monitoring`) first, yourself, in this session with the owner, following their skill. Then run the others **one at a time, each in its own subagent** (Agent tool), so each starts with a clean context. Use the task agent `factory:tasks:checkup`, which defaults to the `checkup` model and effort from `models.json`. Override the model only when the user asks for one (e.g. "run the checkups with opus"). Tell each subagent:
-   - to invoke the checkup's skill;
+6. Run **interactive checkups** (`metadata.interactive: true` in the skill's frontmatter, such as `monitoring`) first, yourself, in this session with the owner, following their skill. Then run the others **one at a time, each in its own subagent** (Agent tool), so each starts with a clean context, and **each in its own worktree** (`isolation: "worktree"`), so a checkup never switches branches or edits files in this session's checkout (ADR 0042). Before the first one, check that `.claude/worktrees/` is in the project's `.gitignore`; if it isn't, propose adding it and wait for the owner. Use the task agent `factory:tasks:checkup`, which defaults to the `checkup` model and effort from `models.json`. Override the model only when the user asks for one (e.g. "run the checkups with opus"). Tell each subagent:
+   - that it runs in a worktree under `.claude/worktrees/`, and must first create its branch there from the **local** default branch (`git switch -c checkup/<name>-<today> <default branch>`): the worktree itself starts from the remote's default branch, which can be behind;
+   - to read the checkup's skill from disk after switching, because the skill list it started with comes from the worktree's first checkout: `.claude/skills/checkup-<name>/SKILL.md` for a project skill, `${CLAUDE_PLUGIN_ROOT}/skills/checkup-<name>/SKILL.md` for the plugin's;
    - to follow the protocol in `${CLAUDE_PLUGIN_ROOT}/checkups/protocol.md`;
    - today's date, so the branch and report are named consistently;
    - the unmerged checkup branches listed above, copied exactly, never retyped or counted by hand;
    - whether the repository has a remote, and whether `gh` is logged in (for the protocol's hand-over step).
-7. When all are done, reply with one line per checkup: branch or PR link, and the single most important finding.
+7. **After each subagent**, remove its worktree once its work is committed on its checkup branch: `git worktree remove <path>`, then delete the worktree's own branch (`worktree-<name>`) with `git branch -d`. Keep the checkup branch. If the removal refuses because of uncommitted changes, leave the worktree, and name its path in your reply.
+8. When all are done, reply with one line per checkup: branch or PR link, and the single most important finding.
 
 ## Rules
 
