@@ -29,14 +29,29 @@ const CheckupConfigSchema = z.strictObject({
 });
 
 // Our own file, so strict: unknown keys are typos (ADR 0020).
+const CHECKUPS_MAX = 100; // more than any project needs; a longer list means something generated it wrongly
+
 const ScheduleSchema = z
-    .strictObject({ checkups: z.array(CheckupConfigSchema) })
-    .superRefine(({ checkups }, context) => {
+    .strictObject({
+        checkups: z.array(CheckupConfigSchema).max(CHECKUPS_MAX),
+        /** Checkups the owner opted out of: the runner doesn't suggest them again (ADR 0037). */
+        declined: z.array(z.string().max(50).regex(KEBAB_CASE, "must be kebab-case")).max(CHECKUPS_MAX).optional(),
+    })
+    .superRefine(({ checkups, declined = [] }, context) => {
         const names = checkups.map((checkup) => checkup.name);
         const duplicates = new Set(names.filter((name, index) => names.indexOf(name) !== index));
+        const scheduledAndDeclined = declined.filter((name) => names.includes(name));
 
         for (const name of duplicates) {
             context.addIssue({ code: "custom", message: `"${name}" is listed more than once`, path: ["checkups"] });
+        }
+
+        for (const name of scheduledAndDeclined) {
+            context.addIssue({
+                code: "custom",
+                message: `"${name}" is both scheduled and declined`,
+                path: ["declined"],
+            });
         }
     });
 
@@ -54,14 +69,26 @@ export type CheckupStatus = CheckupConfig & {
     readonly skill: SkillSource | null;
 };
 
-/** The outcome of validating a schedule: its checkups in order, or every problem found. */
-export type ParsedSchedule = Parsed<readonly CheckupConfig[]>;
+/** A project's checkup schedule: what runs how often, and what the owner opted out of. */
+export type Schedule = {
+    readonly checkups: readonly CheckupConfig[];
+    /** Checkups the owner declined; empty when the schedule has no `declined` list. */
+    readonly declined: readonly string[];
+};
+
+/** The outcome of parsing a schedule: the schedule, or every problem found. */
+export type ParsedSchedule = Parsed<Schedule>;
 
 /** A project's checkups: none scheduled, an invalid schedule, or the status of every scheduled checkup. */
 export type ProjectCheckups =
     | { readonly kind: "unscheduled" }
     | { readonly kind: "invalid"; readonly errors: readonly string[] }
-    | { readonly kind: "scheduled"; readonly statuses: readonly CheckupStatus[] };
+    | {
+          readonly kind: "scheduled";
+          readonly statuses: readonly CheckupStatus[];
+          /** Checkups the owner declined (ADR 0037). */
+          readonly declined: readonly string[];
+      };
 
 /** A session-start reminder: a short notice for the user, and instructions for Claude. */
 export type Reminder = {
@@ -102,7 +129,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * ```ts
  * const legal = { name: "legal", intervalDays: 30, priority: "urgent" };
  *
- * expect(parseSchedule({ checkups: [legal] })).toEqual({ kind: "valid", value: [legal] });
+ * expect(parseSchedule({ checkups: [legal] })).toEqual({ kind: "valid", value: { checkups: [legal], declined: [] } });
  * ```
  *
  * @example
@@ -120,7 +147,7 @@ export function parseSchedule(value: unknown): ParsedSchedule {
         return parsed;
     }
 
-    return { kind: "valid", value: parsed.value.checkups };
+    return { kind: "valid", value: { checkups: parsed.value.checkups, declined: parsed.value.declined ?? [] } };
 }
 
 /**
@@ -364,7 +391,7 @@ export function reminderOutput(project: ProjectCheckups): ReminderOutput | null 
  * ```ts
  * const legal = { name: "legal", intervalDays: 30, priority: "urgent", lastRun: null, due: true, skill: "project" } as const;
  *
- * expect(statusReport({ kind: "scheduled", statuses: [legal] }, { today: "2026-09-29" })).toContain(
+ * expect(statusReport({ kind: "scheduled", statuses: [legal], declined: [] }, { today: "2026-09-29" })).toContain(
  *     "| legal | urgent | 30 days | never | **due** | project |",
  * );
  * ```
@@ -378,8 +405,11 @@ export function statusReport(project: ProjectCheckups, { today }: { readonly tod
         return [`${SCHEDULE_PATH} is invalid:`, ...project.errors.map((error) => `- ${error}`)].join("\n");
     }
 
+    const declinedLine =
+        project.declined.length === 0 ? [] : ["", `Declined (not suggested again): ${project.declined.join(", ")}`];
+
     if (project.statuses.length === 0) {
-        return `No checkups are scheduled: ${SCHEDULE_PATH} has an empty list.`;
+        return [`No checkups are scheduled: ${SCHEDULE_PATH} has an empty list.`, ...declinedLine].join("\n");
     }
 
     const rows = project.statuses.map(
@@ -393,6 +423,7 @@ export function statusReport(project: ProjectCheckups, { today }: { readonly tod
         "| Checkup | Priority | Every | Last run | Due | Skill |",
         "| --- | --- | --- | --- | --- | --- |",
         ...rows,
+        ...declinedLine,
     ].join("\n");
 }
 
@@ -472,7 +503,7 @@ async function loadProjectCheckups(
         skillNames(PLUGIN_SKILLS_DIR, { signal }),
     ]);
     const statuses = await Promise.all(
-        schedule.value.map(async (checkup) =>
+        schedule.value.checkups.map(async (checkup) =>
             checkupStatus(checkup, {
                 reportFileNames: await readReportFileNames(projectDir, { name: checkup.name, signal }),
                 skill: skillSource(checkup.name, { projectSkills, pluginSkills }),
@@ -481,7 +512,7 @@ async function loadProjectCheckups(
         ),
     );
 
-    return { kind: "scheduled", statuses };
+    return { kind: "scheduled", statuses, declined: schedule.value.declined };
 }
 
 const COMMANDS = ["reminder", "status"] as const;

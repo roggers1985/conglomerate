@@ -32,7 +32,10 @@ const failedPaths = (parsed: ReturnType<typeof parseSchedule>): string[] =>
 
 describe("parseSchedule", () => {
     it("accepts a valid schedule", () => {
-        expect(parseSchedule({ checkups: [legal, seo] })).toEqual({ kind: "valid", value: [legal, seo] });
+        expect(parseSchedule({ checkups: [legal, seo] })).toEqual({
+            kind: "valid",
+            value: { checkups: [legal, seo], declined: [] },
+        });
     });
 
     it("rejects a schedule without a checkups array", () => {
@@ -49,6 +52,26 @@ describe("parseSchedule", () => {
         const parsed = parseSchedule({ checkups: [{ ...legal, intervalDay: 30 }] });
 
         expect(parsed.kind === "invalid" && parsed.errors[0]).toContain('"intervalDay"');
+    });
+
+    it("keeps the declined checkups", () => {
+        expect(parseSchedule({ checkups: [legal], declined: ["monitoring"] })).toEqual({
+            kind: "valid",
+            value: { checkups: [legal], declined: ["monitoring"] },
+        });
+    });
+
+    it("rejects a checkup that is both scheduled and declined", () => {
+        expect(parseSchedule({ checkups: [legal], declined: ["legal"] })).toEqual({
+            kind: "invalid",
+            errors: ['declined: "legal" is both scheduled and declined'],
+        });
+    });
+
+    it("enforces an upper bound on the number of checkups", () => {
+        const many = Array.from({ length: 101 }, (_, index) => ({ ...legal, name: `checkup-${index}` }));
+
+        expect(failedPaths(parseSchedule({ checkups: many }))).toEqual(["checkups"]);
     });
 
     it("rejects a checkup that is listed twice", () => {
@@ -175,6 +198,7 @@ describe("statusReport", () => {
             {
                 kind: "scheduled",
                 statuses: [status({ ...legal, lastRun: "2026-09-27", due: false }), status({ due: true })],
+                declined: [],
             },
             { today: "2026-09-29" },
         );
@@ -185,11 +209,20 @@ describe("statusReport", () => {
 
     it("marks checkups without a skill", () => {
         const report = statusReport(
-            { kind: "scheduled", statuses: [status({ skill: null })] },
+            { kind: "scheduled", declined: [], statuses: [status({ skill: null })] },
             { today: "2026-09-29" },
         );
 
         expect(report).toContain("| seo | normal | 60 days | never |  | **missing** |");
+    });
+
+    it("lists declined checkups below the table", () => {
+        const report = statusReport(
+            { kind: "scheduled", statuses: [status({})], declined: ["monitoring"] },
+            { today: "2026-09-29" },
+        );
+
+        expect(report).toEndWith("\n\nDeclined (not suggested again): monitoring");
     });
 
     it("explains when nothing is scheduled", () => {

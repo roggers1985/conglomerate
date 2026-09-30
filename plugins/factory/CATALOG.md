@@ -30,6 +30,7 @@ Skills are named `<domain>-<topic>` (ADR 0013).
 | `checkup-docs-drift` | Documentation drift checkup. | `checkup` (sonnet, high) |
 | `checkup-frontend-quality` | Frontend quality checkup. | `checkup` (sonnet, high) |
 | `checkup-licenses` | Licenses checkup. | `checkup` (sonnet, high) |
+| `checkup-monitoring` | Daily monitoring checkup, run with the owner in the main session. | `checkup` (sonnet, high) |
 | `checkup-new-features` | New features checkup. | `checkup` (sonnet, high) |
 | `checkup-outdated-packages` | Outdated packages checkup. | `checkup` (sonnet, high) |
 | `checkup-performance` | Performance checkup. | `checkup` (sonnet, high) |

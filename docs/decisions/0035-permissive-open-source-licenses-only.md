@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Clarified by [ADR-0037](0037-daily-monitoring-checkup-and-opting-out.md): external services a project uses are outside the policy.
 
 ## Context
 
