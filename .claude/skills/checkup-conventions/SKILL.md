@@ -39,7 +39,7 @@ Read the current version of each, and cite it in the report. Where a source has 
 | Cancellation | `AbortSignal` on MDN: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal, and Go's `context`: https://pkg.go.dev/context | `code-cancellation`, ADR 0012 |
 | SQL | PostgreSQL's documentation: https://www.postgresql.org/docs/current/, and SQLite's STRICT tables: https://www.sqlite.org/stricttables.html | `code-sql`, ADR 0036 |
 | Licenses | The SPDX license list: https://spdx.org/licenses/ | `core.md`, ADR 0035 |
-| Lint rules | Biome's rule list: https://biomejs.dev/linter/rules/ | `biome.json`, ADR 0005, 0038 |
+| Lint rules | Biome's rule list: https://biomejs.dev/linter/javascript/rules/ | `biome.json`, ADR 0005, 0038 |
 
 If a page has moved, find its new address and note it in the report (under "Next time", so this list gets updated). A convention whose source isn't in this table is either the owner's own preference, which is fine, or a missing row: say which.
 
