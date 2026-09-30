@@ -93,6 +93,8 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Pair assertion.** Checking the same property in two places: where data is written and where it is read. A bug on either side is then caught close to its cause. *Here:* `bun run generate` writes the generated files and `bun run validate` checks them (ADR 0038).
 
+**Fail fast.** Stopping at the first point that can see a problem, loudly, instead of passing a wrong value on. Its counterpart, *fail safe*, falls back to the safe side where failing would do more harm. *Here:* `code-safety`, ADR 0048.
+
 **Negative space programming.** Stating in code what must *not* happen (with assertions), not only what should. A term from TigerStyle.
 
 **Boundary (trust boundary).** The edge where data enters the program from outside: a request, a file, an environment variable, a database row, a model's output. *Here:* data is parsed at the boundary and trusted after it.

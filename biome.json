@@ -76,7 +76,8 @@
             },
             "nursery": {
                 "noFloatingPromises": "error",
-                "noMisusedPromises": "error"
+                "noMisusedPromises": "error",
+                "useExhaustiveSwitchCases": "error"
             }
         }
     },

@@ -1,6 +1,6 @@
 ---
 name: code-safety
-description: "The owner's safety conventions, inspired by NASA/JPL's Power of 10 and TigerBeetle's TigerStyle. Covers bounds (every loop, retry, recursion, input, collection, queue, cache and wait has explicit limits), assertions for what types can't express, function length, error handling, explicit library options, and index, count and size. Use when writing loops, retries, pagination, recursion, queues, caches, concurrency, input handling or error handling, or when reviewing code for robustness."
+description: "The owner's safety conventions, inspired by NASA/JPL's Power of 10 and TigerBeetle's TigerStyle. Covers bounds (every loop, retry, recursion, input, collection, queue, cache and wait has explicit limits), failing fast, assertions for what types can't express, function length, error handling, explicit library options, and index, count and size. Use when writing loops, retries, pagination, recursion, queues, caches, concurrency, input handling or error handling, or when reviewing code for robustness."
 ---
 
 # Safety conventions
@@ -79,6 +79,16 @@ A bound has two sides. Where a value below some minimum makes no sense, that min
 - **Named constants,** documented with the reason for the number: `const PAGES_MAX = 1_000; // a full catalogue is ~200 pages`. No bare numbers in conditions.
 - **Hitting a bound fails loudly:** an error with the bound in its message, or an `assert` for bounds that can only be hit by a bug. Silent truncation is only allowed where the specification says so, and it is then documented.
 - **Every bound is tested:** at the bound, and one past it, on both sides (see the boundary values in `code-testing`).
+
+## Fail fast
+
+A problem is found at the earliest point that can see it, and it stops the work there, loudly, instead of travelling on as a wrong value. Most of this file is fail fast applied: assertions, bounds that fail loudly, errors that are never swallowed, parsing at the boundary (`code-parsing`), and the strict type checker. Three more rules complete it:
+
+- **Configuration is checked at startup.** Environment variables and config files are parsed when the program starts, before it serves anything, so a missing `DATABASE_URL` stops the start, not the first request an hour later.
+- **A default is for "not provided", never for "invalid".** `port ?? 3000` is fine for a port nobody set; a port that is set but isn't a number is an error, not a reason to use 3000. The same goes for a `catch` that returns a fallback value: only for the one expected failure (e.g. `whenMissing` for a missing file), never for every error.
+- **Exhaustiveness is checked by the compiler.** A `switch` over a union type handles every case, so adding a variant fails the build until every `switch` handles it. Biome's `useExhaustiveSwitchCases` enforces it; where a `default` branch is needed, pass the value to a function that only accepts `never`.
+
+**Fail fast versus fail safe.** Failing is the default. Fall back only where failing would do more harm than continuing, and then always to the safe side, loudly, never silently: the factory's own autonomy setting falls back to `guided` when its file is invalid, and says why. A fallback that grants more (more access, more autonomy, fewer checks) is never a fallback.
 
 ## Assertions
 

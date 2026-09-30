@@ -19,6 +19,7 @@ These conventions apply to all work in this session. They come from the factory 
 - Always use curlies when writing if-while-for statements.
 - **One condition per `if`**: each `if` tests one named concept. Split guards into separate early returns; combine conditions only inside a well-named variable or function (`const isNoLongerValid = isExpired || isRevoked;`). No nested ternaries.
 - Use negative space programming: guard against invariants with a function called `assert`.
+- **Fail fast:** stop at the first point that can see a problem, loudly: check configuration at startup, use defaults only for "not provided" (never for "invalid"), and let the compiler check that every case is handled. Fall back only where failing does more harm, and then to the safe side, loudly.
 - **Put a limit on everything:** every loop that isn't over a bounded collection counts against a named maximum; every input, collection, queue, cache, retry, wait and recursion has an explicit upper bound, and values with a meaningful minimum (sizes, counts, timeouts, required text and lists) have an explicit lower bound. Crossing a bound fails loudly; it never truncates silently.
 
 ## Optionality

@@ -17,7 +17,7 @@ Agents working in an existing application tend to keep its architecture as it is
 
 An architecture is right or wrong *for something*. Business requirements, plans, load and the team change even when the code doesn't, so each run starts with the drivers (ADR 0046).
 
-- **Read the drivers** in the register (see 5): what the architecture has to serve, per unit. These are its key requirements, the expected load and growth, planned features, and the team. On the first run, derive them from `README.md`, `CLAUDE.md`, product docs, the roadmap, `TODO.md` and open issues and milestones (`gh issue list`, `gh api repos/{owner}/{repo}/milestones`), and mark them as unconfirmed.
+- **Read the drivers** in the register's `README.md` (see 5), where all of them live, per unit, so the owner can confirm them in one place: what the architecture has to serve, per unit. These are its key requirements, the expected load and growth, planned features, and the team. On the first run, derive them from `README.md`, `CLAUDE.md`, product docs, the roadmap, `TODO.md` and open issues and milestones (`gh issue list`, `gh api repos/{owner}/{repo}/milestones`), and mark them as unconfirmed.
 - **Check what changed** since the last run in those same sources: new or dropped requirements, new plans, a different expected load.
 - **A changed driver reopens every decision that depends on it:** proposals marked `accepted risk`, and accepted ADRs whose drivers it lists. Reassess them in this run, even without new evidence in the code.
 - **Drivers you can't check** from the repository (business plans, expected growth, team changes) go under "Needs a human" as short questions for the owner to confirm or correct. Never guess them.
@@ -26,7 +26,7 @@ An architecture is right or wrong *for something*. Business requirements, plans,
 
 Before assessing anything, set the boundaries.
 
-- **Find the units:** the independently built or deployed parts of the repository, such as workspaces and packages (`package.json` workspaces, `pnpm-workspace.yaml`, Nx or Turborepo projects, Go modules, Cargo workspaces), and apps and services. A repository without them is one unit.
+- **Find the units:** the independently built or deployed parts of the repository, such as workspaces and packages (`package.json` workspaces, `pnpm-workspace.yaml`, Nx or Turborepo projects, Go modules, Cargo workspaces), and apps and services. A repository without them is one unit. Where one built unit clearly holds parts with their own purpose and dependency direction (a shared helper folder, a plugin, repository tooling), you may treat those as **logical units**; say so in the unit map, so nobody mistakes them for packages.
 - **Record them** in the register's unit map (see 5): name, path, purpose, and which units each one depends on.
 - **Choose this run's scope, and state it at the top of the report:**
   - the scope the runner or the owner gave, if any;
@@ -60,9 +60,11 @@ From the project:
 - **Recurring findings:** what earlier checkups (`code-quality`, `performance`, `security`, `test-coverage`) keep reporting in the same place.
 - **Recorded workarounds:** entries in the register's workaround log (see 5).
 
+**Running git in a worktree:** Claude Code's worktree isolation refuses compound commands it can't verify, such as `git log … | awk …`. Run each git command on its own, write its output to a file in your scratchpad, and analyse that file with a separate command or a small script.
+
 - **Pain that is coming:** planned features or changed requirements (from step 0) that the current architecture would make hard. Name the plan and what would make it hard.
 
-A difference without evidence goes into the report as an observation, not as a proposal.
+A difference without evidence goes into the report as an observation, not as a proposal. The exception: **a candidate the owner raised** (in `TODO.md`, an issue, or the runner's instructions) always gets a proposal and a decision, even without evidence, with "keep it as it is" as the likely recommendation.
 
 ## 4. Proposals
 
@@ -88,7 +90,7 @@ Keep `docs/architecture/README.md` in the project, and create it on the first ru
 - **Debt table:** one row per known architectural problem: scope, description, status (`open`, `planned`, `accepted risk`, `done`), its ADR, the drivers it depends on, when to reconsider, and for `accepted risk` the date it expires.
 - **Workaround log:** short entries that other work adds when it has to work around the architecture (date, scope, what and why). Each run turns them into evidence and clears the ones it has handled.
 
-Rejected proposals stay in the debt table as `accepted risk`, with their reconsider conditions. **Don't propose them again unless a condition has been met, a driver they depend on changed, or new evidence appeared,** and say which. **Accepted risk expires after 12 months:** an expired entry is re-confirmed in the next run: briefly when nothing changed, as a full proposal when something did.
+When the owner accepts "keep it as it is", or rejects a change, the entry becomes `accepted risk` with an expiry date 12 months later. Rejected proposals stay in the debt table as `accepted risk`, with their reconsider conditions. **Don't propose them again unless a condition has been met, a driver they depend on changed, or new evidence appeared,** and say which. **Accepted risk expires after 12 months:** an expired entry is re-confirmed in the next run: briefly when nothing changed, as a full proposal when something did.
 
 ## Fixes you may make yourself
 

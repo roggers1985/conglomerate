@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted. Extended by [ADR-0041](0041-conventions-checkup-first-round.md): three more lint rules, splitting functions, one condition per `assert`.
+Accepted. Extended by [ADR-0048](0048-fail-fast.md): fail fast as a named principle. Extended by [ADR-0041](0041-conventions-checkup-first-round.md): three more lint rules, splitting functions, one condition per `assert`.
 
 Extends [ADR-0032](0032-upper-bounds-on-everything.md) (the `code-safety` skill), [ADR-0017](0017-api-design-convention.md) (explicit options, now also for libraries) and [ADR-0019](0019-readability-and-optionality.md) (scope and naming).
 
