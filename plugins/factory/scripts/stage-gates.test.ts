@@ -19,8 +19,18 @@ const document = (headings: readonly string[], overrides: ReadonlyMap<string, st
 
 const criteria = (...lines: readonly string[]): string => lines.join("\n");
 
+const securityAnswers = [
+    "- Authentication: only logged-in users",
+    "- Authorisation: owners of the jobs",
+    "- Untrusted input: the export's filters, parsed with a schema",
+    "- Sensitive data: none",
+].join("\n");
+
 const spec = (acceptanceCriteria: string, overrides: ReadonlyMap<string, string> = new Map()): string =>
-    document(SPEC_SECTIONS, new Map([["Acceptance criteria", acceptanceCriteria], ...overrides]));
+    document(
+        SPEC_SECTIONS,
+        new Map([["Acceptance criteria", acceptanceCriteria], ["Security", securityAnswers], ...overrides]),
+    );
 
 const ac1 = "- **AC-1**: WHEN the owner exports jobs, THE SYSTEM SHALL download them as CSV.";
 
@@ -110,7 +120,19 @@ describe("specProblems", () => {
             'spec.md has no "## Current behaviour" section',
             'spec.md has no "## Edge cases" section',
             'spec.md has no "## Limits" section',
+            'spec.md has no "## Security" section',
             'spec.md has no "## Out of scope" section',
+        ]);
+    });
+
+    it("requires an answer to every security question, where 'public' is an answer", () => {
+        const publicPage = securityAnswers.replace("only logged-in users", "Public, because it's the marketing page");
+        const unanswered = "- Authentication: only logged-in users\n- Authorisation:\n- Sensitive data: none";
+
+        expect(specProblems(spec(ac1, new Map([["Security", publicPage]])), { needsProblem: false })).toEqual([]);
+        expect(specProblems(spec(ac1, new Map([["Security", unanswered]])), { needsProblem: false })).toEqual([
+            'spec.md\'s Security section doesn\'t answer "Authorisation": who, what, or "Public, because …"',
+            'spec.md\'s Security section doesn\'t answer "Untrusted input": who, what, or "Public, because …"',
         ]);
     });
 

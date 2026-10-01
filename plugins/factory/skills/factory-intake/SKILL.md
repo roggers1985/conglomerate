@@ -65,10 +65,21 @@ concurrent use, missing permissions. Each with the expected behaviour, or a crit
 The bounds of every input, collection and wait this change introduces (ADR 0032, 0034): e.g. "at most 10,000 jobs
 per export; larger exports are refused with a message".
 
+## Security
+
+- Authentication: who must be logged in, e.g. "only logged-in users", or "Public, because …"
+- Authorisation: who may do what, e.g. "only the job's owner may export it"
+- Untrusted input: what comes from outside, and that it's parsed with a schema at the boundary
+- Sensitive data: personal or secret data this touches, and who may see it, or "none"
+
 ## Out of scope
 
 What this change deliberately doesn't do, so nobody builds it by accident.
 ```
+
+### Security, by default
+
+Every change that has an entry point (an endpoint, a server action, a webhook, a command, a job) answers the four security questions, even when the application has no authentication yet (ADR 0057). "Public, because …" is a valid answer; "not yet" is not an answer but a decision. If the owner wants to ship before authentication or authorisation exists, write that in the answer, and the review will make it a high finding that only the owner can accept, with a tracked task to add it. Nothing ships without it quietly.
 
 Add a `## Problem` section at the top when the route has no intent stage (triage combined them).
 

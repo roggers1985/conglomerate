@@ -25,6 +25,7 @@ The review checks the built change on `change/<name>` before it's finished (ADR 
 4. **The conventions and ADRs,** in substance: the plan's convention gate said the change follows them, and this is where that's checked. Readability, bounds and fail fast, parsing at the boundary, cancellation, API design, documentation with tested examples, the testing conventions.
 5. **The tests:** they test behaviour, not implementation; they cover the edge cases and limits of the spec; nothing is skipped or focused.
 6. **Bugs and risks** the tests don't catch: races, unchecked errors, time zones, off-by-one.
+7. **Authentication and authorisation on every entry point** the change adds or touches, in every review, with or without a security-review stage (ADR 0057). An entry point without a check is a **high** finding, unless the spec's Security section marks it as public and says why. "Not yet" in the spec doesn't make it public: it's still a high finding, which only the owner can accept, with a tracked task to add the check.
 
 **Severity:**
 - **high:** a criterion isn't met, a bug, a security hole, data loss, or a broken convention with real consequences;

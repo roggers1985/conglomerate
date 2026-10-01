@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted. Extended by [ADR-0053](0053-planning-plan-tasks-and-the-convention-gate.md): the planning stages, with the coverage check.
+Accepted. Extended by [ADR-0057](0057-secure-by-default.md): the spec answers four security questions. Extended by [ADR-0053](0053-planning-plan-tasks-and-the-convention-gate.md): the planning stages, with the coverage check.
 
 Extends [ADR-0051](0051-stage-0-triage.md).
 

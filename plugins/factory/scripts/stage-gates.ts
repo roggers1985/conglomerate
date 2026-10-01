@@ -11,12 +11,20 @@ export const SPEC_SECTIONS = [
     "Acceptance criteria",
     "Edge cases",
     "Limits",
+    "Security",
     "Out of scope",
 ] as const;
+
+/**
+ * The questions the spec's Security section answers, each on its own line as `- <question>: <answer>` (ADR 0057).
+ * "Public, because …" is an answer; leaving one out is not.
+ */
+export const SECURITY_QUESTIONS = ["Authentication", "Authorisation", "Untrusted input", "Sensitive data"] as const;
 
 /** Marks a point the spec couldn't decide; a stage with one left open can't be done. */
 export const CLARIFICATION_MARKER = "[NEEDS CLARIFICATION";
 
+const SECURITY_ANSWER = /^\s*[-*] (Authentication|Authorisation|Untrusted input|Sensitive data):\s*(.*)$/;
 const CRITERIA_MAX = 200; // acceptance criteria in one spec; more means the change should be split
 const HEADING = /^## (.+?)\s*$/;
 const LIST_ITEM = /^\s*[-*] /;
@@ -89,7 +97,8 @@ export function intentProblems(markdown: string): string[] {
 }
 
 /**
- * Checks `spec.md` before the spec stage may be done: every required section has content, every item under
+ * Checks `spec.md` before the spec stage may be done: every required section has content, the Security section
+ * answers its four questions (ADR 0057), every item under
  * "Acceptance criteria" is a numbered criterion in EARS form (`- **AC-1**: WHEN … THE SYSTEM SHALL …`) with a unique
  * id, and nothing is left marked `[NEEDS CLARIFICATION]`.
  *
@@ -104,6 +113,7 @@ export function intentProblems(markdown: string): string[] {
  *     "## Acceptance criteria\n\n- **AC-1**: WHEN the owner exports jobs, THE SYSTEM SHALL download them as CSV.",
  *     "## Edge cases\n\nNo jobs: an empty file with headers.",
  *     "## Limits\n\nAt most 10,000 jobs per export.",
+ *     "## Security\n\n- Authentication: logged in\n- Authorisation: own jobs\n- Untrusted input: none\n- Sensitive data: none",
  *     "## Out of scope\n\nOther formats.",
  * ].join("\n\n");
  *
@@ -119,8 +129,28 @@ export function specProblems(markdown: string, { needsProblem }: { readonly need
     return [
         ...sectionProblems(markdown, required, { file: "spec.md" }),
         ...criteriaProblems(sections(markdown).get("Acceptance criteria") ?? ""),
+        ...securityProblems(sections(markdown).get("Security") ?? null),
         ...clarificationProblems(markdown, { file: "spec.md" }),
     ];
+}
+
+/** Every security question answered in the Security section; nothing when the section itself is missing. */
+function securityProblems(text: string | null): string[] {
+    if (text === null) {
+        return [];
+    }
+
+    const answers = new Map(
+        text
+            .split("\n")
+            .map((line) => SECURITY_ANSWER.exec(line))
+            .filter(isNotNil)
+            .map((match) => [match[1] ?? "", (match[2] ?? "").trim()] as const),
+    );
+
+    return SECURITY_QUESTIONS.filter((question) => (answers.get(question) ?? "").length === 0).map(
+        (question) => `spec.md's Security section doesn't answer "${question}": who, what, or "Public, because …"`,
+    );
 }
 
 function criteriaProblems(text: string): string[] {
