@@ -16,7 +16,8 @@ After the build, a change is reviewed before it's finished. `TODO.md` said: chec
 
 ## Decision
 
-- **One skill, `factory-review`,** for the review and security-review stages. **The reviewer is never the builder:** a fresh `review` task agent (Opus, high effort) that only reports. The main session fixes.
+- **One skill, `factory-review`,** for the review and security-review stages. **The reviewer is never the builder:** a fresh `review` task agent (Opus, high effort) that only reports. The main session fixes. The reviewer works in its own worktree, on the change's branch, and changes nothing.
+- **At most 3 review rounds.** After that, the remaining findings go to the owner instead of another round (bounds, ADR 0032).
 - **What it checks:**
   - every active criterion: the behaviour is there, and the named test exists, names its criterion, tests what it claims and passes;
   - nothing beyond the spec or against "Out of scope";
@@ -35,6 +36,7 @@ After the build, a change is reviewed before it's finished. `TODO.md` said: chec
   - a high finding is fixed, or accepted by the owner, at every level.
 - **The gate** (`stage-gates.ts`) refuses a done review when:
   - its summary or findings section is missing;
+  - findings are written outside the table;
   - a finding is still open, has an unknown severity, or is accepted without a reason;
   - a high finding is accepted by anyone but the owner.
 

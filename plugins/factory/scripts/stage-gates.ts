@@ -445,6 +445,8 @@ const SEVERITIES = ["high", "medium", "low"];
 const FINDINGS_MAX = 200; // findings in one review; more means the change should go back to planning
 const TABLE_ROW = /^\s*\|(.+)\|\s*$/;
 const TABLE_SEPARATOR = /^[\s|:-]+$/;
+const CELL_SEPARATOR = /(?<!\\)\|/; // an escaped \| belongs to the cell
+const NO_FINDINGS = /^none\.?$/i;
 const FINDING_STATUS = /^(fixed|accepted by owner: .{3,}|accepted: .{3,})$/i;
 
 /**
@@ -469,16 +471,23 @@ const FINDING_STATUS = /^(fixed|accepted by owner: .{3,}|accepted: .{3,})$/i;
  * ```
  */
 export function reviewProblems(markdown: string, { file }: { readonly file: string }): string[] {
-    const findings = (sections(markdown).get("Findings") ?? "")
+    const text = sections(markdown).get("Findings") ?? "";
+    const findings = text
         .split("\n")
         .map((line) => TABLE_ROW.exec(line)?.[1])
         .filter(isNotNil)
         .filter((row) => !TABLE_SEPARATOR.test(row))
-        .map((row) => row.split("|").map((cell) => cell.trim()))
+        .map((row) => row.split(CELL_SEPARATOR).map((cell) => cell.trim()))
         .filter((cells) => cells[0] !== "#");
+    const hasTable = text.split("\n").some((line) => TABLE_ROW.test(line));
+    const saysNone = NO_FINDINGS.test(text.trim());
+    const hasUntabledFindings = text.trim().length > 0 && !hasTable && !saysNone;
 
     return [
         ...sectionProblems(markdown, REVIEW_SECTIONS, { file }),
+        hasUntabledFindings
+            ? `${file}: findings must be in the table (| # | Severity | Finding | Where | Status |), or the section must say "None."`
+            : null,
         findings.length > FINDINGS_MAX ? `${file} has more than ${FINDINGS_MAX} findings: go back to planning` : null,
         ...findings.flatMap((cells) => findingProblems(cells, { file })),
     ].filter((problem) => problem !== null);

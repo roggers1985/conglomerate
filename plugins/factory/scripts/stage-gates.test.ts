@@ -366,6 +366,16 @@ describe("reviewProblems", () => {
         ]);
     });
 
+    it("refuses findings written outside the table, so none can slip past the gate", () => {
+        expect(check("## Summary\n\nMixed.\n\n## Findings\n\n1. high: no auth check (open)")).toEqual([
+            'review.md: findings must be in the table (| # | Severity | Finding | Where | Status |), or the section must say "None."',
+        ]);
+    });
+
+    it("keeps an escaped pipe inside its cell", () => {
+        expect(check(review("| 1 | low | `a \\| b` is unclear | `c.ts:1` | fixed |"))).toEqual([]);
+    });
+
     it("requires a summary and the findings section", () => {
         expect(check("## Findings\n\nNone.")).toEqual(['review.md has no "## Summary" section']);
     });

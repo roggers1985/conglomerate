@@ -9,6 +9,8 @@ metadata:
 
 The review checks the built change on `change/<name>` before it's finished (ADR 0055). **The reviewer is never the builder:** dispatch a fresh `factory:tasks:review` subagent (Opus, high effort), so it looks with a clean context. The main session coordinates and fixes; the reviewer only reports.
 
+**The reviewer works in its own worktree** (Agent tool, `isolation: "worktree"`, ADR 0042), so it can't switch branches or change files in the coordinator's checkout. Tell it to switch to the change's branch there (`git switch change/<name>`), install dependencies from the lockfile, run what it needs, and change nothing: it reports, and its worktree is removed afterwards.
+
 ## What the reviewer gets
 
 - The change's folder (`docs/changes/<name>/`): `spec.md`, `plan.md`, the task list, `verification.md`, and `intent.md` if there is one.
@@ -70,8 +72,11 @@ The reviewer writes every finding as `open`. Then, in the main session:
 - **Accept** a finding instead of fixing it only with a reason, as `accepted: <reason>`. At `guided`, only the owner accepts. At `trusted` and `autonomous`, you may accept medium and low findings, and list them for the owner.
 - **A high finding** is fixed, or accepted by the owner (`accepted by owner: <reason>`), at every autonomy level.
 
+**At most 3 review rounds** (a round is: the reviewer reports, the findings are fixed, the reviewer checks the fixes). When findings are still open after the third round, stop: put them to the owner with what was tried, instead of another round. A reviewer and a fixer that keep disagreeing need a decision, not more attempts.
+
 When every finding is closed, set the stage to `done`, and run `bun "${CLAUDE_PLUGIN_ROOT}/dist/changes.js" check docs/changes/<name>/task.md`. It refuses a done review that:
 - is missing its summary or findings;
+- has findings outside the table (anything under Findings must be the table, or "None.");
 - has a finding that is still open, has an unknown severity, or is accepted without a reason;
 - has a high finding accepted by anyone but the owner.
 
