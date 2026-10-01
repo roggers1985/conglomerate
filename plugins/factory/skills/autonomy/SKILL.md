@@ -22,5 +22,8 @@ The full rules of each level are in `${CLAUDE_PLUGIN_ROOT}/conventions/autonomy/
 - **A level:** only when the owner asked for it; never change the level on your own initiative, and never raise it because a task would be easier.
   1. Read `${CLAUDE_PLUGIN_ROOT}/conventions/autonomy/<level>.md` and follow it for the rest of this session, instead of the level the session started with. Say so in one line.
   2. Check that the session's permission mode fits: at `autonomous`, a mode that asks before every edit or command will keep interrupting the work. If it doesn't fit, say which mode would (e.g. accept edits, or auto), but don't change it: permission modes are the owner's.
-- **A level with `--save`:** also write it to the project's `.claude/factory.json` as `{ "autonomy": "<level>" }`, so later sessions start at it. Commit that change like any other, and push it.
+- **A level with `--save`:** also set `"autonomy": "<level>"` in the project's `.claude/factory.json`, keeping its other settings, so later sessions start at it. Commit that change like any other, and push it.
+
 - **Anything else:** say which arguments are accepted, and change nothing.
+
+The same file holds the project's limits (review rounds, parallel tasks, attempts, subagents; ADR 0058). Its schema is `${CLAUDE_PLUGIN_ROOT}/schemas/factory.schema.json`: point the file's `"$schema"` at it so an editor validates and completes it.

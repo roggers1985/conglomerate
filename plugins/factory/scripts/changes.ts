@@ -13,8 +13,8 @@ import { interruptSignal } from "../../../lib/interrupt.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
 import { requiredText } from "../../../lib/schemas.ts";
-import { AUTONOMY_LEVELS } from "./autonomy.ts";
 import { resolveProjectDir } from "./project-dir.ts";
+import { AUTONOMY_LEVELS } from "./settings.ts";
 import {
     criteriaIds,
     intentProblems,

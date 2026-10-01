@@ -1,0 +1,51 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "maxLength": 500
+        },
+        "autonomy": {
+            "description": "How much Claude decides without asking (ADR 0044)",
+            "type": "string",
+            "enum": [
+                "guided",
+                "trusted",
+                "autonomous"
+            ]
+        },
+        "limits": {
+            "type": "object",
+            "properties": {
+                "reviewRounds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "review rounds per change before open findings go to the owner"
+                },
+                "parallelTasks": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "build tasks that may run at the same time"
+                },
+                "attemptsPerTask": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "attempts at the same task or failing check before escalating"
+                },
+                "subagentsPerTask": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50,
+                    "description": "subagents per change at the autonomous level"
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "additionalProperties": false,
+    "title": "Factory settings (.claude/factory.json)"
+}

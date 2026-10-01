@@ -6,6 +6,7 @@ import { rm } from "node:fs/promises";
 import path from "node:path";
 import { interruptSignal } from "../lib/interrupt.ts";
 import { readRoutes } from "../plugins/factory/scripts/models.ts";
+import { factorySettingsJsonSchema, SETTINGS_SCHEMA_FILE } from "../plugins/factory/scripts/settings.ts";
 import { renderTaskAgents, TASK_AGENTS_DIR } from "./agents.ts";
 import { BUNDLE_DIR, renderBundles } from "./bundles.ts";
 import type { GeneratedFiles } from "./generated.ts";
@@ -78,10 +79,11 @@ async function main(): Promise<void> {
         syncFolder(path.join(FACTORY_DIR, TASK_AGENTS_DIR), agents, { extension: ".md", signal }),
         syncFolder(path.join(FACTORY_DIR, BUNDLE_DIR), bundles.files, { extension: ".js", signal }),
         ...[...legalFiles].map(([fileName, content]) => Bun.write(path.join(FACTORY_DIR, fileName), content)),
+        Bun.write(path.join(FACTORY_DIR, SETTINGS_SCHEMA_FILE), factorySettingsJsonSchema()),
     ]);
 
     console.log(
-        `✓ wrote ${CATALOG_FILE} (${skills.length} skills), ${agents.size} task agents, ${bundles.files.size} bundles and ${legalFiles.size} legal files`,
+        `✓ wrote ${CATALOG_FILE} (${skills.length} skills), ${agents.size} task agents, ${bundles.files.size} bundles, ${legalFiles.size} legal files and ${SETTINGS_SCHEMA_FILE}`,
     );
 }
 

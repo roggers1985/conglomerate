@@ -72,7 +72,7 @@ The reviewer writes every finding as `open`. Then, in the main session:
 - **Accept** a finding instead of fixing it only with a reason, as `accepted: <reason>`. At `guided`, only the owner accepts. At `trusted` and `autonomous`, you may accept medium and low findings, and list them for the owner.
 - **A high finding** is fixed, or accepted by the owner (`accepted by owner: <reason>`), at every autonomy level.
 
-**At most 3 review rounds** (a round is: the reviewer reports, the findings are fixed, the reviewer checks the fixes). When findings are still open after the third round, stop: put them to the owner with what was tried, instead of another round. A reviewer and a fixer that keep disagreeing need a decision, not more attempts.
+**At most `reviewRounds` review rounds** (the "Factory settings" section of the session context; 3 by default, ADR 0058). A round is: the reviewer reports, the findings are fixed, the reviewer checks the fixes. When findings are still open after the last round, stop: put them to the owner with what was tried, instead of another round. A reviewer and a fixer that keep disagreeing need a decision, not more attempts.
 
 When every finding is closed, set the stage to `done`, and run `bun "${CLAUDE_PLUGIN_ROOT}/dist/changes.js" check docs/changes/<name>/task.md`. It refuses a done review that:
 - is missing its summary or findings;

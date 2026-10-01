@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted. Extended by [ADR-0056](0056-docs-and-finish.md): the docs and finish stages.
+Accepted. Extended by [ADR-0058](0058-project-settings.md): review rounds are a project setting. Extended by [ADR-0056](0056-docs-and-finish.md): the docs and finish stages.
 
 Extends [ADR-0054](0054-build-verify-and-spike.md).
 
