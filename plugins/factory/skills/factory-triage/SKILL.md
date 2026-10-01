@@ -109,5 +109,4 @@ At session start, the factory reports unfinished changes. When the owner wants t
 - **architecture:** the `checkup-architecture` skill, scoped to the units the change touches (ADR 0045).
 - **spike**, **build** and **verify:** the `factory-build` skill (ADR 0054).
 - **security-review** and **review:** the `factory-review` skill (ADR 0055).
-
-The other stages are being built one at a time (`TODO.md`). Until a stage's own skill exists, do its work as the route describes, following the conventions, and say that the stage has no skill yet.
+- **docs** and **finish:** the `factory-finish` skill (ADR 0056).

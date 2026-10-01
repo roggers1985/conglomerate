@@ -23,12 +23,13 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, Kiro, and Anthropic's AI-native SDLC playbook.
 
-To build:
+To do:
 
-- [ ] **Finish a branch:** a fixed ending with the choice of merge, PR or discard, and cleanup.
+- [ ] Use the stages on a first real change (in this repository or another project), and feed what it shows back into the skills and ADRs (ADR 0056)
 
 To consider:
 
+- [ ] A script that assembles a change's pull request description from its documents (`changes.js pr-body <change>`): route, criteria with evidence, review summary, ADRs (ADR 0056; done by hand today)
 - [ ] A script that checks the evidence in `verification.md`: each named test exists and names its criterion (today the gate checks that evidence is named, and the review agent checks that it holds, ADR 0054, 0055)
 - [ ] A skill for writing skills in the owner's style (Superpowers' `writing-skills`)
 - [ ] A systematic debugging skill (Superpowers)
