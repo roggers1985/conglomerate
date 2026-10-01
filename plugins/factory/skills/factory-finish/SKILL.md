@@ -30,7 +30,10 @@ First check that the route is ready: every stage before *finish* is `done` or `s
 | `guided`, `trusted` | Push `change/<name>` and open a pull request. **The owner merges.** | Leave the branch for the owner to merge. |
 | `autonomous` | Push, open the pull request, and merge it yourself once its checks pass and the review has no open findings (ADR 0055). | Merge into the default branch, run the checks there, and push if there's a remote later. |
 
-**Discarding** a change deletes unmerged work, so it's the owner's at every level (`core.md`). Only on their word: delete the branch and its task branches, and set the remaining stages to `skipped` with the reason in `task.md`.
+**Discarding** a change deletes unmerged work, so it's the owner's at every level (`core.md`). Only on their word:
+- if the change has a pull request, close it with the reason as a comment, so the record stays on GitHub;
+- delete the branch and its task branches;
+- without a pull request, the change folder existed only on the deleted branch: tell the owner that nothing of it is kept.
 
 ### The pull request
 
@@ -45,7 +48,7 @@ Title it after the change, and build its description from the change's documents
 
 - Remove any leftover worktrees and task branches of the change (`git worktree list`, `git branch --list 'change/<name>--*'`).
 - After the merge: delete `change/<name>`, locally and on the remote, and pull the default branch.
-- Set *finish* to `done` in `task.md` and commit it with the merge (or on the default branch right after). The change then drops out of the unfinished changes reported at session start.
+- **When *finish* is done:** set it to `in-progress` in `task.md` before you open the pull request, and commit that with the change. At session start, the change then shows as waiting at *finish*, which means waiting for the merge. After the merge (yours at `autonomous`, the owner's otherwise), pull the default branch, set *finish* to `done` in a small commit there, and push it. The change then drops out of the unfinished changes reported at session start.
 
 ## Afterwards
 

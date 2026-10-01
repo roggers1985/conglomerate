@@ -29,6 +29,7 @@ To do:
 
 To consider:
 
+- [ ] A script that assembles a change's pull request description from its documents (`changes.js pr-body <change>`): route, criteria with evidence, review summary, ADRs (ADR 0056; done by hand today)
 - [ ] A script that checks the evidence in `verification.md`: each named test exists and names its criterion (today the gate checks that evidence is named, and the review agent checks that it holds, ADR 0054, 0055)
 - [ ] A skill for writing skills in the owner's style (Superpowers' `writing-skills`)
 - [ ] A systematic debugging skill (Superpowers)

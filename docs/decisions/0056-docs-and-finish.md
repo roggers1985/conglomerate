@@ -26,7 +26,7 @@ The last item among the factory's stages in `TODO.md` was a fixed ending for a b
 - **How a branch ends depends on the autonomy level:**
   - at `guided` and `trusted`: a pull request, and the owner merges (without a remote, the branch waits for the owner);
   - at `autonomous`: Claude merges its own work once the checks pass and the review has no open findings.
-- **Discarding a change is always the owner's decision,** because it deletes unmerged work (`core.md`).
+- **Discarding a change is always the owner's decision,** because it deletes unmerged work (`core.md`). A pull request of a discarded change is closed with the reason, so GitHub keeps the record; without one, the owner is told that nothing is kept.
 - **The pull request's description is built from the change's documents:**
   - the route and its deviations;
   - each criterion with its evidence;
@@ -35,7 +35,7 @@ The last item among the factory's stages in `TODO.md` was a fixed ending for a b
 - **Cleanup:**
   - leftover worktrees and task branches are removed;
   - after the merge, the change branch goes, locally and remotely;
-  - *finish* is set to done, so the change drops out of the session-start report.
+  - *finish* is `in-progress` while the pull request waits, so session start shows the change as waiting for its merge. After the merge, it's set to done in a small commit on the default branch, so the change drops out of the session-start report.
 - **No new script:** the route check already refuses *finish* as done while an earlier stage is pending (ADR 0051).
 
 ## Consequences
