@@ -25,12 +25,11 @@ Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, 
 
 To build:
 
-- [ ] **Review:** check the result against the plan, with findings by severity (`review` task type).
 - [ ] **Finish a branch:** a fixed ending with the choice of merge, PR or discard, and cleanup.
 
 To consider:
 
-- [ ] A script that checks the evidence in `verification.md`: each named test exists and names its criterion (today the gate checks that evidence is named, ADR 0054)
+- [ ] A script that checks the evidence in `verification.md`: each named test exists and names its criterion (today the gate checks that evidence is named, and the review agent checks that it holds, ADR 0054, 0055)
 - [ ] A skill for writing skills in the owner's style (Superpowers' `writing-skills`)
 - [ ] A systematic debugging skill (Superpowers)
 - [ ] Evals for the plugin's skills with `claude plugin eval`: do they trigger, and do they help?

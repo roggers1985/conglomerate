@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted
+Accepted. Extended by [ADR-0055](0055-review-and-security-review.md): the review checks that the evidence holds.
 
 Extends [ADR-0053](0053-planning-plan-tasks-and-the-convention-gate.md) and [ADR-0042](0042-checkups-in-worktrees.md) (worktrees for tasks).
 

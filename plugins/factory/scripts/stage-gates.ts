@@ -437,3 +437,80 @@ export function verificationProblems(
 export function spikeProblems(markdown: string): string[] {
     return sectionProblems(markdown, SPIKE_SECTIONS, { file: "spike.md" });
 }
+
+/** The sections a review document (`review.md`, `security-review.md`) must have. */
+export const REVIEW_SECTIONS = ["Summary", "Findings"] as const;
+
+const SEVERITIES = ["high", "medium", "low"];
+const FINDINGS_MAX = 200; // findings in one review; more means the change should go back to planning
+const TABLE_ROW = /^\s*\|(.+)\|\s*$/;
+const TABLE_SEPARATOR = /^[\s|:-]+$/;
+const CELL_SEPARATOR = /(?<!\\)\|/; // an escaped \| belongs to the cell
+const NO_FINDINGS = /^none\.?$/i;
+const FINDING_STATUS = /^(fixed|accepted by owner: .{3,}|accepted: .{3,})$/i;
+
+/**
+ * Checks a review document before the review or security-review stage may be done (ADR 0055): a summary, and a
+ * findings table (`| # | Severity | Finding | Where | Status |`, or "None." when there are none) where no finding is
+ * left open. A high-severity finding is fixed or accepted by the owner; a medium or low one is fixed, or accepted with
+ * a reason.
+ *
+ * @param markdown - The review document.
+ * @param options.file - How the document is named in messages.
+ * @returns Every problem found; empty when the gate passes.
+ *
+ * @example
+ * ```ts
+ * const header = "| # | Severity | Finding | Where | Status |\n| - | - | - | - | - |";
+ * const review = (row: string) => `## Summary\n\nGood.\n\n## Findings\n\n${header}\n${row}`;
+ *
+ * expect(reviewProblems(review("| 1 | low | A long name | `a.ts:3` | fixed |"), { file: "review.md" })).toEqual([]);
+ * expect(reviewProblems(review("| 1 | high | No auth check | `api.ts:9` | open |"), { file: "review.md" })).toEqual([
+ *     'review.md: finding 1 (high) is "open"; a high finding is fixed, or "accepted by owner: <reason>"',
+ * ]);
+ * ```
+ */
+export function reviewProblems(markdown: string, { file }: { readonly file: string }): string[] {
+    const text = sections(markdown).get("Findings") ?? "";
+    const findings = text
+        .split("\n")
+        .map((line) => TABLE_ROW.exec(line)?.[1])
+        .filter(isNotNil)
+        .filter((row) => !TABLE_SEPARATOR.test(row))
+        .map((row) => row.split(CELL_SEPARATOR).map((cell) => cell.trim()))
+        .filter((cells) => cells[0] !== "#");
+    const hasTable = text.split("\n").some((line) => TABLE_ROW.test(line));
+    const saysNone = NO_FINDINGS.test(text.trim());
+    const hasUntabledFindings = text.trim().length > 0 && !hasTable && !saysNone;
+
+    return [
+        ...sectionProblems(markdown, REVIEW_SECTIONS, { file }),
+        hasUntabledFindings
+            ? `${file}: findings must be in the table (| # | Severity | Finding | Where | Status |), or the section must say "None."`
+            : null,
+        findings.length > FINDINGS_MAX ? `${file} has more than ${FINDINGS_MAX} findings: go back to planning` : null,
+        ...findings.flatMap((cells) => findingProblems(cells, { file })),
+    ].filter((problem) => problem !== null);
+}
+
+function findingProblems(cells: readonly string[], { file }: { readonly file: string }): string[] {
+    const [id = "?", severity = "", , , status = ""] = cells;
+    const hasFiveColumns = cells.length === 5;
+    const isKnownSeverity = SEVERITIES.includes(severity.toLowerCase());
+    const isClosed = FINDING_STATUS.test(status);
+    const isHigh = severity.toLowerCase() === "high";
+    const isAcceptedWithoutOwner = isHigh && /^accepted: /i.test(status);
+
+    if (!hasFiveColumns) {
+        return [`${file}: finding ${id} needs 5 columns: # | Severity | Finding | Where | Status`];
+    }
+
+    return [
+        isKnownSeverity ? null : `${file}: finding ${id} has severity "${severity}"; use ${SEVERITIES.join(", ")}`,
+        isClosed ? null : `${file}: finding ${id} (${severity}) is "${status}"; ${closeHint(isHigh)}`,
+        isAcceptedWithoutOwner ? `${file}: finding ${id} is high, so only the owner can accept it` : null,
+    ].filter((problem) => problem !== null);
+}
+
+const closeHint = (isHigh: boolean): string =>
+    isHigh ? 'a high finding is fixed, or "accepted by owner: <reason>"' : 'use "fixed" or "accepted: <reason>"';

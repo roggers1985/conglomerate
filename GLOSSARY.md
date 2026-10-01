@@ -52,6 +52,8 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Build, verify and spike.** *Here:* the stages that build a change (ADR 0054). Each task runs in a fresh subagent and its own worktree, test-first, on the change's branch `change/<name>`. The build ends with `verification.md`: the checks that ran, and evidence (a test that names it) for every acceptance criterion. A *spike* answers a question with throwaway code.
 
+**Review and security review.** *Here:* the stages that check a built change (ADR 0055). A fresh review agent, never the builder, checks every criterion and its test, the plan, the conventions and the ADRs, and records findings by severity in `review.md`. No finding may stay open; only the owner can accept a high one.
+
 **Autonomy level.** *Here:* how much Claude decides without asking: `guided` (the owner decides), `trusted` (Claude decides within the conventions) or `autonomous` (Claude runs the work end to end, the owner reviews afterwards). Set per project in `.claude/factory.json`, per session with `/factory:autonomy` (ADR 0044).
 
 **Convention.** A rule for how code is written. *Here:* the always-on ones are in `plugins/factory/conventions/core.md`, added to every session; the detailed ones are `code-*` skills.

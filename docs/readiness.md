@@ -2,7 +2,7 @@
 
 Where the factory stands compared with the alternatives, and what's still missing before it's worth publishing. The owner reads this instead of asking again (ADR 0050).
 
-**Last updated:** 2026-09-30: triage (ADR 0051), intake with EARS criteria (ADR 0052) planning with the convention gate and coverage check (ADR 0053), and build with worktrees and evidence per criterion (ADR 0054) are built. First version from a research run the same day. The `readiness` checkup refreshes it every 60 days. Claude updates it whenever a milestone is finished, such as a factory stage.
+**Last updated:** 2026-09-30: triage (ADR 0051), intake with EARS criteria (ADR 0052) planning with the convention gate and coverage check (ADR 0053), build with worktrees and evidence per criterion (ADR 0054), and review with a separate reviewer and severity rules (ADR 0055) are built. First version from a research run the same day. The `readiness` checkup refreshes it every 60 days. Claude updates it whenever a milestone is finished, such as a factory stage.
 
 ## Verdict
 
@@ -19,7 +19,7 @@ Either way, it needs the packaging criteria below.
 | # | Criterion | Status | Notes |
 | - | --------- | ------ | ----- |
 | 1 | Clearly adds something over the alternatives (the owner's test, `TODO.md`) | ✓ for health and maintenance, ✗ for delivery | See the comparison below |
-| 2 | Delivery stages in first form: spec, plan, build, review | ~ | Triage, intake, planning and build are built, with script gates, a check that every criterion is covered by a task, and evidence per criterion; review and finish are next (`TODO.md`). Or position it as complementary |
+| 2 | Delivery stages in first form: spec, plan, build, review | ~ | Triage, intake, planning, build and review are built, with script gates, coverage of every criterion by a task, evidence per criterion, and a separate reviewer; finish is next (`TODO.md`). Or position it as complementary |
 | 3 | One-command install from a public repository (`/plugin marketplace add owner/repo`), with the Bun requirement stated | ✗ | The repository is private; installs from a local clone today |
 | 4 | A README that shows what you get in five minutes, with a real example session | ✗ | The README lists the USPs, but has no walkthrough |
 | 5 | A "start here" path through the surface area (18 checkups, 12 `code-*` skills) | ✗ | `CATALOG.md` exists, but no recommended first step |
@@ -54,7 +54,7 @@ Facts from the projects' own repositories and documentation, read on 2026-09-30.
 | --------- | ------- | ----------- | -------- | -------- | ---- | ---- | -------- | ------------- |
 | Coding conventions | ✓ deep, enforced | ~ | ~ | ✗ | ~ | ✓ | ~ | ~ |
 | Spec, plan and task stages | ✓ triage, intake, planning | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Review | ✗ planned | ✓ | ~ | ~ | ✓ | ~ | ✓ | ✓ |
+| Review | ✓ separate reviewer, severity rules | ✓ | ~ | ~ | ✓ | ~ | ✓ | ✓ |
 | Recurring maintenance checks | ✓ 18, scheduled, as PRs | ✗ | ✗ | ✗ | ✗ | ✗ | ~ advice | ~ |
 | Architecture assessment | ✓ checkup and register | ✗ | ✗ | ✗ | ~ | ✗ | ✗ | ✗ |
 | Model routing and cost | ✓ | ✗ | ✗ | ✗ | ✗ | ~ | ~ | ~ |
