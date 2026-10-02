@@ -447,3 +447,220 @@ describe("changes CLI", () => {
         expect(output.systemMessage).toContain("1 unfinished");
     });
 });
+
+describe("changes pr-body CLI", () => {
+    const script = path.join(import.meta.dir, "changes.ts");
+    const Change = "docs/changes/2026-10-02-export";
+    const Author = ["-c", "user.name=Test", "-c", "user.email=test@example.com"];
+    let dir = "";
+
+    // The test repository gets a minimal environment: HOME is the temporary folder, so git reads no user
+    // configuration, and no GIT_DIR from a surrounding hook leaks in.
+    // biome-ignore lint/style/useNamingConvention: environment variable names are uppercase by convention.
+    const environment = (): Record<string, string> => ({ HOME: dir, PATH: process.env["PATH"] ?? "" });
+
+    const git = (...args: readonly string[]): void => {
+        const result = Bun.spawnSync(["git", ...Author, ...args], {
+            cwd: dir,
+            env: environment(),
+            stdout: "pipe",
+            stderr: "pipe",
+        });
+
+        if (result.exitCode !== 0) {
+            throw new Error(`git ${args.join(" ")} failed: ${result.stderr.toString()}`);
+        }
+    };
+
+    const run = async (
+        ...args: string[]
+    ): Promise<{ readonly stdout: string; readonly stderr: string; readonly exitCode: number }> => {
+        const cli = Bun.spawn(["bun", script, "pr-body", ...args], {
+            cwd: dir,
+            env: environment(),
+            stdout: "pipe",
+            stderr: "pipe",
+        });
+        const [stdout, stderr, exitCode] = await Promise.all([
+            new Response(cli.stdout).text(),
+            new Response(cli.stderr).text(),
+            cli.exited,
+        ]);
+
+        return { stdout, stderr, exitCode };
+    };
+
+    const Spec = [
+        "## Problem",
+        "",
+        "Exports are manual.",
+        "",
+        "## Current behaviour",
+        "",
+        "Nothing exports.",
+        "",
+        "## Acceptance criteria",
+        "",
+        "- **AC-1**: WHEN asked, THE SYSTEM SHALL export jobs as CSV.",
+        "",
+        "## Edge cases",
+        "",
+        "None.",
+        "",
+        "## Limits",
+        "",
+        "One file.",
+        "",
+        "## Security",
+        "",
+        "- Authentication: none, local tool",
+        "- Authorisation: none, local tool",
+        "- Untrusted input: none",
+        "- Sensitive data: none",
+        "",
+        "## Out of scope",
+        "",
+        "Imports.",
+        "",
+    ].join("\n");
+    const Verification = "## Checks\n\n`bun test`: passed\n\n## Evidence\n\n- AC-1: `export.test.ts` exports as CSV\n";
+    const Review = "## Summary\n\nReads well, no blockers.\n\n## Findings\n\nNone.\n";
+    const Adr = "# 57. Export as CSV\n\nDate: 2026-10-02\n\n## Status\n\nAccepted\n\n## Context\n\nWhy.\n";
+
+    const routeOf = (statuses: Readonly<Partial<Record<Stage, StageEntry["status"]>>>): TaskDocument =>
+        task({
+            stages: (["spec", "plan", "build", "review", "finish"] as const).map((name) =>
+                stage(name, { status: statuses[name] ?? (name === "plan" ? "skipped" : "done") }),
+            ),
+        });
+
+    const asMarkdown = (document: TaskDocument): string =>
+        `---\n${JSON.stringify(document, null, 2)}\n---\n\n# ${document.title}\n`;
+
+    // A repository with `main`, and a branch `change` that adds the change's folder and a decision record.
+    async function createChange(document: TaskDocument, files: Readonly<Record<string, string>> = {}): Promise<void> {
+        dir = await mkdtemp(path.join(tmpdir(), "changes-pr-body-"));
+        git("init", "--quiet", "--initial-branch=main");
+        git("commit", "--quiet", "--allow-empty", "--message=Start");
+        git("switch", "--quiet", "--create", "change");
+
+        const all: Record<string, string> = {
+            [`${Change}/task.md`]: asMarkdown(document),
+            [`${Change}/spec.md`]: Spec,
+            [`${Change}/verification.md`]: Verification,
+            [`${Change}/review.md`]: Review,
+            "docs/decisions/0057-export-as-csv.md": Adr,
+            ...files,
+        };
+
+        await Promise.all(Object.entries(all).map(([file, content]) => Bun.write(path.join(dir, file), content)));
+        git("add", "--all");
+        git("commit", "--quiet", "--message=Build");
+    }
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true });
+    });
+
+    it("AC-1: prints the route, each criterion with its evidence, the review summary and the added decision", async () => {
+        await createChange(routeOf({ finish: "in-progress" }));
+
+        const result = await run(Change);
+
+        expect(result.stderr).toBe("");
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain(
+            "spec (done) → plan (skipped) → build (done) → review (done) → finish (in-progress)",
+        );
+        expect(result.stdout).toContain("**AC-1**: WHEN asked, THE SYSTEM SHALL export jobs as CSV.");
+        expect(result.stdout).toContain("Evidence: `export.test.ts` exports as CSV");
+        expect(result.stdout).toContain("Reads well, no blockers.");
+        expect(result.stdout).toContain("- 57. Export as CSV (`docs/decisions/0057-export-as-csv.md`)");
+    });
+
+    it("AC-1: compares with the branch given by --base", async () => {
+        await createChange(routeOf({ finish: "pending" }));
+        git("branch", "release", "main");
+
+        const result = await run(Change, "--base", "release");
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("57. Export as CSV");
+    });
+
+    it("AC-6: refuses while a stage before finish is pending, naming it, and prints nothing", async () => {
+        await createChange(routeOf({ review: "pending", finish: "pending" }));
+
+        const result = await run(Change);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain("review (pending) before finish");
+    });
+
+    it("AC-6: refuses while a stage before finish is in progress, naming it", async () => {
+        await createChange(routeOf({ build: "in-progress", review: "pending", finish: "pending" }));
+
+        const result = await run(Change);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain("build (in-progress), review (pending) before finish");
+    });
+
+    it("AC-7: refuses a done stage whose document fails its gate, with the gate's problem", async () => {
+        await createChange(routeOf({ finish: "in-progress" }), {
+            [`${Change}/verification.md`]: "## Checks\n\nok\n\n## Evidence\n\n",
+        });
+
+        const result = await run(Change);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain("✗ verification.md has no evidence for AC-1");
+    });
+
+    it("refuses a base branch that doesn't exist, naming it", async () => {
+        await createChange(routeOf({ finish: "in-progress" }));
+
+        const result = await run(Change, "--base", "release");
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain('the base branch "release" doesn\'t exist');
+    });
+
+    it("refuses a --base without a value, or with a blank value or one starting with -", async () => {
+        await createChange(routeOf({ finish: "in-progress" }));
+
+        for (const args of [
+            [Change, "--base"],
+            [Change, "--base", " "],
+            [Change, "--base", "--help"],
+        ]) {
+            const result = await run(...args);
+
+            expect(result.exitCode).toBe(1);
+            expect(result.stdout).toBe("");
+            expect(result.stderr).toContain("--base needs a branch name");
+        }
+    });
+
+    it("refuses an unknown option, a missing folder, and a folder without a task.md", async () => {
+        await createChange(routeOf({ finish: "in-progress" }));
+
+        const unknownOption = await run(Change, "--branch", "main");
+        const noFolder = await run();
+        const noTask = await run("docs/changes/nothing-here");
+
+        expect(unknownOption.stderr).toContain("unknown option --branch");
+        expect(unknownOption.stderr).toContain("Usage:");
+        expect(noFolder.stderr).toContain("pr-body needs the change folder");
+        expect(noTask.stderr).toContain("✗ has no task.md");
+
+        for (const result of [unknownOption, noFolder, noTask]) {
+            expect(result.exitCode).toBe(1);
+            expect(result.stdout).toBe("");
+        }
+    });
+});
