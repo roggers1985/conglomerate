@@ -446,6 +446,47 @@ describe("section headings", () => {
     });
 });
 
+describe("label lines with a long run of whitespace", () => {
+    const longLines = (prefix: string): string[] => [
+        `${prefix} ${" ".repeat(1024 * 1024)}x\r`,
+        `${prefix} ${" ".repeat(1024 * 1024)}`,
+    ];
+    const expectFast = (run: () => unknown) => {
+        const startedAt = performance.now();
+
+        run();
+
+        expect(performance.now() - startedAt).toBeLessThan(200);
+    };
+
+    it("reads a security answer in linear time", () => {
+        for (const line of longLines("- Authentication:")) {
+            expectFast(() => specProblems(spec(ac1, new Map([["Security", line]])), { needsProblem: false }));
+        }
+    });
+
+    it("reads an evidence line in linear time", () => {
+        for (const line of longLines("- AC-1:")) {
+            expectFast(() => evidenceOf(`## Evidence\n\n${line}`));
+            expectFast(() => verificationProblems(`## Checks\n\nx\n\n## Evidence\n\n${line}`, { criteria: null }));
+        }
+    });
+
+    it("reads a task heading and a task field in linear time", () => {
+        for (const line of longLines("### T-1:")) {
+            expectFast(() => taskListProblems(line, { file: "tasks.md", criteria: null }));
+        }
+
+        for (const line of longLines("- Files:")) {
+            expectFast(() => taskListProblems(`### T-1: a\n\n${line}`, { file: "tasks.md", criteria: null }));
+        }
+    });
+
+    it("still reads a label whose value ends in a carriage return", () => {
+        expect(evidenceOf("## Evidence\n\n- AC-1: proof\r")).toEqual(new Map([["AC-1", "proof"]]));
+    });
+});
+
 describe("criteria", () => {
     const specWith = (...lines: readonly string[]) =>
         `## Acceptance criteria\n\n${lines.join("\n")}\n\n## Edge cases\n\nNone.`;

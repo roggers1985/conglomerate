@@ -24,7 +24,7 @@ export const SECURITY_QUESTIONS = ["Authentication", "Authorisation", "Untrusted
 /** Marks a point the spec couldn't decide; a stage with one left open can't be done. */
 export const CLARIFICATION_MARKER = "[NEEDS CLARIFICATION";
 
-const SECURITY_ANSWER = /^\s*[-*] (Authentication|Authori[sz]ation|Untrusted input|Sensitive data):\s*(.*)$/;
+const SECURITY_ANSWER = /^\s*[-*] (Authentication|Authori[sz]ation|Untrusted input|Sensitive data):(.*)$/s;
 const PLACEHOLDER = /^(tbd|todo|\?+|n\/?a|-+|\.\.\.|…)\.?$/i;
 const CRITERIA_MAX = 200; // acceptance criteria in one spec; more means the change should be split
 // Matched on the trimmed line: a lazy `.+?` before `\s*$` is quadratic on a long run of spaces.
@@ -204,8 +204,8 @@ export const PLAN_SECTIONS = [
 ] as const;
 
 const TASKS_MAX = 100; // tasks of a few minutes each; more means the change should be split
-const TASK_HEADING = /^### (T-\d+):\s*(.*)$/;
-const TASK_FIELD = /^\s*[-*] (Files|Covers|Verify|Depends on|Parallel|Status):\s*(.*)$/;
+const TASK_HEADING = /^### (T-\d+):(.*)$/s;
+const TASK_FIELD = /^\s*[-*] (Files|Covers|Verify|Depends on|Parallel|Status):(.*)$/s;
 const TASK_STATUSES = ["pending", "in-progress", "done"];
 const REQUIRED_TASK_FIELDS = ["Files", "Covers", "Verify", "Status"] as const;
 const CRITERION_ID = /\bAC-\d+\b/g;
@@ -451,7 +451,7 @@ export const VERIFICATION_SECTIONS = ["Checks", "Evidence"] as const;
 /** The sections `spike.md` must have. */
 export const SPIKE_SECTIONS = ["Question", "Findings", "Recommendation"] as const;
 
-const EVIDENCE = /^\s*[-*] (AC-\d+):\s*(.*)$/;
+const EVIDENCE = /^\s*[-*] (AC-\d+):(.*)$/s;
 
 /**
  * The evidence per acceptance criterion in `verification.md`'s "Evidence" section (ADR 0054).
