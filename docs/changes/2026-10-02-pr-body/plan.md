@@ -59,7 +59,7 @@ No new decision needs an ADR: the change implements what ADR 0056 left to a scri
 - Verify: `bun test plugins/factory/scripts/decision-records.test.ts`
 - Depends on: none
 - Parallel: yes
-- Status: in-progress
+- Status: done
 
 ### T-3: Render the description
 
@@ -68,7 +68,7 @@ No new decision needs an ADR: the change implements what ADR 0056 left to a scri
 - Verify: `bun test plugins/factory/scripts/pr-body.test.ts`
 - Depends on: T-1
 - Parallel: no
-- Status: pending
+- Status: in-progress
 
 ### T-4: Add the pr-body subcommand
 
