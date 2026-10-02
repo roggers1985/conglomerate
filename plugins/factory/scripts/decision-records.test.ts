@@ -37,7 +37,8 @@ async function commit(dir: string, files: Readonly<Record<string, string>>, mess
     git(dir, "commit", "--quiet", "--allow-empty", `--message=${message}`);
 }
 
-const signal = AbortSignal.timeout(30_000);
+// A new signal per call, so no test inherits a timeout that started when the module was loaded.
+const testSignal = (): AbortSignal => AbortSignal.timeout(30_000);
 let dir = "";
 
 // A repository with one record on main, and a branch `change` checked out from it.
@@ -67,7 +68,7 @@ describe("addedDecisionRecords", () => {
             "Decide",
         );
 
-        const result = await addedDecisionRecords(dir, { base: "main", signal });
+        const result = await addedDecisionRecords(dir, { base: "main", signal: testSignal() });
 
         expect(result).toEqual({
             kind: "found",
@@ -82,14 +83,20 @@ describe("addedDecisionRecords", () => {
         await createRepository();
         await commit(dir, { "README.md": "# Readme\n" }, "Unrelated");
 
-        expect(await addedDecisionRecords(dir, { base: "main", signal })).toEqual({ kind: "found", records: [] });
+        expect(await addedDecisionRecords(dir, { base: "main", signal: testSignal() })).toEqual({
+            kind: "found",
+            records: [],
+        });
     });
 
     it("leaves out records that were changed or deleted rather than added", async () => {
         await createRepository();
         await commit(dir, { "docs/decisions/0001-use-bun.md": buildRecord({ status: "Superseded" }) }, "Change");
 
-        expect(await addedDecisionRecords(dir, { base: "main", signal })).toEqual({ kind: "found", records: [] });
+        expect(await addedDecisionRecords(dir, { base: "main", signal: testSignal() })).toEqual({
+            kind: "found",
+            records: [],
+        });
     });
 
     it("leaves out files that aren't Markdown, and Markdown outside docs/decisions", async () => {
@@ -100,7 +107,10 @@ describe("addedDecisionRecords", () => {
             "Other files",
         );
 
-        expect(await addedDecisionRecords(dir, { base: "main", signal })).toEqual({ kind: "found", records: [] });
+        expect(await addedDecisionRecords(dir, { base: "main", signal: testSignal() })).toEqual({
+            kind: "found",
+            records: [],
+        });
     });
 
     it("leaves out records added on the base branch after the change branched off", async () => {
@@ -110,7 +120,7 @@ describe("addedDecisionRecords", () => {
         await commit(dir, { "docs/decisions/0003-on-main.md": buildRecord({ title: "3. On main" }) }, "B");
         git(dir, "switch", "--quiet", "change");
 
-        const result = await addedDecisionRecords(dir, { base: "main", signal });
+        const result = await addedDecisionRecords(dir, { base: "main", signal: testSignal() });
 
         expect(result).toEqual({
             kind: "found",
@@ -122,7 +132,7 @@ describe("addedDecisionRecords", () => {
         await createRepository();
         await commit(dir, { "docs/decisions/0002-café.md": buildRecord({ title: "2. Café" }) }, "Decide");
 
-        const result = await addedDecisionRecords(dir, { base: "main", signal });
+        const result = await addedDecisionRecords(dir, { base: "main", signal: testSignal() });
 
         expect(result).toEqual({
             kind: "found",
@@ -141,7 +151,7 @@ describe("addedDecisionRecords", () => {
             "Decide",
         );
 
-        const result = await addedDecisionRecords(dir, { base: "main", signal });
+        const result = await addedDecisionRecords(dir, { base: "main", signal: testSignal() });
 
         expect(result).toEqual({
             kind: "found",
@@ -163,7 +173,7 @@ describe("addedDecisionRecords", () => {
             "Decide",
         );
 
-        const result = await addedDecisionRecords(path.join(dir, "app"), { base: "main", signal });
+        const result = await addedDecisionRecords(path.join(dir, "app"), { base: "main", signal: testSignal() });
 
         expect(result).toEqual({
             kind: "found",
@@ -181,7 +191,7 @@ describe("addedDecisionRecords", () => {
         process.env["GIT_DIR"] = path.join(other, ".git");
 
         try {
-            const result = await addedDecisionRecords(dir, { base: "main", signal });
+            const result = await addedDecisionRecords(dir, { base: "main", signal: testSignal() });
 
             expect(result).toEqual({
                 kind: "found",
@@ -199,7 +209,7 @@ describe("addedDecisionRecords", () => {
     it("AC-5: reports a base branch that doesn't exist, naming it", async () => {
         await createRepository();
 
-        expect(await addedDecisionRecords(dir, { base: "no-such-branch", signal })).toEqual({
+        expect(await addedDecisionRecords(dir, { base: "no-such-branch", signal: testSignal() })).toEqual({
             kind: "unknown-base",
             base: "no-such-branch",
         });
@@ -209,14 +219,17 @@ describe("addedDecisionRecords", () => {
         await createRepository();
         const file = "main:docs/decisions/0001-use-bun.md";
 
-        expect(await addedDecisionRecords(dir, { base: file, signal })).toEqual({ kind: "unknown-base", base: file });
+        expect(await addedDecisionRecords(dir, { base: file, signal: testSignal() })).toEqual({
+            kind: "unknown-base",
+            base: file,
+        });
     });
 
     it("refuses a base that starts with '-' before running git, so it can't be read as an option", async () => {
         await createRepository();
         const target = path.join(dir, "written-by-git");
 
-        await expect(addedDecisionRecords(dir, { base: `--output=${target}`, signal })).rejects.toThrow(
+        await expect(addedDecisionRecords(dir, { base: `--output=${target}`, signal: testSignal() })).rejects.toThrow(
             `The base branch "--output=${target}" starts with "-"`,
         );
         expect(await Bun.file(target).exists()).toBe(false);
@@ -225,8 +238,12 @@ describe("addedDecisionRecords", () => {
     it("refuses an empty or blank base", async () => {
         await createRepository();
 
-        await expect(addedDecisionRecords(dir, { base: "", signal })).rejects.toThrow("The base branch is empty");
-        await expect(addedDecisionRecords(dir, { base: "  ", signal })).rejects.toThrow("The base branch is empty");
+        await expect(addedDecisionRecords(dir, { base: "", signal: testSignal() })).rejects.toThrow(
+            "The base branch is empty",
+        );
+        await expect(addedDecisionRecords(dir, { base: "  ", signal: testSignal() })).rejects.toThrow(
+            "The base branch is empty",
+        );
     });
 
     it(`accepts ${DECISION_RECORDS_MAX} records, the limit`, async () => {
@@ -239,7 +256,7 @@ describe("addedDecisionRecords", () => {
         );
         await commit(dir, records, "Many decisions");
 
-        const result = await addedDecisionRecords(dir, { base: "main", signal });
+        const result = await addedDecisionRecords(dir, { base: "main", signal: testSignal() });
 
         assert(result.kind === "found", "the base exists");
         expect(result.records).toHaveLength(DECISION_RECORDS_MAX);
@@ -255,7 +272,7 @@ describe("addedDecisionRecords", () => {
         );
         await commit(dir, records, "Too many decisions");
 
-        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
+        await expect(addedDecisionRecords(dir, { base: "main", signal: testSignal() })).rejects.toThrow(
             `The branch adds ${DECISION_RECORDS_MAX + 1} decision records, more than the limit of ${DECISION_RECORDS_MAX}`,
         );
     });
@@ -269,7 +286,7 @@ describe("addedDecisionRecords", () => {
         );
         await commit(dir, files, "Many files");
 
-        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
+        await expect(addedDecisionRecords(dir, { base: "main", signal: testSignal() })).rejects.toThrow(
             "git diff's output is over the limit of 1048576 bytes",
         );
     });
@@ -284,7 +301,9 @@ describe("addedDecisionRecords", () => {
             await symlink(path.join(outside, "secret.md"), path.join(dir, "docs/decisions/0002-link.md"));
             await commit(dir, {}, "Link");
 
-            const error = await addedDecisionRecords(dir, { base: "main", signal }).catch((caught: unknown) => caught);
+            const error = await addedDecisionRecords(dir, { base: "main", signal: testSignal() }).catch(
+                (caught: unknown) => caught,
+            );
 
             expect(error).toBeInstanceOf(Error);
             assert(error instanceof Error, "rejected with an Error");
@@ -303,7 +322,7 @@ describe("addedDecisionRecords", () => {
         await symlink("/dev/zero", path.join(dir, "docs/decisions/0002-zero.md"));
         await commit(dir, {}, "Link");
 
-        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
+        await expect(addedDecisionRecords(dir, { base: "main", signal: testSignal() })).rejects.toThrow(
             "docs/decisions/0002-zero.md is a symbolic link, not a regular file",
         );
     }, 2_000);
@@ -314,7 +333,7 @@ describe("addedDecisionRecords", () => {
         git(dir, "update-index", "--add", "--cacheinfo", `160000,${head},docs/decisions/0002-module.md`);
         git(dir, "commit", "--quiet", "--message=Submodule");
 
-        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
+        await expect(addedDecisionRecords(dir, { base: "main", signal: testSignal() })).rejects.toThrow(
             "docs/decisions/0002-module.md is a submodule, not a regular file",
         );
     });
@@ -325,7 +344,7 @@ describe("addedDecisionRecords", () => {
         await chmod(path.join(dir, "docs/decisions/0002-run.md"), 0o755);
         await commit(dir, {}, "Decide");
 
-        expect(await addedDecisionRecords(dir, { base: "main", signal })).toEqual({
+        expect(await addedDecisionRecords(dir, { base: "main", signal: testSignal() })).toEqual({
             kind: "found",
             records: [{ file: "docs/decisions/0002-run.md", title: "2. Run", isProposed: false }],
         });
@@ -344,7 +363,7 @@ describe("addedDecisionRecords", () => {
         await Bun.write(path.join(dir, "docs/decisions/0002-edited.md"), buildRecord({ title: "2. Uncommitted" }));
         await rm(path.join(dir, "docs/decisions/0003-removed.md"));
 
-        expect(await addedDecisionRecords(dir, { base: "main", signal })).toEqual({
+        expect(await addedDecisionRecords(dir, { base: "main", signal: testSignal() })).toEqual({
             kind: "found",
             records: [
                 { file: "docs/decisions/0002-edited.md", title: "2. Committed", isProposed: true },
@@ -365,13 +384,13 @@ describe("addedDecisionRecords", () => {
             "Decide",
         );
 
-        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
+        await expect(addedDecisionRecords(dir, { base: "main", signal: testSignal() })).rejects.toThrow(
             `docs/decisions/0003-over-limit.md is over the limit of ${TEXT_BYTES_MAX} bytes`,
         );
         git(dir, "rm", "--quiet", "docs/decisions/0003-over-limit.md");
         git(dir, "commit", "--quiet", "--message=Smaller");
 
-        expect(await addedDecisionRecords(dir, { base: "main", signal })).toEqual({
+        expect(await addedDecisionRecords(dir, { base: "main", signal: testSignal() })).toEqual({
             kind: "found",
             records: [{ file: "docs/decisions/0002-at-limit.md", title: "2. Large", isProposed: false }],
         });
@@ -381,7 +400,7 @@ describe("addedDecisionRecords", () => {
         await createRepository();
         await commit(dir, { "docs/decisions/0002-untitled.md": "## Status\n\nAccepted\n" }, "Decide");
 
-        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
+        await expect(addedDecisionRecords(dir, { base: "main", signal: testSignal() })).rejects.toThrow(
             'docs/decisions/0002-untitled.md has no title (a "# " heading)',
         );
     });
@@ -390,7 +409,7 @@ describe("addedDecisionRecords", () => {
         await createRepository();
         await commit(dir, { "docs/decisions/0002-no-status.md": "# 2. No status\n\n## Context\n\nWhy.\n" }, "A");
 
-        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
+        await expect(addedDecisionRecords(dir, { base: "main", signal: testSignal() })).rejects.toThrow(
             "docs/decisions/0002-no-status.md has no status (a line after its ## Status heading)",
         );
     });
@@ -399,13 +418,15 @@ describe("addedDecisionRecords", () => {
         await createRepository();
         await commit(dir, { "docs/decisions/0002-empty.md": "# 2. Empty\n\n## Status\n\n## Context\n" }, "A");
 
-        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
+        await expect(addedDecisionRecords(dir, { base: "main", signal: testSignal() })).rejects.toThrow(
             "docs/decisions/0002-empty.md has no status (a line after its ## Status heading)",
         );
     });
 
     it("fails with git's message outside a git repository", async () => {
-        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(/not a git repository/i);
+        await expect(addedDecisionRecords(dir, { base: "main", signal: testSignal() })).rejects.toThrow(
+            /not a git repository/i,
+        );
     });
 
     it("fails with git's message when the base shares no history with the branch", async () => {
@@ -413,7 +434,9 @@ describe("addedDecisionRecords", () => {
         git(dir, "switch", "--quiet", "--orphan", "unrelated");
         await commit(dir, { "docs/decisions/0002-orphan.md": buildRecord() }, "Unrelated");
 
-        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(/git diff .*merge base/i);
+        await expect(addedDecisionRecords(dir, { base: "main", signal: testSignal() })).rejects.toThrow(
+            /git diff .*merge base/i,
+        );
     });
 
     it("rejects with an AbortError when the signal is already aborted", async () => {

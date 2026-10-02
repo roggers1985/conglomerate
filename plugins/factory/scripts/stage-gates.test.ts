@@ -534,7 +534,7 @@ describe("criteria", () => {
 });
 
 describe("evidence", () => {
-    it("AC-4: maps each criterion to its evidence text", () => {
+    it("AC-3: maps each criterion to its evidence text", () => {
         const verification = [
             "## Checks\n\n`bun run check`: passed",
             "## Evidence\n\n- AC-1: `a.test.ts` > exports\n* AC-2:   `b.test.ts` > logs  \n",
@@ -548,11 +548,11 @@ describe("evidence", () => {
         );
     });
 
-    it("AC-4: leaves out criteria with empty evidence", () => {
+    it("AC-3: leaves out criteria with empty evidence", () => {
         expect(evidenceOf("## Evidence\n\n- AC-1:\n- AC-2: `x.test.ts`")).toEqual(new Map([["AC-2", "`x.test.ts`"]]));
     });
 
-    it("AC-4: is empty without the section", () => {
+    it("AC-3: is empty without the section", () => {
         expect(evidenceOf("## Checks\n\n- AC-1: not evidence").size).toBe(0);
         expect(evidenceOf("## Evidence\n\n").size).toBe(0);
     });

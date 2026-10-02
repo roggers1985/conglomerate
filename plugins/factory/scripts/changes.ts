@@ -444,53 +444,49 @@ async function readTaskDocument(
     }
 }
 
+/** A change's task document with the stage documents that passed the gates of its done stages. */
+type GatedChange = { readonly task: TaskDocument; readonly documents: StageDocuments };
+
 /**
- * A change's task document, with the gates of its done stages applied. `gates: "unfinished"` skips the gates of a
- * change whose every stage is done or skipped, so session start doesn't read the documents of the whole history.
- * Rejects when a document can't be read, e.g. one that is a symbolic link or a FIFO.
+ * Reads the stage documents of a change whose task document is valid, and applies the gates of its done stages. The
+ * documents returned are the ones that passed, so a caller renders what was checked. Rejects when a document can't be
+ * read, e.g. one that is a symbolic link or a FIFO.
+ */
+async function readGatedChange(
+    changeDir: string,
+    task: TaskDocument,
+    { signal }: { readonly signal: AbortSignal },
+): Promise<Parsed<GatedChange>> {
+    const readDocument = (file: string): Promise<string | null> => readChangeDocument(changeDir, file, { signal });
+    const [intent, spec, plan, tasks, verification, spike, review, securityReview] = await Promise.all([
+        readDocument("intent.md"),
+        readDocument("spec.md"),
+        readDocument("plan.md"),
+        readDocument("tasks.md"),
+        readDocument("verification.md"),
+        readDocument("spike.md"),
+        readDocument("review.md"),
+        readDocument("security-review.md"),
+    ]);
+    const documents: StageDocuments = { intent, spec, plan, tasks, verification, spike, review, securityReview };
+    const problems = gateProblems(task, documents);
+
+    return problems.length === 0
+        ? { kind: "valid", value: { task, documents } }
+        : { kind: "invalid", errors: problems };
+}
+
+/**
+ * A change's task document with its stage documents, the gates of its done stages applied. Rejects when a document
+ * can't be read, e.g. one that is a symbolic link or a FIFO.
  */
 async function readChange(
     changeDir: string,
-    { gates, signal }: { readonly gates: "always" | "unfinished"; readonly signal: AbortSignal },
-): Promise<Parsed<TaskDocument>> {
+    { signal }: { readonly signal: AbortSignal },
+): Promise<Parsed<GatedChange>> {
     const task = await readTaskDocument(changeDir, { signal });
 
-    if (task.kind === "invalid") {
-        return task;
-    }
-
-    const isFinished = resumePoint(task.value.stages) === null;
-
-    if (isFinished && gates === "unfinished") {
-        return task;
-    }
-
-    const readDocument = (file: string): Promise<string | null> => readChangeDocument(changeDir, file, { signal });
-    const files = [
-        "intent.md",
-        "spec.md",
-        "plan.md",
-        "tasks.md",
-        "verification.md",
-        "spike.md",
-        "review.md",
-        "security-review.md",
-    ];
-    const [intent, spec, plan, tasks, verification, spike, review, securityReview] = await Promise.all(
-        files.map(readDocument),
-    );
-    const problems = gateProblems(task.value, {
-        intent: intent ?? null,
-        spec: spec ?? null,
-        plan: plan ?? null,
-        tasks: tasks ?? null,
-        verification: verification ?? null,
-        spike: spike ?? null,
-        review: review ?? null,
-        securityReview: securityReview ?? null,
-    });
-
-    return problems.length === 0 ? task : { kind: "invalid", errors: problems };
+    return task.kind === "invalid" ? task : readGatedChange(changeDir, task.value, { signal });
 }
 
 async function readChanges(projectDir: string, { signal }: { readonly signal: AbortSignal }): Promise<Change[]> {
@@ -503,7 +499,20 @@ async function readChanges(projectDir: string, { signal }: { readonly signal: Ab
 
     // One change that can't be read is reported as invalid, so it doesn't hide the others at session start.
     const readOne = async (name: string): Promise<Change> => {
-        const task = await readChange(path.join(changesDir, name), { gates: "unfinished", signal }).catch(
+        const changeDir = path.join(changesDir, name);
+        // A finished change's documents aren't read, so session start doesn't read the documents of the whole history.
+        const read = async (): Promise<Parsed<TaskDocument>> => {
+            const task = await readTaskDocument(changeDir, { signal });
+
+            if (task.kind === "invalid" || resumePoint(task.value.stages) === null) {
+                return task;
+            }
+
+            const gated = await readGatedChange(changeDir, task.value, { signal });
+
+            return gated.kind === "valid" ? { kind: "valid", value: gated.value.task } : gated;
+        };
+        const task = await read().catch(
             (error: unknown): Parsed<TaskDocument> => ({ kind: "invalid", errors: [failureMessage(error)] }),
         );
 
@@ -655,13 +664,16 @@ async function checkTask(taskPath: string, { signal }: { readonly signal: AbortS
         return refused(`✗ ${location.problem}`);
     }
 
-    const task = await readChange(changeDir, { gates: "always", signal });
+    const change = await readChange(changeDir, { signal });
 
-    if (task.kind === "invalid") {
-        return refused(...task.errors.map((error) => `✗ ${error}`));
+    if (change.kind === "invalid") {
+        return refused(...change.errors.map((error) => `✗ ${error}`));
     }
 
-    return { kind: "done", output: `✓ valid route: ${task.value.stages.map((stage) => stage.name).join(" → ")}\n` };
+    return {
+        kind: "done",
+        output: `✓ valid route: ${change.value.task.stages.map((stage) => stage.name).join(" → ")}\n`,
+    };
 }
 
 /** `pr-body`: the change's pull request description, or why it can't be rendered yet. */
@@ -683,13 +695,14 @@ async function buildPrBody(
         return refused(`✗ ${location.problem}`);
     }
 
-    const change = await readChange(changeDir, { gates: "always", signal });
+    const change = await readChange(changeDir, { signal });
 
     if (change.kind === "invalid") {
         return refused(...change.errors.map((error) => `✗ ${error}`));
     }
 
-    const unfinished = change.value.stages.filter((stage) => stage.name !== "finish" && isUnfinished(stage));
+    const { task, documents } = change.value;
+    const unfinished = task.stages.filter((stage) => stage.name !== "finish" && isUnfinished(stage));
 
     if (unfinished.length > 0) {
         const named = unfinished.map((stage) => `${stage.name} (${stage.status})`).join(", ");
@@ -697,10 +710,6 @@ async function buildPrBody(
         return refused(`✗ not ready for a pull request: ${named} before finish`);
     }
 
-    const readDocument = (file: string): Promise<string | null> => readChangeDocument(changeDir, file, { signal });
-    const [spec, verification, review, securityReview] = await Promise.all(
-        ["spec.md", "verification.md", "review.md", "security-review.md"].map(readDocument),
-    );
     const added = await addedDecisionRecords(location.projectDir, { base, signal });
 
     if (added.kind === "unknown-base") {
@@ -708,17 +717,17 @@ async function buildPrBody(
     }
 
     const rendered = renderPrBody({
-        task: change.value,
-        spec: spec ?? null,
-        verification: verification ?? null,
-        review: review ?? null,
-        securityReview: securityReview ?? null,
+        task,
+        spec: documents.spec,
+        verification: documents.verification,
+        review: documents.review,
+        securityReview: documents.securityReview,
         decisionRecords: added.records,
     });
 
     if (rendered.kind === "too-long") {
         return refused(
-            `✗ the description is ${rendered.length} characters, over GitHub's limit of ${rendered.max}: shorten the spec, the evidence or the findings`,
+            `✗ the description is ${rendered.length} UTF-16 code units long, over GitHub's limit of ${rendered.max} characters: shorten the spec, the evidence or the findings`,
         );
     }
 

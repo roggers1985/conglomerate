@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rename, rm, symlink, unlink } from "node:fs/promises";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmod, mkdir, mkdtemp, rename, rm, symlink, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Stage, StageDocuments, TaskDocument } from "./changes.ts";
@@ -12,8 +13,22 @@ import {
     STAGES,
     TRACKS,
 } from "./changes.ts";
+import { PR_BODY_LENGTH_MAX } from "./pr-body.ts";
 
 type StageEntry = TaskDocument["stages"][number];
+
+// Whether the temporary folder's file system ignores the case of names, where the tests' change folders are created.
+const isCaseInsensitiveFileSystem = ((): boolean => {
+    const probe = mkdtempSync(path.join(tmpdir(), "changes-case-"));
+
+    try {
+        writeFileSync(path.join(probe, "probe"), "");
+
+        return existsSync(path.join(probe, "PROBE"));
+    } finally {
+        rmSync(probe, { recursive: true, force: true });
+    }
+})();
 
 const noDocuments: StageDocuments = {
     intent: null,
@@ -496,8 +511,9 @@ describe("changes pr-body CLI", () => {
 
     // The test repository gets a minimal environment: HOME is the temporary folder, so git reads no user
     // configuration, and no GIT_DIR from a surrounding hook leaks in.
+    const searchPath = (prefix: string): string => `${prefix}${process.env["PATH"] ?? ""}`;
     // biome-ignore lint/style/useNamingConvention: environment variable names are uppercase by convention.
-    const environment = (): Record<string, string> => ({ HOME: dir, PATH: process.env["PATH"] ?? "" });
+    const environment = (prefix = ""): Record<string, string> => ({ HOME: dir, PATH: searchPath(prefix) });
 
     const git = (...args: readonly string[]): void => {
         const result = Bun.spawnSync(["git", ...Author, ...args], {
@@ -672,6 +688,64 @@ describe("changes pr-body CLI", () => {
         expect(result.stdout).toBe("");
         expect(result.stderr).toContain('the base branch "release" doesn\'t exist');
     });
+
+    it("AC-8: refuses a description over GitHub's limit with its length and the limit, and prints nothing", async () => {
+        const summary = "x".repeat(PR_BODY_LENGTH_MAX);
+        await createChange(routeOf({ finish: "in-progress" }), {
+            [`${Change}/review.md`]: `## Summary\n\n${summary}\n\n## Findings\n\nNone.\n`,
+        });
+
+        const result = await run(Change);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toMatch(/^✗ the description is \d+ UTF-16 code units long, over GitHub's limit of 65536/);
+        expect(result.stderr).toContain("shorten the spec, the evidence or the findings");
+        expect(Number(/is (\d+) UTF-16/.exec(result.stderr)?.[1])).toBeGreaterThan(PR_BODY_LENGTH_MAX);
+    });
+
+    it("refuses --base given twice, and an extra argument, with the usage", async () => {
+        await createChange(routeOf({ finish: "in-progress" }));
+
+        const twice = await run(Change, "--base", "main", "--base", "main");
+        const extra = await run(Change, "docs/changes/other");
+
+        expect(twice.stderr).toContain("--base is given more than once");
+        expect(extra.stderr).toContain("unexpected argument docs/changes/other");
+
+        for (const result of [twice, extra]) {
+            expect(result.exitCode).toBe(1);
+            expect(result.stdout).toBe("");
+            expect(result.stderr).toContain("Usage:");
+        }
+    });
+
+    it("stops on Ctrl-C while git runs, printing no partial description", async () => {
+        await createChange(routeOf({ finish: "in-progress" }));
+        // A stand-in `git` that reports it started and then waits, so the interrupt arrives while git runs.
+        const bin = path.join(dir, "bin");
+        const started = path.join(dir, "git-started");
+        await mkdir(bin);
+        await Bun.write(path.join(bin, "git"), `#!/bin/sh\ntouch "${started}"\nexec sleep 30\n`);
+        await chmod(path.join(bin, "git"), 0o755);
+        const cli = Bun.spawn(["bun", script, "pr-body", Change], {
+            cwd: dir,
+            env: environment(`${bin}:`),
+            stdout: "pipe",
+            stderr: "pipe",
+        });
+
+        for (let attempt = 0; attempt < 100 && !existsSync(started); attempt += 1) {
+            await Bun.sleep(50);
+        }
+        expect(existsSync(started)).toBe(true);
+
+        cli.kill("SIGINT");
+        const [stdout, exitCode] = await Promise.all([new Response(cli.stdout).text(), cli.exited]);
+
+        expect(stdout).toBe("");
+        expect(exitCode).not.toBe(0);
+    }, 10_000);
 
     it("refuses a --base without a value, or with a blank value or one starting with -", async () => {
         await createChange(routeOf({ finish: "in-progress" }));
@@ -857,23 +931,19 @@ describe("changes pr-body CLI", () => {
             expect(result.stdout).toContain("57. Export as CSV");
         });
 
-        it("accepts a change folder named in a different case where the file system ignores case", async () => {
-            await createChange(routeOf({ finish: "in-progress" }));
-            const upperCased = "docs/changes/2026-10-02-EXPORT";
+        // On a case-sensitive file system the upper-cased folder doesn't exist: the test is skipped, visibly.
+        it.skipIf(!isCaseInsensitiveFileSystem)(
+            "accepts a change folder named in a different case (skipped on a case-sensitive file system)",
+            async () => {
+                await createChange(routeOf({ finish: "in-progress" }));
+                const upperCased = "docs/changes/2026-10-02-EXPORT";
+                const result = await run(upperCased);
 
-            const isCaseInsensitive = await Bun.file(path.join(dir, upperCased, "task.md")).exists();
-
-            // On a case-sensitive file system the upper-cased folder doesn't exist: nothing to test here.
-            if (!isCaseInsensitive) {
-                return;
-            }
-
-            const result = await run(upperCased);
-
-            expect(result.stderr).not.toContain("leads outside the project");
-            expect(result.exitCode).toBe(0);
-            expect(result.stdout).toContain("57. Export as CSV");
-        });
+                expect(result.stderr).not.toContain("leads outside the project");
+                expect(result.exitCode).toBe(0);
+                expect(result.stdout).toContain("57. Export as CSV");
+            },
+        );
 
         it("refuses a linked decision record in pr-body with a single ✗ line, not a stack trace", async () => {
             await createChange(routeOf({ finish: "in-progress" }));

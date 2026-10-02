@@ -190,6 +190,55 @@ describe("renderPrBody", () => {
         expect(body).toContain("## Review\n\nLooks good.");
     });
 
+    it("AC-4: leaves out a skipped security review's document, even with an open finding", () => {
+        const body = render({
+            task: buildTask({
+                stages: [
+                    { name: "spec", level: "guided", status: "done" },
+                    { name: "security-review", level: "trusted", status: "skipped" },
+                    { name: "review", level: "trusted", status: "done" },
+                ],
+            }),
+            securityReview: buildReview({
+                summary: "Stale.",
+                rows: ["| 1 | high | Open door | `api.ts:1` | open |"],
+            }),
+        });
+
+        expect(body).not.toContain("### Security review");
+        expect(body).not.toContain("Stale.");
+        expect(body).not.toContain("Open door");
+        expect(body).toContain("No findings.");
+    });
+
+    it("AC-4: leaves out a skipped review's document", () => {
+        const body = render({
+            task: buildTask({
+                stages: [
+                    { name: "spec", level: "guided", status: "done" },
+                    { name: "review", level: "trusted", status: "skipped" },
+                ],
+            }),
+            securityReview: null,
+        });
+
+        expect(body).not.toContain("## Review");
+        expect(body).not.toContain("Looks good.");
+    });
+
+    it("AC-4: lists a finding with an unexpected status instead of counting it as fixed", () => {
+        const body = render({
+            review: buildReview({
+                rows: ["| 1 | low | Done thing | `a.ts:3` | fixed |", "| 2 | medium | Odd one | `b.ts:9` | open |"],
+            }),
+        });
+
+        expect(body).not.toContain("Every finding was fixed.");
+        expect(body).toContain("Not fixed or accepted:");
+        expect(body).toContain("- **medium**, review #2: Odd one (`b.ts:9`). open");
+        expect(body).not.toContain("Done thing");
+    });
+
     it("AC-4: notes a review that is on the route but has no document", () => {
         expect(render({ securityReview: null })).toContain("### Security review\n\nNo security review recorded.");
     });
@@ -219,9 +268,17 @@ describe("renderPrBody", () => {
         });
 
         expect(body).not.toContain("<!--");
-        expect(body).toContain("skipped &lt;!-- the plan");
-        expect(body).toContain("Fine &lt;!-- hidden");
-        expect(body).toContain("1. &lt;!-- X");
+        expect(body).toContain("skipped <!\u200D-- the plan");
+        expect(body).toContain("Fine <!\u200D-- hidden");
+        expect(body).toContain("1. <!\u200D-- X");
+    });
+
+    it("breaks a comment opener inside a code span without showing an entity there", () => {
+        const body = render({ review: buildReview({ summary: "The `<!--` marker, and <!-- in prose." }) });
+
+        expect(body).not.toContain("<!--");
+        expect(body).not.toContain("&lt;");
+        expect(body).toContain("The `<!\u200D--` marker, and <!\u200D-- in prose.");
     });
 
     it("renders a decision record file name with a newline or a backtick on one line, inside its code span", () => {
