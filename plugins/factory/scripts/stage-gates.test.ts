@@ -429,6 +429,23 @@ describe("reviewProblems", () => {
     });
 });
 
+describe("section headings", () => {
+    it("reads a 1 MiB heading line in linear time", () => {
+        const heading = `## Problem${" ".repeat(1024 * 1024)}x\n`;
+        const startedAt = performance.now();
+
+        intentProblems(heading);
+
+        expect(performance.now() - startedAt).toBeLessThan(200);
+    });
+
+    it("ignores trailing whitespace in a heading", () => {
+        const text = INTENT_SECTIONS.map((heading) => `## ${heading}   \n\nSomething.\n`).join("\n");
+
+        expect(intentProblems(text)).toEqual([]);
+    });
+});
+
 describe("criteria", () => {
     const specWith = (...lines: readonly string[]) =>
         `## Acceptance criteria\n\n${lines.join("\n")}\n\n## Edge cases\n\nNone.`;

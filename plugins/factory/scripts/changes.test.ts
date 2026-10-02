@@ -472,11 +472,12 @@ describe("changes pr-body CLI", () => {
         }
     };
 
-    const run = async (
+    const runIn = async (
+        cwd: string,
         ...args: string[]
     ): Promise<{ readonly stdout: string; readonly stderr: string; readonly exitCode: number }> => {
         const cli = Bun.spawn(["bun", script, "pr-body", ...args], {
-            cwd: dir,
+            cwd,
             env: environment(),
             stdout: "pipe",
             stderr: "pipe",
@@ -489,6 +490,8 @@ describe("changes pr-body CLI", () => {
 
         return { stdout, stderr, exitCode };
     };
+
+    const run = (...args: string[]) => runIn(dir, ...args);
 
     const Spec = [
         "## Problem",
@@ -644,6 +647,50 @@ describe("changes pr-body CLI", () => {
             expect(result.stdout).toBe("");
             expect(result.stderr).toContain("--base needs a branch name");
         }
+    });
+
+    it("lists the change's own repository's records when run from a subfolder of the project", async () => {
+        await createChange(routeOf({ finish: "in-progress" }));
+        await mkdir(path.join(dir, "docs/changes"), { recursive: true });
+
+        const result = await runIn(path.join(dir, "docs/changes"), "2026-10-02-export");
+
+        expect(result.stderr).toBe("");
+        expect(result.stdout).toContain("57. Export as CSV");
+    });
+
+    it("lists the change's own repository's records when run from an unrelated directory, given an absolute path", async () => {
+        await createChange(routeOf({ finish: "in-progress" }));
+
+        const unrelated = await mkdtemp(path.join(tmpdir(), "changes-unrelated-"));
+
+        try {
+            const result = await runIn(unrelated, path.join(dir, Change));
+
+            expect(result.stderr).toBe("");
+            expect(result.stdout).toContain("57. Export as CSV");
+        } finally {
+            await rm(unrelated, { recursive: true, force: true });
+        }
+    });
+
+    it("refuses a folder that isn't <project>/docs/changes/<name>, naming it", async () => {
+        await createChange(routeOf({ finish: "in-progress" }));
+
+        const result = await run("docs/export");
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain(path.join(dir, "docs/export"));
+        expect(result.stderr).toContain("not a change folder");
+    });
+
+    it("names the folder when it has no task.md", async () => {
+        await createChange(routeOf({ finish: "in-progress" }));
+
+        const result = await run("docs/changes/nothing-here");
+
+        expect(result.stderr).toContain("nothing-here");
     });
 
     it("refuses an unknown option, a missing folder, and a folder without a task.md", async () => {

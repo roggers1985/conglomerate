@@ -27,7 +27,8 @@ export const CLARIFICATION_MARKER = "[NEEDS CLARIFICATION";
 const SECURITY_ANSWER = /^\s*[-*] (Authentication|Authori[sz]ation|Untrusted input|Sensitive data):\s*(.*)$/;
 const PLACEHOLDER = /^(tbd|todo|\?+|n\/?a|-+|\.\.\.|…)\.?$/i;
 const CRITERIA_MAX = 200; // acceptance criteria in one spec; more means the change should be split
-const HEADING = /^## (.+?)\s*$/;
+// Matched on the trimmed line: a lazy `.+?` before `\s*$` is quadratic on a long run of spaces.
+const HEADING = /^## (.+)$/;
 const LIST_ITEM = /^\s*[-*] /;
 const CRITERION = /^\s*[-*] \*\*(AC-\d+)\*\*:? (.+)$/;
 const DROPPED_MARKER = "(dropped)";
@@ -42,7 +43,7 @@ function sections(markdown: string): ReadonlyMap<string, string> {
 
     // Stateful on purpose: each line belongs to the section of the heading above it.
     for (const line of markdown.split("\n")) {
-        const heading = HEADING.exec(line);
+        const heading = HEADING.exec(line.trimEnd());
 
         if (heading !== null) {
             current = [];

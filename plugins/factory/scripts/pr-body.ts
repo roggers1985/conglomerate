@@ -33,6 +33,8 @@ type Finding = ReturnType<typeof reviewFindings>[number];
 type SourcedFinding = Finding & { readonly source: string };
 
 const ACCEPTED = /^accepted/i;
+const COMMENT_OPENER = "<!--";
+const FILE_NAME_BREAKING = /[\r\n`]/g; // would end the code span or the list item the file name sits in
 
 /**
  * Renders a change's pull request description in GitHub Markdown: the route with its deviations, the active
@@ -83,7 +85,7 @@ const ACCEPTED = /^accepted/i;
  * ```
  */
 export function renderPrBody(inputs: PrBodyInputs): PrBodyResult {
-    const body = `${[
+    const text = `${[
         routeSection(inputs.task),
         criteriaSection(inputs),
         reviewSection(inputs),
@@ -91,6 +93,8 @@ export function renderPrBody(inputs: PrBodyInputs): PrBodyResult {
     ]
         .filter((section) => section !== null)
         .join("\n\n")}\n`;
+    // GitHub reads an HTML comment opener as hiding everything after it, so the copied text never carries one.
+    const body = text.replaceAll(COMMENT_OPENER, "&lt;!--");
 
     if (body.length > PR_BODY_LENGTH_MAX) {
         return { kind: "too-long", length: body.length, max: PR_BODY_LENGTH_MAX };
@@ -185,7 +189,8 @@ function findingsText(findings: readonly SourcedFinding[]): string {
 
 function decisionsSection(records: readonly DecisionRecord[]): string {
     const items = records.map(
-        (record) => `- ${record.title} (\`${record.file}\`)${record.isProposed ? " — Proposed" : ""}`,
+        (record) =>
+            `- ${record.title} (\`${record.file.replace(FILE_NAME_BREAKING, "?")}\`)${record.isProposed ? " — Proposed" : ""}`,
     );
 
     return `## Decisions\n\n${items.length === 0 ? "No new decision records." : items.join("\n")}`;

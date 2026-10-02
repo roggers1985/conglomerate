@@ -398,7 +398,7 @@ async function readTaskDocument(
     const markdown = await readText(taskFile, { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
 
     if (markdown === null) {
-        return { kind: "invalid", errors: ["has no task.md"] };
+        return { kind: "invalid", errors: [`has no task.md: ${taskFile} doesn't exist`] };
     }
 
     try {
@@ -534,6 +534,19 @@ type PrBodyOutcome =
 
 const refused = (...problems: readonly string[]): PrBodyOutcome => ({ kind: "refused", problems });
 
+/**
+ * The project a change folder belongs to: the folder three levels up from `<project>/docs/changes/<name>`, so the
+ * decision records listed are those of the change's own repository, not of wherever the command runs. `null` when the
+ * folder isn't in that shape.
+ */
+function projectDirOfChange(changeDir: string): string | null {
+    const changesDir = path.dirname(changeDir);
+    const docsDir = path.dirname(changesDir);
+    const isChangeFolder = path.basename(changesDir) === "changes" && path.basename(docsDir) === "docs";
+
+    return isChangeFolder ? path.dirname(docsDir) : null;
+}
+
 async function buildPrBody(
     args: readonly string[],
     { signal }: { readonly signal: AbortSignal },
@@ -546,6 +559,12 @@ async function buildPrBody(
 
     const { folder, base } = parsedArguments;
     const changeDir = path.resolve(folder);
+    const projectDir = projectDirOfChange(changeDir);
+
+    if (projectDir === null) {
+        return refused(`✗ ${changeDir} is not a change folder: expected <project>/${CHANGES_DIR}/<name>`);
+    }
+
     const change = await readChange(changeDir, { gates: "always", signal });
 
     if (change.kind === "invalid") {
@@ -565,11 +584,6 @@ async function buildPrBody(
     const [spec, verification, review, securityReview] = await Promise.all(
         ["spec.md", "verification.md", "review.md", "security-review.md"].map(readDocument),
     );
-    const projectDir = resolveProjectDir({
-        argument: undefined,
-        envProjectDir: process.env["CLAUDE_PROJECT_DIR"],
-        cwd: process.cwd(),
-    });
     const added = await addedDecisionRecords(projectDir, { base, signal });
 
     if (added.kind === "unknown-base") {
