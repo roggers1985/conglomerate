@@ -50,7 +50,7 @@ No new decision needs an ADR: the change implements what ADR 0056 left to a scri
 - Verify: `bun test plugins/factory/scripts/stage-gates.test.ts`
 - Depends on: none
 - Parallel: yes
-- Status: in-progress
+- Status: done
 
 ### T-2: Find the decision records added on the branch
 
