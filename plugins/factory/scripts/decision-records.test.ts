@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { assert } from "../../../lib/assert.ts";
+import { TEXT_BYTES_MAX } from "../../../lib/files.ts";
 import { addedDecisionRecords, DECISION_RECORDS_MAX } from "./decision-records.ts";
 
 const AUTHOR = ["-c", "user.name=Test", "-c", "user.email=test@example.com"];
 
-function git(dir: string, ...args: readonly string[]): void {
+function git(dir: string, ...args: readonly string[]): string {
     // A minimal environment for the test repositories' own git calls: no user configuration (HOME is the temporary
     // folder, which has none), and no GIT_DIR from a surrounding hook (git sets it in a worktree's pre-push), which
     // would point them at this repository.
@@ -18,6 +19,8 @@ function git(dir: string, ...args: readonly string[]): void {
     if (result.exitCode !== 0) {
         throw new Error(`git ${args.join(" ")} failed: ${result.stderr.toString()}`);
     }
+
+    return result.stdout.toString();
 }
 
 function buildRecord({ title = "1. Use Bun", status = "Accepted" }: { title?: string; status?: string } = {}): string {
@@ -269,6 +272,109 @@ describe("addedDecisionRecords", () => {
         await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
             "git diff's output is over the limit of 1048576 bytes",
         );
+    });
+
+    it("refuses a record that is a symbolic link to a file outside the repository, without reading it", async () => {
+        const outside = await mkdtemp(path.join(tmpdir(), "decision-records-outside-"));
+
+        try {
+            await Bun.write(path.join(outside, "secret.md"), buildRecord({ title: "Secret heading" }));
+            await createRepository();
+            await mkdir(path.join(dir, "docs/decisions"), { recursive: true });
+            await symlink(path.join(outside, "secret.md"), path.join(dir, "docs/decisions/0002-link.md"));
+            await commit(dir, {}, "Link");
+
+            const error = await addedDecisionRecords(dir, { base: "main", signal }).catch((caught: unknown) => caught);
+
+            expect(error).toBeInstanceOf(Error);
+            assert(error instanceof Error, "rejected with an Error");
+            expect(error.message).toBe(
+                "docs/decisions/0002-link.md is a symbolic link, not a regular file: a decision record must be a regular file",
+            );
+            expect(error.message).not.toContain("Secret heading");
+        } finally {
+            await rm(outside, { recursive: true, force: true });
+        }
+    });
+
+    it("refuses a record that is a symbolic link to /dev/zero", async () => {
+        await createRepository();
+        await mkdir(path.join(dir, "docs/decisions"), { recursive: true });
+        await symlink("/dev/zero", path.join(dir, "docs/decisions/0002-zero.md"));
+        await commit(dir, {}, "Link");
+
+        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
+            "docs/decisions/0002-zero.md is a symbolic link, not a regular file",
+        );
+    }, 2_000);
+
+    it("refuses a record that is a submodule, naming it", async () => {
+        await createRepository();
+        const head = git(dir, "rev-parse", "HEAD").trim();
+        git(dir, "update-index", "--add", "--cacheinfo", `160000,${head},docs/decisions/0002-module.md`);
+        git(dir, "commit", "--quiet", "--message=Submodule");
+
+        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
+            "docs/decisions/0002-module.md is a submodule, not a regular file",
+        );
+    });
+
+    it("accepts an executable record, which is still a regular file", async () => {
+        await createRepository();
+        await Bun.write(path.join(dir, "docs/decisions/0002-run.md"), buildRecord({ title: "2. Run" }));
+        await chmod(path.join(dir, "docs/decisions/0002-run.md"), 0o755);
+        await commit(dir, {}, "Decide");
+
+        expect(await addedDecisionRecords(dir, { base: "main", signal })).toEqual({
+            kind: "found",
+            records: [{ file: "docs/decisions/0002-run.md", title: "2. Run", isProposed: false }],
+        });
+    });
+
+    it("reads the records as committed, not as they are in the working tree", async () => {
+        await createRepository();
+        await commit(
+            dir,
+            {
+                "docs/decisions/0002-edited.md": buildRecord({ title: "2. Committed", status: "Proposed" }),
+                "docs/decisions/0003-removed.md": buildRecord({ title: "3. Removed" }),
+            },
+            "Decide",
+        );
+        await Bun.write(path.join(dir, "docs/decisions/0002-edited.md"), buildRecord({ title: "2. Uncommitted" }));
+        await rm(path.join(dir, "docs/decisions/0003-removed.md"));
+
+        expect(await addedDecisionRecords(dir, { base: "main", signal })).toEqual({
+            kind: "found",
+            records: [
+                { file: "docs/decisions/0002-edited.md", title: "2. Committed", isProposed: true },
+                { file: "docs/decisions/0003-removed.md", title: "3. Removed", isProposed: false },
+            ],
+        });
+    });
+
+    it("reads a record of exactly the size limit, and refuses one byte more, naming it", async () => {
+        await createRepository();
+        const record = buildRecord({ title: "2. Large" });
+        await commit(
+            dir,
+            {
+                "docs/decisions/0002-at-limit.md": record.padEnd(TEXT_BYTES_MAX, "x"),
+                "docs/decisions/0003-over-limit.md": record.padEnd(TEXT_BYTES_MAX + 1, "x"),
+            },
+            "Decide",
+        );
+
+        await expect(addedDecisionRecords(dir, { base: "main", signal })).rejects.toThrow(
+            `docs/decisions/0003-over-limit.md is over the limit of ${TEXT_BYTES_MAX} bytes`,
+        );
+        git(dir, "rm", "--quiet", "docs/decisions/0003-over-limit.md");
+        git(dir, "commit", "--quiet", "--message=Smaller");
+
+        expect(await addedDecisionRecords(dir, { base: "main", signal })).toEqual({
+            kind: "found",
+            records: [{ file: "docs/decisions/0002-at-limit.md", title: "2. Large", isProposed: false }],
+        });
     });
 
     it("fails on a record without a title, naming the file", async () => {

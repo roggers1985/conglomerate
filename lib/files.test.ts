@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { isFileNotFound } from "./errors.ts";
@@ -7,6 +7,14 @@ import { readDir, readDirRecursive, readJson, readText, whenMissing } from "./fi
 
 const signal = AbortSignal.timeout(5_000);
 let dir = "";
+
+function makeFifo(file: string): void {
+    const result = Bun.spawnSync(["mkfifo", file], { stdout: "pipe", stderr: "pipe" });
+
+    if (result.exitCode !== 0) {
+        throw new Error(`mkfifo ${file} failed: ${result.stderr.toString()}`);
+    }
+}
 
 beforeEach(async () => {
     dir = await mkdtemp(path.join(tmpdir(), "files-"));
@@ -80,6 +88,65 @@ describe("readText and readJson", () => {
         await expect(
             readJson(path.join(dir, "a.json"), { maxBytes: 10, signal: AbortSignal.abort() }),
         ).rejects.toMatchObject({ name: "AbortError" });
+    });
+
+    it("follow a symbolic link to a regular file", async () => {
+        await Bun.write(path.join(dir, "target.json"), '{ "a": 1 }');
+        await symlink(path.join(dir, "target.json"), path.join(dir, "link.json"));
+
+        expect(await readText(path.join(dir, "link.json"), { maxBytes: 100, signal })).toBe('{ "a": 1 }');
+        expect(await readJson(path.join(dir, "link.json"), { maxBytes: 100, signal })).toEqual({ a: 1 });
+    });
+
+    it("refuse a FIFO at once, without waiting for a writer", async () => {
+        const fifo = path.join(dir, "pipe");
+        makeFifo(fifo);
+
+        await expect(readText(fifo, { maxBytes: 100, signal })).rejects.toThrow(
+            `${fifo} is a FIFO, not a regular file`,
+        );
+    }, 1_000);
+
+    it("refuse a symbolic link to a FIFO at once", async () => {
+        const fifo = path.join(dir, "pipe");
+        makeFifo(fifo);
+        await symlink(fifo, path.join(dir, "link"));
+
+        await expect(readText(path.join(dir, "link"), { maxBytes: 100, signal })).rejects.toThrow(
+            "is a FIFO, not a regular file",
+        );
+    }, 1_000);
+
+    it("refuse a device, whose size says nothing about how much it yields", async () => {
+        await symlink("/dev/zero", path.join(dir, "zero.txt"));
+
+        await expect(readText("/dev/zero", { maxBytes: 100, signal })).rejects.toThrow(
+            "/dev/zero is a character device, not a regular file",
+        );
+        await expect(readText(path.join(dir, "zero.txt"), { maxBytes: 100, signal })).rejects.toThrow(
+            "is a character device, not a regular file",
+        );
+    }, 1_000);
+
+    it("refuse a directory", async () => {
+        await mkdir(path.join(dir, "sub"));
+
+        await expect(readText(path.join(dir, "sub"), { maxBytes: 100, signal })).rejects.toThrow(
+            `${path.join(dir, "sub")} is a directory, not a regular file`,
+        );
+        await expect(readJson(path.join(dir, "sub"), { maxBytes: 100, signal })).rejects.toThrow(
+            "is a directory, not a regular file",
+        );
+    });
+
+    it("reject a symbolic link whose target is missing with a not-found error", async () => {
+        await symlink(path.join(dir, "missing.txt"), path.join(dir, "dangling.txt"));
+
+        const error = await readText(path.join(dir, "dangling.txt"), { maxBytes: 1, signal }).catch(
+            (caught: unknown) => caught,
+        );
+
+        expect(isFileNotFound(error)).toBe(true);
     });
 });
 
