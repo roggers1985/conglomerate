@@ -41,6 +41,16 @@ Follows the conventions and ADRs. In particular:
 
 No new decision needs an ADR: the change implements what ADR 0056 left to a script.
 
+## Deviations
+
+The security review (`security-review.md`) and the review (`review.md`) led to changes beyond the planned files, each with its reason there:
+
+- `lib/files.ts`: `readText` and `readJson` refuse non-regular files and take a required `symbolicLinks` choice, and every call site passes one (security findings 1, 5 and 8; review finding 2).
+- `decision-records.ts` reads records from git blobs instead of the working tree (security finding 1).
+- `changes.ts`: the project folder comes from the change folder, change documents and folders may not be links, refusals are single `✗` lines, and `status`/`reminder` report one broken change as invalid instead of failing (security findings 2, 5 and 7).
+- `stage-gates.ts`: five expressions made linear (security findings 4 and 6).
+- ADR 0060 records the decisions; CLAUDE.md and ADR 0056 follow it (review finding 3).
+
 ## Tasks
 
 ### T-1: Expose the documents' contents from the gates' parsers
