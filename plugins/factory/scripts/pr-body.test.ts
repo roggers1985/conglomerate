@@ -211,6 +211,28 @@ describe("renderPrBody", () => {
         expect(render()).toContain("## Decisions\n\nNo new decision records.");
     });
 
+    it("neutralises an HTML comment opener in copied text, so it can't hide the rest of the description", () => {
+        const body = render({
+            task: buildTask({ deviations: ["skipped <!-- the plan"] }),
+            review: buildReview({ summary: "Fine <!-- hidden" }),
+            decisionRecords: [{ file: "docs/decisions/0001-x.md", title: "1. <!-- X", isProposed: false }],
+        });
+
+        expect(body).not.toContain("<!--");
+        expect(body).toContain("skipped &lt;!-- the plan");
+        expect(body).toContain("Fine &lt;!-- hidden");
+        expect(body).toContain("1. &lt;!-- X");
+    });
+
+    it("renders a decision record file name with a newline or a backtick on one line, inside its code span", () => {
+        const decisionRecords: readonly DecisionRecord[] = [
+            { file: "docs/decisions/a`b\n- injected.md", title: "1. X", isProposed: false },
+        ];
+        const decisions = render({ decisionRecords }).split("## Decisions\n\n")[1];
+
+        expect(decisions).toBe("- 1. X (`docs/decisions/a?b?- injected.md`)\n");
+    });
+
     it("AC-9: renders the same body twice for the same input", () => {
         const decisionRecords: readonly DecisionRecord[] = [
             { file: "docs/decisions/0001-x.md", title: "1. X", isProposed: true },
