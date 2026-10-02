@@ -340,9 +340,19 @@ describe("checkups CLI", () => {
     const script = path.join(import.meta.dir, "checkups.ts");
     let projectDir = "";
 
+    const runCaptured = async (command: string): Promise<{ stdout: string; stderr: string; exitCode: number }> => {
+        const cli = Bun.spawn(["bun", script, command, projectDir], { stdout: "pipe", stderr: "pipe" });
+        const [stdout, stderr, exitCode] = await Promise.all([
+            new Response(cli.stdout).text(),
+            new Response(cli.stderr).text(),
+            cli.exited,
+        ]);
+
+        return { stdout, stderr, exitCode };
+    };
+
     const run = async (command: string): Promise<string> => {
-        const cli = Bun.spawn(["bun", script, command, projectDir], { stdout: "pipe" });
-        const [stdout, exitCode] = await Promise.all([new Response(cli.stdout).text(), cli.exited]);
+        const { stdout, exitCode } = await runCaptured(command);
 
         expect(exitCode).toBe(0);
         return stdout;
@@ -451,6 +461,47 @@ describe("checkups CLI", () => {
 
         const status = await run("status");
 
-        expect(status).toContain("is a symbolic link");
+        expect(status).toBe(
+            "docs/checkups/checkups.json is invalid:\n- docs/checkups/checkups.json is a symbolic link; use a regular file\n",
+        );
+    });
+
+    describe("a project checkup skill that is a symbolic link", () => {
+        const skillMessage = ".claude/skills/checkup-legal/SKILL.md is a symbolic link; use a regular file";
+
+        const createLinkedSkillProject = async (): Promise<void> => {
+            await createProject([{ name: "legal" }], {});
+            const skillFile = path.join(projectDir, ".claude/skills/checkup-legal/SKILL.md");
+            const realFile = path.join(projectDir, "real-skill.md");
+
+            await Bun.write(
+                realFile,
+                "---\nname: checkup-legal\nmetadata:\n  intervalDays: 90\n  priority: quiet\n---\n",
+            );
+            await rm(skillFile);
+            await symlink(realFile, skillFile);
+        };
+
+        it("is reported invalid by status, naming the file", async () => {
+            await createLinkedSkillProject();
+
+            const { stdout, stderr, exitCode } = await runCaptured("status");
+
+            expect(exitCode).toBe(0);
+            expect(stderr).toBe("");
+            expect(stdout).toBe(`docs/checkups/checkups.json is invalid:\n- ${skillMessage}\n`);
+        });
+
+        it("is reported invalid by the reminder, naming the file", async () => {
+            await createLinkedSkillProject();
+
+            const { stdout, stderr, exitCode } = await runCaptured("reminder");
+
+            expect(exitCode).toBe(0);
+            expect(stderr).toBe("");
+            expect(JSON.parse(stdout).systemMessage).toBe(
+                `Checkups: docs/checkups/checkups.json is invalid: ${skillMessage}`,
+            );
+        });
     });
 });

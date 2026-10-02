@@ -735,16 +735,22 @@ describe("changes pr-body CLI", () => {
             stderr: "pipe",
         });
 
-        for (let attempt = 0; attempt < 100 && !existsSync(started); attempt += 1) {
-            await Bun.sleep(50);
+        try {
+            for (let attempt = 0; attempt < 100 && !existsSync(started); attempt += 1) {
+                await Bun.sleep(50);
+            }
+            expect(existsSync(started)).toBe(true);
+
+            cli.kill("SIGINT");
+            const [stdout, exitCode] = await Promise.all([new Response(cli.stdout).text(), cli.exited]);
+
+            expect(stdout).toBe("");
+            expect(exitCode).not.toBe(0);
+        } finally {
+            // A failed wait or assertion must not leave the CLI, or its stand-in git, running.
+            cli.kill("SIGKILL");
+            await cli.exited;
         }
-        expect(existsSync(started)).toBe(true);
-
-        cli.kill("SIGINT");
-        const [stdout, exitCode] = await Promise.all([new Response(cli.stdout).text(), cli.exited]);
-
-        expect(stdout).toBe("");
-        expect(exitCode).not.toBe(0);
     }, 10_000);
 
     it("refuses a --base without a value, or with a blank value or one starting with -", async () => {

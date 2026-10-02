@@ -588,27 +588,39 @@ function readScheduleJson(projectDir: string, { signal }: { readonly signal: Abo
     );
 }
 
-/** A skill's checkup defaults; `null` when the skill doesn't exist, or its frontmatter declares no valid defaults. */
+/** What reading a skill's defaults found: the defaults (`null` when there are none), or why the file can't be used. */
+type SkillDefaults =
+    | { readonly kind: "read"; readonly defaults: CheckupDefaults | null }
+    | { readonly kind: "invalid"; readonly errors: readonly string[] };
+
+/** A skill's checkup defaults; `defaults` is `null` when the skill doesn't exist, or its frontmatter declares no valid ones. */
 async function readSkillDefaults(
     skillFile: string,
-    { signal, symbolicLinks }: { readonly signal: AbortSignal; readonly symbolicLinks: "follow" | "refuse" },
-): Promise<CheckupDefaults | null> {
-    const markdown = await readText(skillFile, { maxBytes: TEXT_BYTES_MAX, signal, symbolicLinks }).catch(
-        whenMissing(null),
-    );
-
-    if (markdown === null) {
-        return null;
-    }
-
+    {
+        displayPath,
+        signal,
+        symbolicLinks,
+    }: { readonly displayPath: string; readonly signal: AbortSignal; readonly symbolicLinks: "follow" | "refuse" },
+): Promise<SkillDefaults> {
     try {
+        const markdown = await readText(skillFile, { maxBytes: TEXT_BYTES_MAX, signal, symbolicLinks }).catch(
+            whenMissing(null),
+        );
+
+        if (markdown === null) {
+            return { kind: "read", defaults: null };
+        }
+
         const defaults = parseCheckupDefaults(parseFrontmatter(markdown));
 
-        return defaults.kind === "valid" ? defaults.value : null;
+        return { kind: "read", defaults: defaults.kind === "valid" ? defaults.value : null };
     } catch (error: unknown) {
         // Invalid YAML means no usable defaults; `resolveCheckup` then reports the checkup, and validate the skill.
         if (error instanceof SyntaxError) {
-            return null;
+            return { kind: "read", defaults: null };
+        }
+        if (error instanceof SymbolicLinkError) {
+            return { kind: "invalid", errors: [symbolicLinkMessage(displayPath)] };
         }
         throw error;
     }
@@ -618,18 +630,30 @@ async function readSkillDefaults(
 async function readCheckupDefaults(
     projectDir: string,
     { name, signal }: { readonly name: string; readonly signal: AbortSignal },
-): Promise<CheckupDefaults | null> {
+): Promise<SkillDefaults> {
     const skillDir = `checkup-${name}`;
-    const [projectDefaults, pluginDefaults] = await Promise.all([
-        readSkillDefaults(path.join(projectDir, PROJECT_SKILLS_DIR, skillDir, "SKILL.md"), {
+    const projectSkill = path.join(PROJECT_SKILLS_DIR, skillDir, "SKILL.md");
+    const [project, plugin] = await Promise.all([
+        readSkillDefaults(path.join(projectDir, projectSkill), {
+            displayPath: projectSkill,
             signal,
             symbolicLinks: "refuse",
         }),
-        readSkillDefaults(path.join(PLUGIN_SKILLS_DIR, skillDir, "SKILL.md"), { signal, symbolicLinks: "follow" }),
+        readSkillDefaults(path.join(PLUGIN_SKILLS_DIR, skillDir, "SKILL.md"), {
+            displayPath: path.join(skillDir, "SKILL.md"),
+            signal,
+            symbolicLinks: "follow",
+        }),
     ]);
 
-    return projectDefaults ?? pluginDefaults;
+    if (project.kind === "invalid") {
+        return project;
+    }
+
+    return project.defaults === null ? plugin : project;
 }
+
+const symbolicLinkMessage = (relativePath: string): string => `${relativePath} is a symbolic link; use a regular file`;
 
 async function readSchedule(
     projectDir: string,
@@ -644,7 +668,7 @@ async function readSchedule(
             return { kind: "invalid", errors: ["is not valid JSON"] };
         }
         if (error instanceof SymbolicLinkError) {
-            return { kind: "invalid", errors: [error.message] };
+            return { kind: "invalid", errors: [symbolicLinkMessage(SCHEDULE_PATH)] };
         }
         throw error;
     }
@@ -665,9 +689,13 @@ async function loadProjectCheckups(
     }
 
     const resolved = await Promise.all(
-        schedule.value.checkups.map(async (entry) =>
-            resolveCheckup(entry, { defaults: await readCheckupDefaults(projectDir, { name: entry.name, signal }) }),
-        ),
+        schedule.value.checkups.map(async (entry) => {
+            const skillDefaults = await readCheckupDefaults(projectDir, { name: entry.name, signal });
+
+            return skillDefaults.kind === "invalid"
+                ? skillDefaults
+                : resolveCheckup(entry, { defaults: skillDefaults.defaults });
+        }),
     );
     const errors = resolved.flatMap((result) => (result.kind === "invalid" ? result.errors : []));
 
