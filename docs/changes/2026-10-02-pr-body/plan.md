@@ -86,4 +86,4 @@ No new decision needs an ADR: the change implements what ADR 0056 left to a scri
 - Verify: `bun run check`
 - Depends on: T-4
 - Parallel: no
-- Status: in-progress
+- Status: done

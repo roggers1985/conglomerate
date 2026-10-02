@@ -12,7 +12,7 @@ classification:
 stages:
   - { name: spec, level: guided, status: done }
   - { name: plan, level: trusted, status: done }
-  - { name: build, level: trusted, status: in-progress }
+  - { name: build, level: trusted, status: done }
   - { name: security-review, level: trusted, status: pending }
   - { name: review, level: trusted, status: pending }
   - { name: finish, level: trusted, status: pending }
