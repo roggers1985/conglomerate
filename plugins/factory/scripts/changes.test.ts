@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Stage, StageDocuments, TaskDocument } from "./changes.ts";
@@ -709,5 +709,78 @@ describe("changes pr-body CLI", () => {
             expect(result.exitCode).toBe(1);
             expect(result.stdout).toBe("");
         }
+    });
+
+    describe("a change's documents must be regular files", () => {
+        const Secret = "SECRET-OUTSIDE-THE-REPOSITORY";
+        const Refusal = "is a symbolic link: a change's documents must be regular files";
+        let outside = "";
+
+        const runCheck = async (): Promise<{
+            readonly stdout: string;
+            readonly stderr: string;
+            readonly exitCode: number;
+        }> => {
+            const cli = Bun.spawn(["bun", script, "check", path.join(dir, Change, "task.md")], {
+                cwd: dir,
+                env: environment(),
+                stdout: "pipe",
+                stderr: "pipe",
+            });
+            const [stdout, stderr, exitCode] = await Promise.all([
+                new Response(cli.stdout).text(),
+                new Response(cli.stderr).text(),
+                cli.exited,
+            ]);
+
+            return { stdout, stderr, exitCode };
+        };
+
+        // Replaces a committed document with a symbolic link to a file outside the repository.
+        const linkOutside = async (file: string, content: string): Promise<void> => {
+            outside = await mkdtemp(path.join(tmpdir(), "changes-outside-"));
+            await Bun.write(path.join(outside, file), content);
+            await unlink(path.join(dir, Change, file));
+            await symlink(path.join(outside, file), path.join(dir, Change, file));
+            git("add", "--all");
+            git("commit", "--quiet", "--message=Link");
+        };
+
+        afterEach(async () => {
+            await rm(outside, { recursive: true, force: true });
+        });
+
+        it("refuses a symlinked spec.md in check and in pr-body, never printing its target", async () => {
+            await createChange(routeOf({ finish: "in-progress" }));
+            await linkOutside("spec.md", `${Spec}\n${Secret}\n`);
+
+            for (const result of [await runCheck(), await run(Change)]) {
+                expect(result.exitCode).toBe(1);
+                expect(result.stdout).toBe("");
+                expect(result.stderr).toContain(`${Change}/spec.md ${Refusal}`);
+                expect(result.stderr).not.toContain(Secret);
+            }
+        });
+
+        it("refuses a symlinked task.md in check and in pr-body, never printing its target", async () => {
+            await createChange(routeOf({ finish: "in-progress" }));
+            await linkOutside("task.md", `${asMarkdown(routeOf({ finish: "in-progress" }))}\n${Secret}\n`);
+
+            for (const result of [await runCheck(), await run(Change)]) {
+                expect(result.exitCode).toBe(1);
+                expect(result.stdout).toBe("");
+                expect(result.stderr).toContain(`${Change}/task.md ${Refusal}`);
+                expect(result.stderr).not.toContain(Secret);
+            }
+        });
+
+        it("still treats a missing document as missing", async () => {
+            await createChange(routeOf({ finish: "in-progress" }));
+            await unlink(path.join(dir, Change, "spec.md"));
+
+            const result = await runCheck();
+
+            expect(result.stderr).toContain("spec is done, but spec.md is missing");
+        });
     });
 });

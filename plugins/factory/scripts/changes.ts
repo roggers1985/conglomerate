@@ -8,6 +8,7 @@
 //                                       merges into, `main` by default. Refuses, printing nothing, while a stage before
 //                                       finish isn't done or a document fails its gate
 
+import { lstat } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { mapConcurrent } from "../../../lib/concurrency.ts";
@@ -391,14 +392,42 @@ export function changesReminder(changes: readonly Change[]): {
     };
 }
 
+/** A document of a change folder that is a symbolic link, which could lead outside the repository. */
+class LinkedDocumentError extends Error {}
+
+/**
+ * Reads one document of a change folder, or null when it doesn't exist. The only way the change's documents are read:
+ * it refuses a symbolic link (`lstat` doesn't follow it), because a committed link could point outside the repository
+ * and its target would end up in a pull request description.
+ */
+async function readChangeDocument(
+    changeDir: string,
+    file: string,
+    { signal }: { readonly signal: AbortSignal },
+): Promise<string | null> {
+    const documentPath = path.join(changeDir, file);
+
+    signal.throwIfAborted();
+
+    const linked = await lstat(documentPath).then((stats) => stats.isSymbolicLink(), whenMissing(false));
+
+    if (linked) {
+        throw new LinkedDocumentError(
+            `${CHANGES_DIR}/${path.basename(changeDir)}/${file} is a symbolic link: a change's documents must be regular files`,
+        );
+    }
+
+    return readText(documentPath, { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
+}
+
 async function readTaskDocument(
-    taskFile: string,
+    changeDir: string,
     { signal }: { readonly signal: AbortSignal },
 ): Promise<Parsed<TaskDocument>> {
-    const markdown = await readText(taskFile, { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
+    const markdown = await readChangeDocument(changeDir, "task.md", { signal });
 
     if (markdown === null) {
-        return { kind: "invalid", errors: [`has no task.md: ${taskFile} doesn't exist`] };
+        return { kind: "invalid", errors: [`has no task.md: ${path.join(changeDir, "task.md")} doesn't exist`] };
     }
 
     try {
@@ -421,9 +450,23 @@ async function readTaskDocument(
  */
 async function readChange(
     changeDir: string,
+    options: { readonly gates: "always" | "unfinished"; readonly signal: AbortSignal },
+): Promise<Parsed<TaskDocument>> {
+    try {
+        return await readChangeUnchecked(changeDir, options);
+    } catch (error: unknown) {
+        if (error instanceof LinkedDocumentError) {
+            return { kind: "invalid", errors: [error.message] };
+        }
+        throw error;
+    }
+}
+
+async function readChangeUnchecked(
+    changeDir: string,
     { gates, signal }: { readonly gates: "always" | "unfinished"; readonly signal: AbortSignal },
 ): Promise<Parsed<TaskDocument>> {
-    const task = await readTaskDocument(path.join(changeDir, "task.md"), { signal });
+    const task = await readTaskDocument(changeDir, { signal });
 
     if (task.kind === "invalid") {
         return task;
@@ -435,8 +478,7 @@ async function readChange(
         return task;
     }
 
-    const readDocument = (file: string): Promise<string | null> =>
-        readText(path.join(changeDir, file), { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
+    const readDocument = (file: string): Promise<string | null> => readChangeDocument(changeDir, file, { signal });
     const files = [
         "intent.md",
         "spec.md",
@@ -579,11 +621,16 @@ async function buildPrBody(
         return refused(`✗ not ready for a pull request: ${named} before finish`);
     }
 
-    const readDocument = (file: string): Promise<string | null> =>
-        readText(path.join(changeDir, file), { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
-    const [spec, verification, review, securityReview] = await Promise.all(
+    const readDocument = (file: string): Promise<string | null> => readChangeDocument(changeDir, file, { signal });
+    const documents = await Promise.all(
         ["spec.md", "verification.md", "review.md", "security-review.md"].map(readDocument),
-    );
+    ).catch((error: unknown) => (error instanceof LinkedDocumentError ? error : Promise.reject(error)));
+
+    if (documents instanceof LinkedDocumentError) {
+        return refused(`✗ ${documents.message}`);
+    }
+
+    const [spec, verification, review, securityReview] = documents;
     const added = await addedDecisionRecords(projectDir, { base, signal });
 
     if (added.kind === "unknown-base") {
