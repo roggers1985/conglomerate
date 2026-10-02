@@ -158,7 +158,9 @@ export function renderRoutingContext(tasks: Routes): string {
  * ```
  */
 export async function readRoutes({ signal }: { readonly signal: AbortSignal }): Promise<Routes> {
-    const parsed = parseRoutes(await readJson(MODELS_PATH, { maxBytes: JSON_BYTES_MAX, signal }));
+    const parsed = parseRoutes(
+        await readJson(MODELS_PATH, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "follow" }),
+    );
 
     if (parsed.kind === "invalid") {
         throw new Error(`models.json is invalid: ${parsed.errors.join("; ")}`);

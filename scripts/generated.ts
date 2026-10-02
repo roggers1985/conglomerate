@@ -44,7 +44,9 @@ export async function readGeneratedFiles(
         .filter((fileName) => fileName.endsWith(extension))
         .toSorted();
     const contents = await Promise.all(
-        fileNames.map((fileName) => readText(path.join(dir, fileName), { maxBytes: GENERATED_BYTES_MAX, signal })),
+        fileNames.map((fileName) =>
+            readText(path.join(dir, fileName), { maxBytes: GENERATED_BYTES_MAX, signal, symbolicLinks: "follow" }),
+        ),
     );
 
     return new Map(fileNames.map((fileName, index) => [fileName, contents[index] ?? ""]));

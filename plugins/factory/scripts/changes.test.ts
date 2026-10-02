@@ -857,6 +857,24 @@ describe("changes pr-body CLI", () => {
             expect(result.stdout).toContain("57. Export as CSV");
         });
 
+        it("accepts a change folder named in a different case where the file system ignores case", async () => {
+            await createChange(routeOf({ finish: "in-progress" }));
+            const upperCased = "docs/changes/2026-10-02-EXPORT";
+
+            const isCaseInsensitive = await Bun.file(path.join(dir, upperCased, "task.md")).exists();
+
+            // On a case-sensitive file system the upper-cased folder doesn't exist: nothing to test here.
+            if (!isCaseInsensitive) {
+                return;
+            }
+
+            const result = await run(upperCased);
+
+            expect(result.stderr).not.toContain("leads outside the project");
+            expect(result.exitCode).toBe(0);
+            expect(result.stdout).toContain("57. Export as CSV");
+        });
+
         it("refuses a linked decision record in pr-body with a single ✗ line, not a stack trace", async () => {
             await createChange(routeOf({ finish: "in-progress" }));
             outside = await mkdtemp(path.join(tmpdir(), "changes-outside-"));

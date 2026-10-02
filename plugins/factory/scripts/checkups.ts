@@ -575,7 +575,9 @@ async function skillNames(dir: string, { signal }: { readonly signal: AbortSigna
 function readScheduleJson(projectDir: string, { signal }: { readonly signal: AbortSignal }): Promise<unknown> {
     const schedulePath = path.join(projectDir, SCHEDULE_PATH);
 
-    return readJson(schedulePath, { maxBytes: JSON_BYTES_MAX, signal }).catch(whenMissing(null));
+    return readJson(schedulePath, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "follow" }).catch(
+        whenMissing(null),
+    );
 }
 
 /** A skill's checkup defaults; `null` when the skill doesn't exist, or its frontmatter declares no valid defaults. */
@@ -583,7 +585,9 @@ async function readSkillDefaults(
     skillFile: string,
     { signal }: { readonly signal: AbortSignal },
 ): Promise<CheckupDefaults | null> {
-    const markdown = await readText(skillFile, { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
+    const markdown = await readText(skillFile, { maxBytes: TEXT_BYTES_MAX, signal, symbolicLinks: "follow" }).catch(
+        whenMissing(null),
+    );
 
     if (markdown === null) {
         return null;

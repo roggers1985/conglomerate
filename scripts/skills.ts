@@ -281,6 +281,7 @@ export async function readPluginSkills(
                 const markdown = await readText(path.join(skillsDir, entry.name, "SKILL.md"), {
                     maxBytes: TEXT_BYTES_MAX,
                     signal,
+                    symbolicLinks: "follow",
                 });
 
                 return {

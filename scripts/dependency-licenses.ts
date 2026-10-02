@@ -33,7 +33,11 @@ export type InstalledPackage = {
 type Options = { readonly signal: AbortSignal };
 
 async function readPackage(dir: string, options: Options): Promise<InstalledPackage | null> {
-    const json = await readJson(path.join(dir, "package.json"), { ...options, maxBytes: JSON_BYTES_MAX }).catch(
+    const json = await readJson(path.join(dir, "package.json"), {
+        ...options,
+        maxBytes: JSON_BYTES_MAX,
+        symbolicLinks: "follow",
+    }).catch(
         // A folder without a package.json, e.g. a leftover empty folder, holds no package.
         whenMissing(null),
     );
