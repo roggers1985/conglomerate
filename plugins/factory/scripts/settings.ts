@@ -3,7 +3,7 @@
 
 import path from "node:path";
 import { z } from "zod";
-import { JSON_BYTES_MAX, readJson, whenMissing } from "../../../lib/files.ts";
+import { JSON_BYTES_MAX, readJson, SymbolicLinkError, whenMissing } from "../../../lib/files.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
 
@@ -202,13 +202,16 @@ async function readSettingsJson(
     try {
         return {
             kind: "valid",
-            value: await readJson(settingsPath, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "follow" }).catch(
+            value: await readJson(settingsPath, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "refuse" }).catch(
                 whenMissing(null),
             ),
         };
     } catch (error: unknown) {
         if (error instanceof SyntaxError) {
             return { kind: "invalid", errors: ["is not valid JSON"] };
+        }
+        if (error instanceof SymbolicLinkError) {
+            return { kind: "invalid", errors: [error.message] };
         }
         throw error;
     }
