@@ -8,11 +8,11 @@
 //                                       merges into, `main` by default. Refuses, printing nothing, while a stage before
 //                                       finish isn't done or a document fails its gate
 
-import { lstat } from "node:fs/promises";
+import { realpath } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { mapConcurrent } from "../../../lib/concurrency.ts";
-import { readDir, readText, TEXT_BYTES_MAX, whenMissing } from "../../../lib/files.ts";
+import { readDir, readText, SymbolicLinkError, TEXT_BYTES_MAX, whenMissing } from "../../../lib/files.ts";
 import { parseFrontmatter } from "../../../lib/frontmatter.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
 import type { Parsed } from "../../../lib/parse.ts";
@@ -392,13 +392,11 @@ export function changesReminder(changes: readonly Change[]): {
     };
 }
 
-/** A document of a change folder that is a symbolic link, which could lead outside the repository. */
-class LinkedDocumentError extends Error {}
-
 /**
  * Reads one document of a change folder, or null when it doesn't exist. The only way the change's documents are read:
- * it refuses a symbolic link (`lstat` doesn't follow it), because a committed link could point outside the repository
- * and its target would end up in a pull request description.
+ * it refuses a symbolic link (atomically, see `readText`), because a committed link could point outside the
+ * repository and its target would end up in a pull request description. Links in the folders above it are caught by
+ * `locateChange`.
  */
 async function readChangeDocument(
     changeDir: string,
@@ -407,17 +405,19 @@ async function readChangeDocument(
 ): Promise<string | null> {
     const documentPath = path.join(changeDir, file);
 
-    signal.throwIfAborted();
-
-    const linked = await lstat(documentPath).then((stats) => stats.isSymbolicLink(), whenMissing(false));
-
-    if (linked) {
-        throw new LinkedDocumentError(
-            `${CHANGES_DIR}/${path.basename(changeDir)}/${file} is a symbolic link: a change's documents must be regular files`,
+    try {
+        return await readText(documentPath, { maxBytes: TEXT_BYTES_MAX, signal, symbolicLinks: "refuse" }).catch(
+            whenMissing(null),
         );
+    } catch (error: unknown) {
+        if (error instanceof SymbolicLinkError) {
+            throw new Error(
+                `${CHANGES_DIR}/${path.basename(changeDir)}/${file} is a symbolic link: a change's documents must be regular files`,
+                { cause: error },
+            );
+        }
+        throw error;
     }
-
-    return readText(documentPath, { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
 }
 
 async function readTaskDocument(
@@ -447,22 +447,9 @@ async function readTaskDocument(
 /**
  * A change's task document, with the gates of its done stages applied. `gates: "unfinished"` skips the gates of a
  * change whose every stage is done or skipped, so session start doesn't read the documents of the whole history.
+ * Rejects when a document can't be read, e.g. one that is a symbolic link or a FIFO.
  */
 async function readChange(
-    changeDir: string,
-    options: { readonly gates: "always" | "unfinished"; readonly signal: AbortSignal },
-): Promise<Parsed<TaskDocument>> {
-    try {
-        return await readChangeUnchecked(changeDir, options);
-    } catch (error: unknown) {
-        if (error instanceof LinkedDocumentError) {
-            return { kind: "invalid", errors: [error.message] };
-        }
-        throw error;
-    }
-}
-
-async function readChangeUnchecked(
     changeDir: string,
     { gates, signal }: { readonly gates: "always" | "unfinished"; readonly signal: AbortSignal },
 ): Promise<Parsed<TaskDocument>> {
@@ -514,8 +501,11 @@ async function readChanges(projectDir: string, { signal }: { readonly signal: Ab
         .map((entry) => entry.name)
         .toSorted();
 
+    // One change that can't be read is reported as invalid, so it doesn't hide the others at session start.
     const readOne = async (name: string): Promise<Change> => {
-        const task = await readChange(path.join(changesDir, name), { gates: "unfinished", signal });
+        const task = await readChange(path.join(changesDir, name), { gates: "unfinished", signal }).catch(
+            (error: unknown): Parsed<TaskDocument> => ({ kind: "invalid", errors: [failureMessage(error)] }),
+        );
 
         return task.kind === "valid"
             ? { kind: "valid", name, task: task.value }
@@ -523,6 +513,24 @@ async function readChanges(projectDir: string, { signal }: { readonly signal: Ab
     };
 
     return mapConcurrent(folders, readOne, { concurrency: READS_IN_FLIGHT_MAX, signal });
+}
+
+/**
+ * The message of an error that ends one command or one change's read. Cancellation is not a failure, so an
+ * `AbortError` or `TimeoutError` (and anything thrown that isn't an `Error`) is rethrown unchanged.
+ */
+function failureMessage(error: unknown): string {
+    if (!(error instanceof Error)) {
+        throw error;
+    }
+
+    const isCancellation = error.name === "AbortError" || error.name === "TimeoutError";
+
+    if (isCancellation) {
+        throw error;
+    }
+
+    return error.message;
 }
 
 const COMMANDS = ["check", "status", "reminder", "pr-body"] as const;
@@ -569,12 +577,15 @@ function parsePrBodyArguments(args: readonly string[]): PrBodyArguments {
     return { kind: "valid", folder, base: baseValue };
 }
 
-/** The description of a change, or why it can't be rendered yet: every reason is a line for stderr. */
-type PrBodyOutcome =
-    | { readonly kind: "rendered"; readonly body: string }
+/** What `check` or `pr-body` prints: its output for stdout, or why it refused, every reason a line for stderr. */
+type CommandOutcome =
+    | { readonly kind: "done"; readonly output: string }
     | { readonly kind: "refused"; readonly problems: readonly string[] };
 
-const refused = (...problems: readonly string[]): PrBodyOutcome => ({ kind: "refused", problems });
+const refused = (...problems: readonly string[]): CommandOutcome => ({ kind: "refused", problems });
+
+/** Turns an error into a refusal: one `✗` line instead of a stack trace. Cancellation is passed on unchanged. */
+const refusedOnError = (error: unknown): CommandOutcome => refused(`✗ ${failureMessage(error)}`);
 
 /**
  * The project a change folder belongs to: the folder three levels up from `<project>/docs/changes/<name>`, so the
@@ -589,10 +600,72 @@ function projectDirOfChange(changeDir: string): string | null {
     return isChangeFolder ? path.dirname(docsDir) : null;
 }
 
+/** The project of a change folder that really is inside it, or why the change can't be read. */
+type ChangeLocation =
+    | { readonly kind: "inside"; readonly projectDir: string }
+    | { readonly kind: "refused"; readonly problem: string };
+
+/**
+ * Finds the project of a change folder (see `projectDirOfChange`), and checks that the folder really is in the
+ * project's `docs/changes`: a committed symbolic link at `docs`, `docs/changes` or the change folder could lead
+ * outside the repository, and the documents there would end up in a description. The project's own path is resolved
+ * too, so reaching the project itself through a link is fine.
+ */
+async function locateChange(changeDir: string, { signal }: { readonly signal: AbortSignal }): Promise<ChangeLocation> {
+    const projectDir = projectDirOfChange(changeDir);
+
+    if (projectDir === null) {
+        return {
+            kind: "refused",
+            problem: `${changeDir} is not a change folder: expected <project>/${CHANGES_DIR}/<name>`,
+        };
+    }
+
+    // realpath takes no signal: check before each call instead.
+    signal.throwIfAborted();
+    const realChangeDir = await realpath(changeDir).catch(whenMissing(null));
+
+    // A folder that doesn't exist has no documents to read; reading the change reports its missing task.md.
+    if (realChangeDir === null) {
+        return { kind: "inside", projectDir };
+    }
+
+    signal.throwIfAborted();
+    const expectedDir = path.join(await realpath(projectDir), CHANGES_DIR, path.basename(changeDir));
+
+    if (realChangeDir !== expectedDir) {
+        return {
+            kind: "refused",
+            problem: `${changeDir} leads outside the project: docs, ${CHANGES_DIR} and the change folder must not be symbolic links`,
+        };
+    }
+
+    return { kind: "inside", projectDir };
+}
+
+/** `check`: validates a change's task document and the gates of its done stages. */
+async function checkTask(taskPath: string, { signal }: { readonly signal: AbortSignal }): Promise<CommandOutcome> {
+    const changeDir = path.dirname(path.resolve(taskPath));
+    const location = await locateChange(changeDir, { signal });
+
+    if (location.kind === "refused") {
+        return refused(`✗ ${location.problem}`);
+    }
+
+    const task = await readChange(changeDir, { gates: "always", signal });
+
+    if (task.kind === "invalid") {
+        return refused(...task.errors.map((error) => `✗ ${error}`));
+    }
+
+    return { kind: "done", output: `✓ valid route: ${task.value.stages.map((stage) => stage.name).join(" → ")}\n` };
+}
+
+/** `pr-body`: the change's pull request description, or why it can't be rendered yet. */
 async function buildPrBody(
     args: readonly string[],
     { signal }: { readonly signal: AbortSignal },
-): Promise<PrBodyOutcome> {
+): Promise<CommandOutcome> {
     const parsedArguments = parsePrBodyArguments(args);
 
     if (parsedArguments.kind === "invalid") {
@@ -601,10 +674,10 @@ async function buildPrBody(
 
     const { folder, base } = parsedArguments;
     const changeDir = path.resolve(folder);
-    const projectDir = projectDirOfChange(changeDir);
+    const location = await locateChange(changeDir, { signal });
 
-    if (projectDir === null) {
-        return refused(`✗ ${changeDir} is not a change folder: expected <project>/${CHANGES_DIR}/<name>`);
+    if (location.kind === "refused") {
+        return refused(`✗ ${location.problem}`);
     }
 
     const change = await readChange(changeDir, { gates: "always", signal });
@@ -622,16 +695,10 @@ async function buildPrBody(
     }
 
     const readDocument = (file: string): Promise<string | null> => readChangeDocument(changeDir, file, { signal });
-    const documents = await Promise.all(
+    const [spec, verification, review, securityReview] = await Promise.all(
         ["spec.md", "verification.md", "review.md", "security-review.md"].map(readDocument),
-    ).catch((error: unknown) => (error instanceof LinkedDocumentError ? error : Promise.reject(error)));
-
-    if (documents instanceof LinkedDocumentError) {
-        return refused(`✗ ${documents.message}`);
-    }
-
-    const [spec, verification, review, securityReview] = documents;
-    const added = await addedDecisionRecords(projectDir, { base, signal });
+    );
+    const added = await addedDecisionRecords(location.projectDir, { base, signal });
 
     if (added.kind === "unknown-base") {
         return refused(`✗ the base branch "${added.base}" doesn't exist; pass the branch to merge into with --base`);
@@ -652,7 +719,7 @@ async function buildPrBody(
         );
     }
 
-    return rendered;
+    return { kind: "done", output: rendered.body };
 }
 
 const isUnfinished = (stage: StageEntry): boolean => stage.status === "pending" || stage.status === "in-progress";
@@ -667,8 +734,15 @@ async function main(): Promise<void> {
         return;
     }
 
-    if (command === "pr-body") {
-        const outcome = await buildPrBody(Bun.argv.slice(3), { signal });
+    // The commands about one change refuse with ✗ lines, also when a read fails, instead of a stack trace.
+    const isAboutOneChange = command === "pr-body" || command === "check";
+
+    if (isAboutOneChange) {
+        const run =
+            command === "pr-body"
+                ? buildPrBody(Bun.argv.slice(3), { signal })
+                : checkTask(argument ?? "task.md", { signal });
+        const outcome = await run.catch(refusedOnError);
 
         if (outcome.kind === "refused") {
             console.error(outcome.problems.join("\n"));
@@ -676,20 +750,7 @@ async function main(): Promise<void> {
             return;
         }
 
-        process.stdout.write(outcome.body);
-        return;
-    }
-
-    if (command === "check") {
-        const task = await readChange(path.dirname(path.resolve(argument ?? "task.md")), { gates: "always", signal });
-
-        if (task.kind === "invalid") {
-            console.error(task.errors.map((error) => `✗ ${error}`).join("\n"));
-            process.exitCode = 1;
-            return;
-        }
-
-        console.log(`✓ valid route: ${task.value.stages.map((stage) => stage.name).join(" → ")}`);
+        process.stdout.write(outcome.output);
         return;
     }
 
