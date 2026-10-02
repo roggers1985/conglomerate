@@ -5,10 +5,13 @@ import type { DecisionRecord } from "./decision-records.ts";
 import { criteria, evidence, reviewFindings, sectionText } from "./stage-gates.ts";
 
 /**
- * The longest pull request description GitHub accepts, in characters.
+ * The longest pull request description GitHub accepts, counted in UTF-16 code units (JavaScript's `string.length`).
  *
  * @remarks
- * GitHub rejects a pull request body over 65,536 characters, so a longer description is refused rather than cut.
+ * GitHub rejects a pull request body over 65,536 characters, so a longer description is refused rather than cut. A
+ * character outside the Basic Multilingual Plane (an emoji) is two UTF-16 code units, so the count never falls below
+ * GitHub's: a description that passes is accepted, and one just over the limit in code units may be refused although
+ * GitHub would count it as fitting.
  */
 export const PR_BODY_LENGTH_MAX = 65_536;
 
@@ -33,7 +36,11 @@ type Finding = ReturnType<typeof reviewFindings>[number];
 type SourcedFinding = Finding & { readonly source: string };
 
 const ACCEPTED = /^accepted/i;
+const FIXED = /^fixed$/i;
 const COMMENT_OPENER = "<!--";
+// A zero-width joiner between `<!` and `--` breaks the opener, and shows nothing both in prose and inside a code span,
+// where an HTML entity such as `&lt;` would be shown literally.
+const COMMENT_OPENER_BROKEN = "<!\u200D--";
 const FILE_NAME_BREAKING = /[\r\n`]/g; // would end the code span or the list item the file name sits in
 
 /**
@@ -43,8 +50,10 @@ const FILE_NAME_BREAKING = /[\r\n`]/g; // would end the code span or the list it
  *
  * @remarks
  * Pure and deterministic: the same inputs give the same description (no dates, no randomness). A review part is left
- * out when its document is missing and its stage isn't on the route; when the stage is on the route, the part says
- * nothing was recorded. A description over {@link PR_BODY_LENGTH_MAX} characters is reported, never truncated.
+ * out when its stage isn't on the route (missing or skipped), whatever its document says; when the stage is on the
+ * route and the document is missing, the part says nothing was recorded. A description over
+ * {@link PR_BODY_LENGTH_MAX} UTF-16 code units (`string.length`, never fewer than GitHub's characters) is reported,
+ * never truncated.
  *
  * @param inputs - The change's task document, the contents of its documents (`null` when a file doesn't exist) and
  *   the decision records its branch added.
@@ -94,7 +103,7 @@ export function renderPrBody(inputs: PrBodyInputs): PrBodyResult {
         .filter((section) => section !== null)
         .join("\n\n")}\n`;
     // GitHub reads an HTML comment opener as hiding everything after it, so the copied text never carries one.
-    const body = text.replaceAll(COMMENT_OPENER, "&lt;!--");
+    const body = text.replaceAll(COMMENT_OPENER, COMMENT_OPENER_BROKEN);
 
     if (body.length > PR_BODY_LENGTH_MAX) {
         return { kind: "too-long", length: body.length, max: PR_BODY_LENGTH_MAX };
@@ -135,16 +144,16 @@ const droppedNoteText = (count: number): string =>
 function reviewSection({ task, review, securityReview }: PrBodyInputs): string | null {
     const isOnRoute = (name: string): boolean =>
         task.stages.some((stage) => stage.name === name && stage.status !== "skipped");
-    const hasReview = review !== null || isOnRoute("review");
-    const hasSecurityReview = securityReview !== null || isOnRoute("security-review");
+    const hasReview = isOnRoute("review");
+    const hasSecurityReview = isOnRoute("security-review");
 
     if (!hasReview && !hasSecurityReview) {
         return null;
     }
 
     const findings: readonly SourcedFinding[] = [
-        ...sourced(review, "review"),
-        ...sourced(securityReview, "security review"),
+        ...(hasReview ? sourced(review, "review") : []),
+        ...(hasSecurityReview ? sourced(securityReview, "security review") : []),
     ];
     const parts = [
         "## Review",
@@ -169,23 +178,30 @@ function sourced(document: string | null, source: string): readonly SourcedFindi
 }
 
 function findingsText(findings: readonly SourcedFinding[]): string {
-    const accepted = findings.filter((finding) => ACCEPTED.test(finding.status));
-
     if (findings.length === 0) {
         return "No findings.";
     }
 
-    if (accepted.length === 0) {
+    const accepted = findings.filter((finding) => ACCEPTED.test(finding.status));
+    const unresolved = findings.filter((finding) => !FIXED.test(finding.status) && !ACCEPTED.test(finding.status));
+
+    if (accepted.length === 0 && unresolved.length === 0) {
         return "Every finding was fixed.";
     }
 
-    const items = accepted.map(
-        (finding) =>
-            `- **${finding.severity}**, ${finding.source} #${finding.id}: ${finding.finding} (${finding.where}). ${finding.status}`,
-    );
+    const lists = [
+        ["Accepted instead of fixed:", accepted],
+        ["Not fixed or accepted:", unresolved],
+    ] as const;
 
-    return `Accepted instead of fixed:\n\n${items.join("\n")}`;
+    return lists
+        .filter(([, list]) => list.length > 0)
+        .map(([title, list]) => `${title}\n\n${list.map(findingItem).join("\n")}`)
+        .join("\n\n");
 }
+
+const findingItem = (finding: SourcedFinding): string =>
+    `- **${finding.severity}**, ${finding.source} #${finding.id}: ${finding.finding} (${finding.where}). ${finding.status}`;
 
 function decisionsSection(records: readonly DecisionRecord[]): string {
     const items = records.map(

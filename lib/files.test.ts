@@ -98,7 +98,7 @@ describe("readText and readJson", () => {
         ).rejects.toMatchObject({ name: "AbortError" });
     });
 
-    it("follow a symbolic link to a regular file by default", async () => {
+    it("follow a symbolic link to a regular file when the caller asks to follow links", async () => {
         await Bun.write(path.join(dir, "target.json"), '{ "a": 1 }');
         await symlink(path.join(dir, "target.json"), path.join(dir, "link.json"));
 
