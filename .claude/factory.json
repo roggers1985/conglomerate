@@ -1,1 +1,4 @@
-{ "autonomy": "trusted" }
+{
+    "$schema": "../plugins/factory/schemas/factory.schema.json",
+    "autonomy": "trusted"
+}

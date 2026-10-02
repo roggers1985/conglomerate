@@ -56,6 +56,8 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Finish.** *Here:* the last stage of a route (ADR 0056): the docs are brought up to date, and the change's branch ends as a pull request (the owner merges, except at `autonomous`), or is discarded on the owner's word, with worktrees and branches cleaned up.
 
+**Project settings.** *Here:* `.claude/factory.json`: a project's autonomy level and its limits (review rounds, parallel tasks, attempts, subagents), each with a default and bounds. Its JSON Schema is generated, so an editor can validate it. The plugin's rules aren't settings (ADR 0058).
+
 **Secure by default.** *Here:* every entry point (endpoint, server action, webhook, command, job) requires authentication and authorisation unless its spec marks it public and says why. Every spec answers four security questions, and a missing check is a high finding that only the owner can accept (ADR 0057).
 
 **Autonomy level.** *Here:* how much Claude decides without asking: `guided` (the owner decides), `trusted` (Claude decides within the conventions) or `autonomous` (Claude runs the work end to end, the owner reviews afterwards). Set per project in `.claude/factory.json`, per session with `/factory:autonomy` (ADR 0044).

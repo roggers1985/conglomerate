@@ -33,10 +33,10 @@ The build turns the task list (`tasks.md`, or the Tasks section of `plan.md`) in
    - run the project's **full** check suite there. When it fails, the task isn't done: give it back to a subagent with the failure;
    - remove the worktree and both of its branches (`git worktree remove`, `git branch -d`);
    - set the task to `done` in the task list, and commit.
-5. **When it fails:** give the same task at most 3 attempts (the autonomy limits, ADR 0044). If the third fails, try once with a stronger task agent (`code-complex`, then `model: "fable"`, ADR 0021). If that fails too, stop and report to the owner what was tried.
+5. **When it fails:** give the same task at most `attemptsPerTask` attempts (the "Factory settings" section of the session context; 3 by default, ADR 0058). If the last one fails, try once with a stronger task agent (`code-complex`, then `model: "fable"`, ADR 0021). If that fails too, stop and report to the owner what was tried.
 
 **Parallel tasks:**
-- tasks marked `Parallel: yes`, whose dependencies are done, may run at the same time, **at most 3 at once**;
+- tasks marked `Parallel: yes`, whose dependencies are done, may run at the same time, **at most `parallelTasks` at once** (3 by default);
 - merge their branches one at a time, running the checks after each;
 - if a merge conflicts, stop the parallel run, and finish the conflicting task on its own.
 

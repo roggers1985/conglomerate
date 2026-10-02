@@ -5,10 +5,11 @@ import path from "node:path";
 import { assert } from "../../../lib/assert.ts";
 import { readText, TEXT_BYTES_MAX } from "../../../lib/files.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
-import { readAutonomyRules, readProjectAutonomy, renderAutonomyContext } from "./autonomy.ts";
+import { readAutonomyRules, renderAutonomyContext } from "./autonomy.ts";
 import type { Routes } from "./models.ts";
 import { readRoutes, renderRoutingContext } from "./models.ts";
 import { resolveProjectDir } from "./project-dir.ts";
+import { readFactorySettings, renderSettingsContext } from "./settings.ts";
 
 /** The JSON the session-start hook prints; `additionalContext` is added to Claude's context. */
 export type SessionStartOutput = {
@@ -66,13 +67,13 @@ async function main(): Promise<void> {
         envProjectDir: process.env["CLAUDE_PROJECT_DIR"],
         cwd: process.cwd(),
     });
-    const [conventions, routes, projectAutonomy] = await Promise.all([
+    const [conventions, routes, project] = await Promise.all([
         readText(CORE_CONVENTIONS_PATH, { maxBytes: TEXT_BYTES_MAX, signal }),
         readRoutes({ signal }),
-        readProjectAutonomy(projectDir, { signal }),
+        readFactorySettings(projectDir, { signal }),
     ]);
-    const rules = await readAutonomyRules(projectAutonomy.level, { signal });
-    const autonomy = renderAutonomyContext(projectAutonomy, { rules });
+    const rules = await readAutonomyRules(project.settings.autonomy, { signal });
+    const autonomy = [renderAutonomyContext(project, { rules }), renderSettingsContext(project.settings)].join("\n\n");
 
     console.log(JSON.stringify(buildSessionStartOutput(conventions, routes, { autonomy })));
 }

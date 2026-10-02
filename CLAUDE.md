@@ -7,7 +7,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 - `GLOSSARY.md` explains the terms used here for a programmer new to agents and these practices. When you introduce a new concept (a mechanism, a practice, a file type), add or update its entry in the same change.
 - `docs/readiness.md` compares the factory with the alternatives and tracks what is missing before publishing (ADR 0050). Update it whenever a milestone is finished, such as a factory stage.
 - `TODO.md` holds the agreed next steps. Read it at the start of a session, keep it current while working, and remove items once they are done and committed.
-- This repository runs at autonomy level `trusted` (`.claude/factory.json`, ADR 0044): decide within the conventions and report afterwards. Discuss anything beyond them first; never add skills, agents, commands, hooks or dependencies unprompted.
+- This repository runs at autonomy level `trusted` (`.claude/factory.json`, ADR 0044, 0058; its schema is generated into `plugins/factory/schemas/`): decide within the conventions and report afterwards. Discuss anything beyond them first; never add skills, agents, commands, hooks or dependencies unprompted.
 - Every accepted decision gets an ADR in `docs/decisions/` (see ADR 0001).
 - Read existing ADRs before proposing changes, and do not contradict an accepted ADR without proposing a superseding one.
 

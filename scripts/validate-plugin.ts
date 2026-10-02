@@ -9,6 +9,7 @@ import type { Parsed } from "../lib/parse.ts";
 import { parse } from "../lib/parse.ts";
 import { requiredText } from "../lib/schemas.ts";
 import { readRoutes } from "../plugins/factory/scripts/models.ts";
+import { factorySettingsJsonSchema, SETTINGS_SCHEMA_FILE } from "../plugins/factory/scripts/settings.ts";
 import { renderTaskAgents, TASK_AGENTS_DIR } from "./agents.ts";
 import { BUNDLE_DIR, renderBundles } from "./bundles.ts";
 import { licenseProblems, readInstalledPackages } from "./dependency-licenses.ts";
@@ -154,6 +155,7 @@ async function validateGenerated(
         signal,
     });
     const legalFiles = await readExistingFiles(pluginDir, [...currentLegalFiles.keys()], { signal });
+    const settingsSchema = await readExistingFiles(pluginDir, [SETTINGS_SCHEMA_FILE], { signal });
 
     return [
         ...errors,
@@ -161,6 +163,9 @@ async function validateGenerated(
         ...generatedFileErrors(renderTaskAgents(routes), agents, { label: TASK_AGENTS_DIR }),
         ...generatedFileErrors(currentBundles.files, bundles, { label: BUNDLE_DIR }),
         ...generatedFileErrors(currentLegalFiles, legalFiles, { label: "." }),
+        ...generatedFileErrors(new Map([[SETTINGS_SCHEMA_FILE, factorySettingsJsonSchema()]]), settingsSchema, {
+            label: ".",
+        }),
     ];
 }
 
