@@ -56,6 +56,8 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Finish.** *Here:* the last stage of a route (ADR 0056): the docs are brought up to date, and the change's branch ends as a pull request (the owner merges, except at `autonomous`), or is discarded on the owner's word, with worktrees and branches cleaned up.
 
+**Secure by default.** *Here:* every entry point (endpoint, server action, webhook, command, job) requires authentication and authorisation unless its spec marks it public and says why. Every spec answers four security questions, and a missing check is a high finding that only the owner can accept (ADR 0057).
+
 **Autonomy level.** *Here:* how much Claude decides without asking: `guided` (the owner decides), `trusted` (Claude decides within the conventions) or `autonomous` (Claude runs the work end to end, the owner reviews afterwards). Set per project in `.claude/factory.json`, per session with `/factory:autonomy` (ADR 0044).
 
 **Convention.** A rule for how code is written. *Here:* the always-on ones are in `plugins/factory/conventions/core.md`, added to every session; the detailed ones are `code-*` skills.
