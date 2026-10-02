@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CheckupStatus, ScheduleEntry } from "./checkups.ts";
@@ -438,5 +438,19 @@ describe("checkups CLI", () => {
         expect(await run("status")).toContain(
             '- "legal" has no intervalDays in the schedule, and its skill declares no default',
         );
+    });
+
+    it("refuses a schedule file that is a symbolic link, reporting it invalid", async () => {
+        projectDir = await mkdtemp(path.join(tmpdir(), "checkups-"));
+        const realSchedulePath = path.join(projectDir, "docs/checkups/real-checkups.json");
+        const symlinkSchedulePath = path.join(projectDir, "docs/checkups/checkups.json");
+
+        await mkdir(path.join(projectDir, "docs/checkups"), { recursive: true });
+        await Bun.write(realSchedulePath, JSON.stringify({ checkups: [] }));
+        await symlink(realSchedulePath, symlinkSchedulePath);
+
+        const status = await run("status");
+
+        expect(status).toContain("is a symbolic link");
     });
 });

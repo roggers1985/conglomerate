@@ -9,7 +9,15 @@
 import path from "node:path";
 import { z } from "zod";
 import { assert } from "../../../lib/assert.ts";
-import { JSON_BYTES_MAX, readDir, readJson, readText, TEXT_BYTES_MAX, whenMissing } from "../../../lib/files.ts";
+import {
+    JSON_BYTES_MAX,
+    readDir,
+    readJson,
+    readText,
+    SymbolicLinkError,
+    TEXT_BYTES_MAX,
+    whenMissing,
+} from "../../../lib/files.ts";
 import { parseFrontmatter } from "../../../lib/frontmatter.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
 import { KEBAB_CASE } from "../../../lib/kebab-case.ts";
@@ -575,7 +583,7 @@ async function skillNames(dir: string, { signal }: { readonly signal: AbortSigna
 function readScheduleJson(projectDir: string, { signal }: { readonly signal: AbortSignal }): Promise<unknown> {
     const schedulePath = path.join(projectDir, SCHEDULE_PATH);
 
-    return readJson(schedulePath, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "follow" }).catch(
+    return readJson(schedulePath, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "refuse" }).catch(
         whenMissing(null),
     );
 }
@@ -583,9 +591,9 @@ function readScheduleJson(projectDir: string, { signal }: { readonly signal: Abo
 /** A skill's checkup defaults; `null` when the skill doesn't exist, or its frontmatter declares no valid defaults. */
 async function readSkillDefaults(
     skillFile: string,
-    { signal }: { readonly signal: AbortSignal },
+    { signal, symbolicLinks }: { readonly signal: AbortSignal; readonly symbolicLinks: "follow" | "refuse" },
 ): Promise<CheckupDefaults | null> {
-    const markdown = await readText(skillFile, { maxBytes: TEXT_BYTES_MAX, signal, symbolicLinks: "follow" }).catch(
+    const markdown = await readText(skillFile, { maxBytes: TEXT_BYTES_MAX, signal, symbolicLinks }).catch(
         whenMissing(null),
     );
 
@@ -613,8 +621,11 @@ async function readCheckupDefaults(
 ): Promise<CheckupDefaults | null> {
     const skillDir = `checkup-${name}`;
     const [projectDefaults, pluginDefaults] = await Promise.all([
-        readSkillDefaults(path.join(projectDir, PROJECT_SKILLS_DIR, skillDir, "SKILL.md"), { signal }),
-        readSkillDefaults(path.join(PLUGIN_SKILLS_DIR, skillDir, "SKILL.md"), { signal }),
+        readSkillDefaults(path.join(projectDir, PROJECT_SKILLS_DIR, skillDir, "SKILL.md"), {
+            signal,
+            symbolicLinks: "refuse",
+        }),
+        readSkillDefaults(path.join(PLUGIN_SKILLS_DIR, skillDir, "SKILL.md"), { signal, symbolicLinks: "follow" }),
     ]);
 
     return projectDefaults ?? pluginDefaults;
@@ -632,11 +643,14 @@ async function readSchedule(
         if (error instanceof SyntaxError) {
             return { kind: "invalid", errors: ["is not valid JSON"] };
         }
+        if (error instanceof SymbolicLinkError) {
+            return { kind: "invalid", errors: [error.message] };
+        }
         throw error;
     }
 }
 
-async function loadProjectCheckups(
+export async function loadProjectCheckups(
     projectDir: string,
     { today, signal }: { readonly today: string; readonly signal: AbortSignal },
 ): Promise<ProjectCheckups> {
