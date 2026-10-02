@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted
+Accepted. Extended by [ADR-0059](0059-clean-test-output.md): test output is clean, so noise in a test run fails the test.
 
 Extends [ADR-0038](0038-safety-practices-from-power-of-10-and-tigerstyle.md).
 

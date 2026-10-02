@@ -24,6 +24,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
   - `dist/`: generated, minified bundles of those scripts, which hooks and skills run. Only entry points (`session-start`, `checkups`, `toolbox`, `doctest`, `changes`) may have an `import.meta.main` block
 - `lib/`: own helpers with TSDoc and tests (`assert`, `isNotNil`, `parse`, `requiredText`, `readText`/`readJson`/`readDir`, `whenMissing`, `mapConcurrent`, `interruptSignal`, …); add one when it's needed (ADR 0020)
 - I/O functions take a required `{ signal }` (ADR 0012). Read files through `lib/files.ts` (Bun's file API takes no signal), with a required `maxBytes` or `maxEntries` (ADR 0032), and `.catch(whenMissing(fallback))` where a missing file is expected; a CLI's `main` creates its signal with `interruptSignal()`
+- `test/setup.ts`: loaded before every test through `bunfig.toml` (`preload`); it fails a test that prints to the console without `expectConsole` (from `lib/console-capture.ts`) claiming it (ADR 0059). Output in a test is a bug, never noise
 - `scripts/`: repository tooling (strict TypeScript, run directly by Bun)
 - `docs/decisions/`: architecture decision records
 - `docs/checkups/`: this repo's own checkup schedule (`checkups.json`) and reports (ADR 0010)

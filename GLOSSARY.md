@@ -170,6 +170,12 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Mock.** A stand-in for a real dependency in a test. *Here:* only for the outer edges (network, clock), never for the project's own code.
 
+**Clean test output.** A test run prints nothing but the test runner's report: console output, warnings, subprocess output and errors that a test causes are either expected and asserted, or they are bugs, and so are leaked files, timers and servers. It keeps real warnings from drowning in noise. *Here:* `code-testing`, enforced by a setup file (`test/setup.ts`, loaded through `bunfig.toml`) and `expectConsole` for tests that expect output (ADR 0059).
+
+**Spy.** A test double that records how a function was called (and can replace what it does) without changing the code under test. *Here:* the test setup spies on `console` to capture what a test prints.
+
+**Preload (setup file).** A file the test runner loads before every test file, used to register hooks that apply to all tests. *Here:* `[test] preload` in `bunfig.toml`.
+
 ## Licenses
 
 **Open source.** Software whose license lets anyone use, study, change and share it.

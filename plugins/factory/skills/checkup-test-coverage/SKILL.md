@@ -28,7 +28,8 @@ Makes sure the behaviour that matters is tested, and that the tests are good. A 
    - assertions that prove nothing;
    - tests that depend on each other, on order, on the wall clock or on the network;
    - mocks so heavy the test only tests the mock.
-4. **Documentation examples**: exported code has examples that run as tests (see `code-documentation`), and the doctest runs in the project's checks.
+4. **Clean test output** (see `code-testing`, ADR 0059): run the whole suite and report anything beyond the runner's report: console output, warnings, subprocess output, unhandled errors, and leaks (temporary files left behind, open handles that keep the run from exiting). Check that the project's test setup enforces it, and report it as missing when it does not.
+5. **Documentation examples**: exported code has examples that run as tests (see `code-documentation`), and the doctest runs in the project's checks.
 
 ## How to work
 
