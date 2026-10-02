@@ -77,7 +77,7 @@ No new decision needs an ADR: the change implements what ADR 0056 left to a scri
 - Verify: `bun test plugins/factory/scripts/changes.test.ts` and `bun run validate`
 - Depends on: T-2, T-3
 - Parallel: no
-- Status: in-progress
+- Status: done
 
 ### T-5: Use the command in the finish stage
 
@@ -86,4 +86,4 @@ No new decision needs an ADR: the change implements what ADR 0056 left to a scri
 - Verify: `bun run check`
 - Depends on: T-4
 - Parallel: no
-- Status: pending
+- Status: in-progress
