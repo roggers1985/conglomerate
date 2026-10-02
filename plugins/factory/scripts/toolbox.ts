@@ -224,7 +224,9 @@ export function toolboxReport(toolbox: Toolbox, status: ToolboxStatus): string {
 }
 
 async function readToolbox({ signal }: { readonly signal: AbortSignal }): Promise<Toolbox> {
-    const parsed = parseToolbox(await readJson(TOOLBOX_PATH, { maxBytes: JSON_BYTES_MAX, signal }));
+    const parsed = parseToolbox(
+        await readJson(TOOLBOX_PATH, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "follow" }),
+    );
 
     if (parsed.kind === "invalid") {
         throw new Error(`toolbox.json is invalid: ${parsed.errors.join("; ")}`);
@@ -237,7 +239,9 @@ async function readToolbox({ signal }: { readonly signal: AbortSignal }): Promis
 async function readEnabledPlugins({ signal }: { readonly signal: AbortSignal }): Promise<ReadonlySet<string>> {
     const settingsPath = path.join(homedir(), ".claude", "settings.json");
 
-    const settings = await readJson(settingsPath, { maxBytes: JSON_BYTES_MAX, signal }).catch(whenMissing({}));
+    const settings = await readJson(settingsPath, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "follow" }).catch(
+        whenMissing({}),
+    );
     const parsed = parse(SettingsSchema, settings);
 
     if (parsed.kind === "invalid") {

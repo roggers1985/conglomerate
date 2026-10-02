@@ -631,9 +631,12 @@ async function locateChange(changeDir: string, { signal }: { readonly signal: Ab
     }
 
     signal.throwIfAborted();
-    const expectedDir = path.join(await realpath(projectDir), CHANGES_DIR, path.basename(changeDir));
+    // Only the parent is compared: the folder's own name may differ in case from the one given, on a case-insensitive
+    // file system, and realpath returns the case stored on disk. A link at the folder itself leads elsewhere, so its
+    // real parent is not `docs/changes` either.
+    const expectedParent = path.join(await realpath(projectDir), CHANGES_DIR);
 
-    if (realChangeDir !== expectedDir) {
+    if (path.dirname(realChangeDir) !== expectedParent) {
         return {
             kind: "refused",
             problem: `${changeDir} leads outside the project: docs, ${CHANGES_DIR} and the change folder must not be symbolic links`,

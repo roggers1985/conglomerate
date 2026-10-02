@@ -16,11 +16,10 @@ type ReadOptions = {
     readonly signal: AbortSignal;
     /**
      * What to do when the path itself is a symbolic link: `"follow"` reads its target, `"refuse"` throws a
-     * `SymbolicLinkError`. Only the last part of the path is checked; links among the folders above it are followed.
-     *
-     * @defaultValue "follow"
+     * `SymbolicLinkError`. Required, because following is the risky choice for content a branch controls. Only the last
+     * part of the path is checked; links among the folders above it are followed.
      */
-    readonly symbolicLinks?: "follow" | "refuse";
+    readonly symbolicLinks: "follow" | "refuse";
 };
 
 /**
@@ -70,17 +69,18 @@ export type DirEntry = {
  * ends, so the size check would not hold. The file is opened non-blocking and checked again, in case the path was
  * replaced in between.
  *
- * By default (`symbolicLinks: "follow"`) symbolic links are followed, and their target must be a regular file:
- * tooling reads through links (packages in `node_modules`, for example). A link may point outside the folder it is
- * in, so content a branch or pull request controls, such as committed files, is read with `symbolicLinks: "refuse"`,
- * or from git, which doesn't follow links (as `decision-records` does). Refusing is atomic: the file is opened with
- * `O_NOFOLLOW`, so a path swapped for a link after the first check is refused too. It only covers the last part of
- * the path; a caller that must stay inside a folder also compares the folder's real path with the expected one.
+ * The caller must choose what happens at a symbolic link, with `symbolicLinks`; there is no default. `"follow"` reads
+ * the link's target, which must be a regular file: use it where links are legitimate, such as the plugin's own files
+ * and packages in `node_modules`. A link may point outside the folder it is in, so content a branch or pull request
+ * controls, such as committed files, is read with `"refuse"`, or from git, which doesn't follow links (as
+ * `decision-records` does). Refusing is atomic: the file is opened with `O_NOFOLLOW`, so a path swapped for a link
+ * after the first check is refused too. It only covers the last part of the path; a caller that must stay inside a
+ * folder also compares the folder's real path with the expected one.
  *
  * @param filePath - The file to read.
  * @param options.maxBytes - The largest file accepted, in bytes; at least 1.
  * @param options.signal - Cancels the read.
- * @param options.symbolicLinks - `"follow"` (the default) or `"refuse"` a path that is a symbolic link.
+ * @param options.symbolicLinks - Whether to `"follow"` or `"refuse"` a path that is a symbolic link; required.
  * @returns The file's contents.
  * @throws SymbolicLinkError when `symbolicLinks` is `"refuse"` and the path is a symbolic link, even a dangling one.
  * @throws Error when the file, or the target of a followed link, isn't a regular file, naming what it is.
@@ -97,11 +97,11 @@ export type DirEntry = {
  * await Bun.write(`${dir}/note.txt`, "hello");
  * await symlink(`${dir}/note.txt`, `${dir}/link.txt`);
  *
- * expect(await readText(`${dir}/note.txt`, { maxBytes: 5, signal })).toBe("hello");
- * await expect(readText(`${dir}/note.txt`, { maxBytes: 4, signal })).rejects.toThrow("over the limit of 4 bytes");
- * await expect(readText(dir, { maxBytes: 5, signal })).rejects.toThrow("is a directory, not a regular file");
+ * expect(await readText(`${dir}/note.txt`, { maxBytes: 5, signal, symbolicLinks: "follow" })).toBe("hello");
+ * await expect(readText(`${dir}/note.txt`, { maxBytes: 4, signal, symbolicLinks: "follow" })).rejects.toThrow("over the limit of 4 bytes");
+ * await expect(readText(dir, { maxBytes: 5, signal, symbolicLinks: "follow" })).rejects.toThrow("is a directory, not a regular file");
  *
- * expect(await readText(`${dir}/link.txt`, { maxBytes: 5, signal })).toBe("hello");
+ * expect(await readText(`${dir}/link.txt`, { maxBytes: 5, signal, symbolicLinks: "follow" })).toBe("hello");
  * await expect(readText(`${dir}/link.txt`, { maxBytes: 5, signal, symbolicLinks: "refuse" })).rejects.toThrow(
  *     `${dir}/link.txt is a symbolic link`,
  * );
@@ -110,10 +110,7 @@ export type DirEntry = {
  * await rm(dir, { recursive: true });
  * ```
  */
-export async function readText(
-    filePath: string,
-    { maxBytes, signal, symbolicLinks = "follow" }: ReadOptions,
-): Promise<string> {
+export async function readText(filePath: string, { maxBytes, signal, symbolicLinks }: ReadOptions): Promise<string> {
     assert(Number.isInteger(maxBytes), `maxBytes must be an integer, got ${maxBytes}`);
     assert(maxBytes >= 1, `maxBytes must be at least 1, got ${maxBytes}`);
     // open and stat take no signal: check before starting instead.
@@ -211,10 +208,12 @@ function describeFileType(stats: Stats): string {
  * @param filePath - The file to read.
  * @param options.maxBytes - The largest file accepted, in bytes; at least 1.
  * @param options.signal - Cancels the read.
- * @param options.symbolicLinks - `"follow"` (the default) or `"refuse"` a path that is a symbolic link, as `readText`.
+ * @param options.symbolicLinks - Whether to `"follow"` or `"refuse"` a path that is a symbolic link; required, see
+ *   `readText`.
  * @returns The parsed JSON, typed as `unknown`.
  * @throws SyntaxError when the file is not valid JSON.
  * @throws SymbolicLinkError when `symbolicLinks` is `"refuse"` and the path is a symbolic link.
+ * @throws Error when the file, or the target of a followed link, isn't a regular file, naming what it is.
  * @throws Error when the file is larger than `maxBytes`.
  * @throws Error with code `ENOENT` when the file doesn't exist.
  * @throws DOMException named `AbortError` when `signal` aborts.
@@ -227,7 +226,7 @@ function describeFileType(stats: Stats): string {
  * await Bun.write(`${dir}/config.json`, '{ "port": 8080 }');
  *
  * expect(
- *     await readJson(`${dir}/config.json`, { maxBytes: JSON_BYTES_MAX, signal: AbortSignal.timeout(5_000) }),
+ *     await readJson(`${dir}/config.json`, { maxBytes: JSON_BYTES_MAX, signal: AbortSignal.timeout(5_000), symbolicLinks: "follow" }),
  * ).toEqual({ port: 8080 });
  *
  * await rm(dir, { recursive: true });
@@ -339,7 +338,7 @@ export function readDirRecursive(dir: string, options: ListOptions): Promise<Dir
  * ```ts
  * const signal = AbortSignal.timeout(5_000);
  *
- * expect(await readText("/does/not/exist", { maxBytes: 10, signal }).catch(whenMissing(null))).toBeNull();
+ * expect(await readText("/does/not/exist", { maxBytes: 10, signal, symbolicLinks: "follow" }).catch(whenMissing(null))).toBeNull();
  * expect(() => whenMissing(null)(new Error("boom"))).toThrow("boom");
  * ```
  */

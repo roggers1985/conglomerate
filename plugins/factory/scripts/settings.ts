@@ -202,7 +202,9 @@ async function readSettingsJson(
     try {
         return {
             kind: "valid",
-            value: await readJson(settingsPath, { maxBytes: JSON_BYTES_MAX, signal }).catch(whenMissing(null)),
+            value: await readJson(settingsPath, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "follow" }).catch(
+                whenMissing(null),
+            ),
         };
     } catch (error: unknown) {
         if (error instanceof SyntaxError) {
