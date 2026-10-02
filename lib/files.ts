@@ -1,4 +1,5 @@
-import { open, opendir } from "node:fs/promises";
+import { constants, type Stats } from "node:fs";
+import { open, opendir, stat } from "node:fs/promises";
 import path from "node:path";
 import { assert } from "./assert.ts";
 import { isFileNotFound } from "./errors.ts";
@@ -29,18 +30,29 @@ export type DirEntry = {
 };
 
 /**
- * Reads a text file (UTF-8), cancellably, after checking that it isn't larger than `maxBytes`.
+ * Reads a regular text file (UTF-8), cancellably, after checking that it isn't larger than `maxBytes`.
  *
  * @remarks
  * `Bun.file().text()` takes no signal; `node:fs/promises` does (ADR 0012). The size is checked before reading, so
  * an oversized file is never loaded (ADR 0032).
  *
+ * Only regular files are read. A FIFO, device, socket or directory is refused at once, before it is opened: opening
+ * a FIFO waits for a writer, which no signal can cancel, and a device such as `/dev/zero` reports size 0 but never
+ * ends, so the size check would not hold. The file is opened non-blocking and checked again, in case the path was
+ * replaced in between.
+ *
+ * Symbolic links are followed, and their target must be a regular file: tooling reads through links (packages in
+ * `node_modules`, for example). A link may point outside the folder it is in, so content a branch or pull request
+ * controls, such as committed files, is better read from git, which doesn't follow links (as `decision-records`
+ * does).
+ *
  * @param filePath - The file to read.
  * @param options.maxBytes - The largest file accepted, in bytes; at least 1.
  * @param options.signal - Cancels the read.
  * @returns The file's contents.
+ * @throws Error when the file, or the target of a link, isn't a regular file, naming what it is.
  * @throws Error when the file is larger than `maxBytes`.
- * @throws Error with code `ENOENT` when the file doesn't exist (see `whenMissing`).
+ * @throws Error with code `ENOENT` when the file, or the target of a link, doesn't exist (see `whenMissing`).
  * @throws DOMException named `AbortError` when `signal` aborts.
  *
  * @example
@@ -53,6 +65,7 @@ export type DirEntry = {
  *
  * expect(await readText(`${dir}/note.txt`, { maxBytes: 5, signal })).toBe("hello");
  * await expect(readText(`${dir}/note.txt`, { maxBytes: 4, signal })).rejects.toThrow("over the limit of 4 bytes");
+ * await expect(readText(dir, { maxBytes: 5, signal })).rejects.toThrow("is a directory, not a regular file");
  *
  * await rm(dir, { recursive: true });
  * ```
@@ -62,20 +75,58 @@ export async function readText(filePath: string, { maxBytes, signal }: ReadOptio
     assert(maxBytes >= 1, `maxBytes must be at least 1, got ${maxBytes}`);
     // open and stat take no signal: check before starting instead.
     signal.throwIfAborted();
+    // Before opening: opening a FIFO waits for a writer, and nothing can cancel that wait.
+    checkRegularFile(filePath, await stat(filePath));
 
-    const handle = await open(filePath);
+    // Non-blocking, so a path swapped for a FIFO since the check still opens at once; the check below refuses it.
+    // It changes nothing for a regular file. (Windows has no O_NONBLOCK, and no FIFOs at a file path.)
+    const handle = await open(filePath, constants.O_RDONLY | constants.O_NONBLOCK);
 
     try {
-        const { size } = await handle.stat();
+        const stats = await handle.stat();
+        checkRegularFile(filePath, stats);
 
-        if (size > maxBytes) {
-            throw new Error(`${filePath} is ${size} bytes, over the limit of ${maxBytes} bytes`);
+        if (stats.size > maxBytes) {
+            throw new Error(`${filePath} is ${stats.size} bytes, over the limit of ${maxBytes} bytes`);
         }
 
         return await handle.readFile({ encoding: "utf8", signal });
     } finally {
         await handle.close();
     }
+}
+
+/** Refuses anything but a regular file: its size is the only one the size check can trust. */
+function checkRegularFile(filePath: string, stats: Stats): void {
+    if (stats.isFile()) {
+        return;
+    }
+
+    throw new Error(`${filePath} is ${describeFileType(stats)}, not a regular file`);
+}
+
+function describeFileType(stats: Stats): string {
+    if (stats.isDirectory()) {
+        return "a directory";
+    }
+
+    if (stats.isFIFO()) {
+        return "a FIFO";
+    }
+
+    if (stats.isCharacterDevice()) {
+        return "a character device";
+    }
+
+    if (stats.isBlockDevice()) {
+        return "a block device";
+    }
+
+    if (stats.isSocket()) {
+        return "a socket";
+    }
+
+    return "a special file";
 }
 
 /**
