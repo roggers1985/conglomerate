@@ -140,7 +140,7 @@ function criteriaSection({ spec, verification }: PrBodyInputs): string {
 const droppedNoteText = (count: number): string =>
     count === 1 ? "1 criterion was dropped." : `${count} criteria were dropped.`;
 
-/** The review part, or `null` when neither review is recorded or on the route. */
+/** The review part, or `null` when neither review is on the route (a stage that is missing or skipped). */
 function reviewSection({ task, review, securityReview }: PrBodyInputs): string | null {
     const isOnRoute = (name: string): boolean =>
         task.stages.some((stage) => stage.name === name && stage.status !== "skipped");
