@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm, symlink, unlink } from "node:fs/promises";
+import { mkdir, mkdtemp, rename, rm, symlink, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Stage, StageDocuments, TaskDocument } from "./changes.ts";
@@ -49,6 +49,14 @@ const task = (overrides: Partial<TaskDocument> = {}): TaskDocument => ({
     deviations: [],
     ...overrides,
 });
+
+function makeFifo(file: string): void {
+    const result = Bun.spawnSync(["mkfifo", file], { stdout: "pipe", stderr: "pipe" });
+
+    if (result.exitCode !== 0) {
+        throw new Error(`mkfifo ${file} failed: ${result.stderr.toString()}`);
+    }
+}
 
 const errorsOf = (value: unknown): readonly string[] => {
     const parsed = parseTaskDocument(value);
@@ -446,6 +454,38 @@ describe("changes CLI", () => {
 
         expect(output.systemMessage).toContain("1 unfinished");
     });
+
+    it("lists the other changes when one change's document can't be read, and reports that one as invalid", async () => {
+        projectDir = await mkdtemp(path.join(tmpdir(), "changes-"));
+        await writeTask("a-open", asMarkdown(task()));
+        await writeTask("b-broken", asMarkdown(task()));
+        await writeTask("c-open", asMarkdown(task()));
+        const fifo = path.join(projectDir, "docs/changes/b-broken/spec.md");
+        makeFifo(fifo);
+
+        const status = await run("status", projectDir);
+        const reminder = await run("reminder", projectDir);
+
+        expect(status.exitCode).toBe(0);
+        expect(status.stdout).toContain("| a-open | Export jobs as CSV |");
+        expect(status.stdout).toContain("| c-open | Export jobs as CSV |");
+        expect(status.stdout).toContain(`- \`b-broken\`: ${fifo} is a FIFO, not a regular file`);
+        expect(reminder.exitCode).toBe(0);
+        expect(JSON.parse(reminder.stdout).systemMessage).toContain("2 unfinished, 1 with an invalid task.md");
+    }, 5_000);
+
+    it("refuses a document it can't read in check with a single ✗ line, not a stack trace", async () => {
+        projectDir = await mkdtemp(path.join(tmpdir(), "changes-"));
+        await writeTask("broken", asMarkdown(task()));
+        const fifo = path.join(projectDir, "docs/changes/broken/spec.md");
+        makeFifo(fifo);
+
+        const result = await run("check", path.join(projectDir, "docs/changes/broken/task.md"));
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toBe(`✗ ${fifo} is a FIFO, not a regular file\n`);
+    }, 5_000);
 });
 
 describe("changes pr-body CLI", () => {
@@ -772,6 +812,68 @@ describe("changes pr-body CLI", () => {
                 expect(result.stderr).toContain(`${Change}/task.md ${Refusal}`);
                 expect(result.stderr).not.toContain(Secret);
             }
+        });
+
+        // Moves a committed folder of the repository outside it, with a secret in its spec.md, and commits a symbolic
+        // link to it in its place.
+        const moveOutside = async (folder: string): Promise<void> => {
+            outside = await mkdtemp(path.join(tmpdir(), "changes-outside-"));
+            await Bun.write(path.join(dir, Change, "spec.md"), `${Spec}\n${Secret}\n`);
+            await rename(path.join(dir, folder), path.join(outside, path.basename(folder)));
+            await symlink(path.join(outside, path.basename(folder)), path.join(dir, folder));
+            git("add", "--all");
+            git("commit", "--quiet", "--message=Link");
+        };
+
+        for (const folder of [Change, "docs/changes"]) {
+            it(`refuses a change read through a linked ${folder} in check and in pr-body, naming the folder`, async () => {
+                await createChange(routeOf({ finish: "in-progress" }));
+                await moveOutside(folder);
+
+                for (const result of [await runCheck(), await run(Change)]) {
+                    expect(result.exitCode).toBe(1);
+                    expect(result.stdout).toBe("");
+                    // The folder's path as given: through the temporary folder's own link (/var → /private/var on
+                    // macOS) when it is relative to the current directory.
+                    expect(result.stderr).toStartWith("✗ /");
+                    expect(result.stderr).toEndWith(
+                        `/${Change} leads outside the project: docs, docs/changes and the change folder must not be symbolic links\n`,
+                    );
+                    expect(result.stderr.trimEnd().split("\n")).toHaveLength(1);
+                    expect(result.stderr).not.toContain(Secret);
+                }
+            });
+        }
+
+        it("still reads a change through a link to the project itself", async () => {
+            await createChange(routeOf({ finish: "in-progress" }));
+            outside = await mkdtemp(path.join(tmpdir(), "changes-outside-"));
+            await symlink(dir, path.join(outside, "project"));
+
+            const result = await runIn(outside, path.join(outside, "project", Change));
+
+            expect(result.stderr).toBe("");
+            expect(result.exitCode).toBe(0);
+            expect(result.stdout).toContain("57. Export as CSV");
+        });
+
+        it("refuses a linked decision record in pr-body with a single ✗ line, not a stack trace", async () => {
+            await createChange(routeOf({ finish: "in-progress" }));
+            outside = await mkdtemp(path.join(tmpdir(), "changes-outside-"));
+            await Bun.write(path.join(outside, "record.md"), `${Adr}\n${Secret}\n`);
+            await unlink(path.join(dir, "docs/decisions/0057-export-as-csv.md"));
+            await symlink(path.join(outside, "record.md"), path.join(dir, "docs/decisions/0057-export-as-csv.md"));
+            git("add", "--all");
+            git("commit", "--quiet", "--message=Link");
+
+            const result = await run(Change);
+            const lines = result.stderr.trimEnd().split("\n");
+
+            expect(result.exitCode).toBe(1);
+            expect(result.stdout).toBe("");
+            expect(lines).toHaveLength(1);
+            expect(lines[0]).toStartWith("✗ docs/decisions/0057-export-as-csv.md is a symbolic link");
+            expect(result.stderr).not.toContain(Secret);
         });
 
         it("still treats a missing document as missing", async () => {

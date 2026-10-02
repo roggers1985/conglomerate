@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { isFileNotFound } from "./errors.ts";
-import { readDir, readDirRecursive, readJson, readText, whenMissing } from "./files.ts";
+import { readDir, readDirRecursive, readJson, readText, SymbolicLinkError, whenMissing } from "./files.ts";
 
 const signal = AbortSignal.timeout(5_000);
 let dir = "";
@@ -90,7 +90,7 @@ describe("readText and readJson", () => {
         ).rejects.toMatchObject({ name: "AbortError" });
     });
 
-    it("follow a symbolic link to a regular file", async () => {
+    it("follow a symbolic link to a regular file by default", async () => {
         await Bun.write(path.join(dir, "target.json"), '{ "a": 1 }');
         await symlink(path.join(dir, "target.json"), path.join(dir, "link.json"));
 
@@ -138,6 +138,45 @@ describe("readText and readJson", () => {
             "is a directory, not a regular file",
         );
     });
+
+    it('with symbolicLinks: "refuse", refuse a symbolic link, naming it, and still read a regular file', async () => {
+        await Bun.write(path.join(dir, "target.json"), '{ "a": 1 }');
+        await symlink(path.join(dir, "target.json"), path.join(dir, "link.json"));
+        const options = { maxBytes: 100, signal, symbolicLinks: "refuse" } as const;
+
+        await expect(readText(path.join(dir, "link.json"), options)).rejects.toThrow(
+            new SymbolicLinkError(path.join(dir, "link.json")),
+        );
+        await expect(readJson(path.join(dir, "link.json"), options)).rejects.toBeInstanceOf(SymbolicLinkError);
+        expect(await readText(path.join(dir, "target.json"), options)).toBe('{ "a": 1 }');
+        expect(await readJson(path.join(dir, "target.json"), options)).toEqual({ a: 1 });
+    });
+
+    it('with symbolicLinks: "refuse", refuse a dangling link and a link to a FIFO as links, at once', async () => {
+        const fifo = path.join(dir, "pipe");
+        makeFifo(fifo);
+        await symlink(fifo, path.join(dir, "to-fifo"));
+        await symlink(path.join(dir, "missing.txt"), path.join(dir, "dangling.txt"));
+        const options = { maxBytes: 100, signal, symbolicLinks: "refuse" } as const;
+
+        await expect(readText(path.join(dir, "to-fifo"), options)).rejects.toThrow(
+            `${path.join(dir, "to-fifo")} is a symbolic link`,
+        );
+        await expect(readText(path.join(dir, "dangling.txt"), options)).rejects.toThrow(
+            `${path.join(dir, "dangling.txt")} is a symbolic link`,
+        );
+    }, 1_000);
+
+    it('with symbolicLinks: "refuse", still refuse a FIFO, and report a missing file as missing', async () => {
+        const fifo = path.join(dir, "pipe");
+        makeFifo(fifo);
+        const options = { maxBytes: 100, signal, symbolicLinks: "refuse" } as const;
+
+        await expect(readText(fifo, options)).rejects.toThrow(`${fifo} is a FIFO, not a regular file`);
+        const error = await readText(path.join(dir, "missing.txt"), options).catch((caught: unknown) => caught);
+
+        expect(isFileNotFound(error)).toBe(true);
+    }, 1_000);
 
     it("reject a symbolic link whose target is missing with a not-found error", async () => {
         await symlink(path.join(dir, "missing.txt"), path.join(dir, "dangling.txt"));

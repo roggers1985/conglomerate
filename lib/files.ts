@@ -1,5 +1,5 @@
 import { constants, type Stats } from "node:fs";
-import { open, opendir, stat } from "node:fs/promises";
+import { type FileHandle, lstat, open, opendir, stat } from "node:fs/promises";
 import path from "node:path";
 import { assert } from "./assert.ts";
 import { isFileNotFound } from "./errors.ts";
@@ -14,7 +14,36 @@ type ReadOptions = {
     /** The largest file accepted, in bytes; at least 1. */
     readonly maxBytes: number;
     readonly signal: AbortSignal;
+    /**
+     * What to do when the path itself is a symbolic link: `"follow"` reads its target, `"refuse"` throws a
+     * `SymbolicLinkError`. Only the last part of the path is checked; links among the folders above it are followed.
+     *
+     * @defaultValue "follow"
+     */
+    readonly symbolicLinks?: "follow" | "refuse";
 };
+
+/**
+ * The error `readText` and `readJson` throw for a path that is a symbolic link, when called with
+ * `symbolicLinks: "refuse"`.
+ *
+ * @example
+ * ```ts
+ * const error = new SymbolicLinkError("docs/note.md");
+ *
+ * expect(error.message).toBe("docs/note.md is a symbolic link");
+ * expect(error.name).toBe("SymbolicLinkError");
+ * ```
+ */
+export class SymbolicLinkError extends Error {
+    /**
+     * @param filePath - The path that is a symbolic link.
+     */
+    constructor(filePath: string) {
+        super(`${filePath} is a symbolic link`);
+        this.name = "SymbolicLinkError";
+    }
+}
 
 type ListOptions = {
     /** The most entries accepted; at least 1. */
@@ -41,46 +70,66 @@ export type DirEntry = {
  * ends, so the size check would not hold. The file is opened non-blocking and checked again, in case the path was
  * replaced in between.
  *
- * Symbolic links are followed, and their target must be a regular file: tooling reads through links (packages in
- * `node_modules`, for example). A link may point outside the folder it is in, so content a branch or pull request
- * controls, such as committed files, is better read from git, which doesn't follow links (as `decision-records`
- * does).
+ * By default (`symbolicLinks: "follow"`) symbolic links are followed, and their target must be a regular file:
+ * tooling reads through links (packages in `node_modules`, for example). A link may point outside the folder it is
+ * in, so content a branch or pull request controls, such as committed files, is read with `symbolicLinks: "refuse"`,
+ * or from git, which doesn't follow links (as `decision-records` does). Refusing is atomic: the file is opened with
+ * `O_NOFOLLOW`, so a path swapped for a link after the first check is refused too. It only covers the last part of
+ * the path; a caller that must stay inside a folder also compares the folder's real path with the expected one.
  *
  * @param filePath - The file to read.
  * @param options.maxBytes - The largest file accepted, in bytes; at least 1.
  * @param options.signal - Cancels the read.
+ * @param options.symbolicLinks - `"follow"` (the default) or `"refuse"` a path that is a symbolic link.
  * @returns The file's contents.
- * @throws Error when the file, or the target of a link, isn't a regular file, naming what it is.
+ * @throws SymbolicLinkError when `symbolicLinks` is `"refuse"` and the path is a symbolic link, even a dangling one.
+ * @throws Error when the file, or the target of a followed link, isn't a regular file, naming what it is.
  * @throws Error when the file is larger than `maxBytes`.
- * @throws Error with code `ENOENT` when the file, or the target of a link, doesn't exist (see `whenMissing`).
+ * @throws Error with code `ENOENT` when the file, or the target of a followed link, doesn't exist (see `whenMissing`).
  * @throws DOMException named `AbortError` when `signal` aborts.
  *
  * @example
  * ```ts
- * const { mkdtemp, rm } = await import("node:fs/promises");
+ * const { mkdtemp, rm, symlink } = await import("node:fs/promises");
  * const { tmpdir } = await import("node:os");
  * const dir = await mkdtemp(`${tmpdir()}/files-`);
  * const signal = AbortSignal.timeout(5_000);
  * await Bun.write(`${dir}/note.txt`, "hello");
+ * await symlink(`${dir}/note.txt`, `${dir}/link.txt`);
  *
  * expect(await readText(`${dir}/note.txt`, { maxBytes: 5, signal })).toBe("hello");
  * await expect(readText(`${dir}/note.txt`, { maxBytes: 4, signal })).rejects.toThrow("over the limit of 4 bytes");
  * await expect(readText(dir, { maxBytes: 5, signal })).rejects.toThrow("is a directory, not a regular file");
  *
+ * expect(await readText(`${dir}/link.txt`, { maxBytes: 5, signal })).toBe("hello");
+ * await expect(readText(`${dir}/link.txt`, { maxBytes: 5, signal, symbolicLinks: "refuse" })).rejects.toThrow(
+ *     `${dir}/link.txt is a symbolic link`,
+ * );
+ * expect(await readText(`${dir}/note.txt`, { maxBytes: 5, signal, symbolicLinks: "refuse" })).toBe("hello");
+ *
  * await rm(dir, { recursive: true });
  * ```
  */
-export async function readText(filePath: string, { maxBytes, signal }: ReadOptions): Promise<string> {
+export async function readText(
+    filePath: string,
+    { maxBytes, signal, symbolicLinks = "follow" }: ReadOptions,
+): Promise<string> {
     assert(Number.isInteger(maxBytes), `maxBytes must be an integer, got ${maxBytes}`);
     assert(maxBytes >= 1, `maxBytes must be at least 1, got ${maxBytes}`);
     // open and stat take no signal: check before starting instead.
     signal.throwIfAborted();
-    // Before opening: opening a FIFO waits for a writer, and nothing can cancel that wait.
-    checkRegularFile(filePath, await stat(filePath));
 
-    // Non-blocking, so a path swapped for a FIFO since the check still opens at once; the check below refuses it.
-    // It changes nothing for a regular file. (Windows has no O_NONBLOCK, and no FIFOs at a file path.)
-    const handle = await open(filePath, constants.O_RDONLY | constants.O_NONBLOCK);
+    const isRefusingLinks = symbolicLinks === "refuse";
+    // Before opening: opening a FIFO waits for a writer, and nothing can cancel that wait.
+    const pathStats = isRefusingLinks ? await lstat(filePath) : await stat(filePath);
+
+    if (pathStats.isSymbolicLink()) {
+        throw new SymbolicLinkError(filePath);
+    }
+
+    checkRegularFile(filePath, pathStats);
+
+    const handle = await openForReading(filePath, { isRefusingLinks });
 
     try {
         const stats = await handle.stat();
@@ -95,6 +144,32 @@ export async function readText(filePath: string, { maxBytes, signal }: ReadOptio
         await handle.close();
     }
 }
+
+/**
+ * Opens a file for reading. Non-blocking, so a path swapped for a FIFO since the first check still opens at once; the
+ * check after opening refuses it. It changes nothing for a regular file. (Windows has no O_NONBLOCK, and no FIFOs at
+ * a file path.) With `O_NOFOLLOW`, opening a symbolic link fails with `ELOOP`, so a link swapped in is refused too.
+ */
+async function openForReading(
+    filePath: string,
+    { isRefusingLinks }: { readonly isRefusingLinks: boolean },
+): Promise<FileHandle> {
+    const flags = constants.O_RDONLY | constants.O_NONBLOCK | (isRefusingLinks ? constants.O_NOFOLLOW : 0);
+
+    try {
+        return await open(filePath, flags);
+    } catch (error: unknown) {
+        const isLink = isRefusingLinks && hasErrorCode(error, "ELOOP");
+
+        if (isLink) {
+            throw new SymbolicLinkError(filePath);
+        }
+        throw error;
+    }
+}
+
+const hasErrorCode = (error: unknown, code: string): boolean =>
+    error instanceof Error && "code" in error && error.code === code;
 
 /** Refuses anything but a regular file: its size is the only one the size check can trust. */
 function checkRegularFile(filePath: string, stats: Stats): void {
@@ -136,8 +211,10 @@ function describeFileType(stats: Stats): string {
  * @param filePath - The file to read.
  * @param options.maxBytes - The largest file accepted, in bytes; at least 1.
  * @param options.signal - Cancels the read.
+ * @param options.symbolicLinks - `"follow"` (the default) or `"refuse"` a path that is a symbolic link, as `readText`.
  * @returns The parsed JSON, typed as `unknown`.
  * @throws SyntaxError when the file is not valid JSON.
+ * @throws SymbolicLinkError when `symbolicLinks` is `"refuse"` and the path is a symbolic link.
  * @throws Error when the file is larger than `maxBytes`.
  * @throws Error with code `ENOENT` when the file doesn't exist.
  * @throws DOMException named `AbortError` when `signal` aborts.
