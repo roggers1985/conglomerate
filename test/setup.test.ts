@@ -18,10 +18,17 @@ afterEach(async () => {
 });
 
 /** Runs `bun test` on a fixture test file, with both streams captured. */
-async function runFixture(source: string): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+async function runFixture(
+    source: string,
+    helpers: Record<string, string> = {},
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     const file = path.join(folder, "fixture.test.ts");
 
     await Bun.write(file, source);
+
+    for (const [name, helperSource] of Object.entries(helpers)) {
+        await Bun.write(path.join(folder, name), helperSource);
+    }
 
     const run = Bun.spawn(["bun", "test", file], {
         cwd: ROOT,
@@ -34,10 +41,13 @@ async function runFixture(source: string): Promise<{ exitCode: number; stdout: s
     return { exitCode, stdout, stderr };
 }
 
+// Two lines: fixture code starts on line 3.
 const IMPORTS = `import { expect, it } from "bun:test";
 import { expectConsole } from "${path.join(ROOT, "lib/console-capture.ts")}";
 `;
 
+/** The fixture folder as the failure shows it: relative to the repository root. */
+const shown = (file: string): string => path.join(path.basename(folder), file);
 describe("the test setup (clean test output)", () => {
     it("passes a test that prints nothing", async () => {
         const result = await runFixture(`${IMPORTS}it("quiet", () => { expect(1).toBe(1); });`);
@@ -67,16 +77,59 @@ describe("the test setup (clean test output)", () => {
 
         expect(result.exitCode).not.toBe(0);
         expect(result.stderr).toContain("Test output is not clean");
-        expect(result.stderr).toContain("console.log: surprise");
+        expect(result.stderr).toContain(`console.log at ${shown("fixture.test.ts")}:3:`);
+        expect(result.stderr).toContain('"surprise"');
         expect(result.stderr).toContain("1 fail");
         expect(result.stdout).not.toContain("surprise");
+    });
+
+    it("names the file and line of a helper in another file that logged, and the test file that called it", async () => {
+        const result = await runFixture(
+            `${IMPORTS}import { noisyHelper } from "./helper.ts";
+it("calls a helper", () => { noisyHelper(); });`,
+            { "helper.ts": `export function noisyHelper(): void {\n    console.warn("from the helper");\n}\n` },
+        );
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.stderr).toContain(`console.warn at ${shown("helper.ts")}:2:`);
+        expect(result.stderr).toContain(`(from test ${shown("fixture.test.ts")}:4:`);
+        expect(result.stderr).toContain('"from the helper"');
+        expect(result.stderr).toContain("(fail) calls a helper");
+    });
+
+    it("names the test file and line of a log written directly in the test", async () => {
+        const result = await runFixture(`${IMPORTS}it("direct", () => {\n    console.error("right here");\n});`);
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.stderr).toContain(`console.error at ${shown("fixture.test.ts")}:4:`);
+        expect(result.stderr).not.toContain("(from test");
+    });
+
+    it("shows one line per unexpected call, cuts long messages and caps the number of calls", async () => {
+        const result = await runFixture(
+            `${IMPORTS}it("floods", () => { for (let i = 0; i < 25; i++) { console.log("n" + i + "x".repeat(400)); } });`,
+        );
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.stderr).toContain("more characters)");
+        expect(result.stderr).toContain("… and 5 more calls");
+        expect(result.stderr.match(/console\.log at /g)).toHaveLength(20);
+    });
+
+    it("shows the call site of what was captured when an expected call is missing", async () => {
+        const result = await runFixture(
+            `${IMPORTS}it("wrong", () => { console.warn("actual"); expectConsole("error", "actual"); });`,
+        );
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.stderr).toContain(`console.warn at ${shown("fixture.test.ts")}:3:`);
     });
 
     it.each(["info", "warn", "error", "debug"] as const)("fails a test that calls console.%s", async (method) => {
         const result = await runFixture(`${IMPORTS}it("noisy", () => { console.${method}("unexpected"); });`);
 
         expect(result.exitCode).not.toBe(0);
-        expect(result.stderr).toContain(`console.${method}: unexpected`);
+        expect(result.stderr).toContain(`console.${method} at ${shown("fixture.test.ts")}:3:`);
     });
 
     it("fails a test that expects output that was not printed", async () => {
@@ -96,8 +149,9 @@ describe("the test setup (clean test output)", () => {
         );
 
         expect(result.exitCode).not.toBe(0);
-        expect(result.stderr).toContain("console.warn: two");
-        expect(result.stderr).not.toContain("console.warn: one");
+        expect(result.stderr).toContain("console.warn at");
+        expect(result.stderr).toContain('"two"');
+        expect(result.stderr).not.toContain('"one"');
     });
 
     it("fails a test during which a promise was rejected and not handled", async () => {
@@ -134,6 +188,6 @@ describe("the test setup (clean test output)", () => {
         expect(result.exitCode).not.toBe(0);
         expect(result.stderr).toContain("1 pass");
         expect(result.stderr).toContain("1 fail");
-        expect(result.stderr.match(/console\.log: first/g)).toHaveLength(1);
+        expect(result.stderr.match(/"first"/g)).toHaveLength(1);
     });
 });
