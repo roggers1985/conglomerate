@@ -32,7 +32,7 @@ The table is fixed, so the same task always gets the same route:
 | **standard** | medium, *or* moderate risk | spec → plan → build → review → finish |
 | **full** | large, *or* high risk, *or* not reversible, *or* spanning several units | intent → spec → plan → tasks → build → review → docs → finish |
 
-When two rows fit, take the heavier track.
+When two rows fit, take the heavier track. **A change that adds or changes an entry point** (an endpoint, a server action, a webhook, a command, a job) **is never quick:** it takes at least the standard track, so its spec answers the security questions (ADR 0057).
 
 ## 3. Adjust the route
 
@@ -41,7 +41,7 @@ A route is a list of stages from a fixed set, in a fixed order: intent, spec, sp
 - **+ spike** when uncertainty is high;
 - **+ architecture** when the task touches open architecture debt: assess whether to fix it first (ADR 0045);
 - **+ migration-plan** for schema or data changes;
-- **+ security-review** for authentication, secrets or untrusted input;
+- **+ security-review**, **always** (not a judgement call, ADR 0057) when the change adds or changes an entry point (an endpoint, a server action, a webhook, a command, a job), authentication or authorisation, the handling of untrusted input, or sensitive data;
 - **+ verify** on the standard or full track when the result can only be checked by running it;
 - **intent and spec combined** (drop intent) when the owner has already stated the problem clearly;
 - anything the owner asks for when confirming.
