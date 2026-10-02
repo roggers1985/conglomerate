@@ -24,7 +24,8 @@ export const SECURITY_QUESTIONS = ["Authentication", "Authorisation", "Untrusted
 /** Marks a point the spec couldn't decide; a stage with one left open can't be done. */
 export const CLARIFICATION_MARKER = "[NEEDS CLARIFICATION";
 
-const SECURITY_ANSWER = /^\s*[-*] (Authentication|Authorisation|Untrusted input|Sensitive data):\s*(.*)$/;
+const SECURITY_ANSWER = /^\s*[-*] (Authentication|Authori[sz]ation|Untrusted input|Sensitive data):\s*(.*)$/;
+const PLACEHOLDER = /^(tbd|todo|\?+|n\/?a|-+|\.\.\.|…)\.?$/i;
 const CRITERIA_MAX = 200; // acceptance criteria in one spec; more means the change should be split
 const HEADING = /^## (.+?)\s*$/;
 const LIST_ITEM = /^\s*[-*] /;
@@ -145,12 +146,23 @@ function securityProblems(text: string | null): string[] {
             .split("\n")
             .map((line) => SECURITY_ANSWER.exec(line))
             .filter(isNotNil)
-            .map((match) => [match[1] ?? "", (match[2] ?? "").trim()] as const),
+            .map(
+                (match) =>
+                    [(match[1] ?? "").replace("Authorization", "Authorisation"), (match[2] ?? "").trim()] as const,
+            ),
     );
+    const unanswered = SECURITY_QUESTIONS.filter((question) => (answers.get(question) ?? "").length === 0);
+    const placeholders = SECURITY_QUESTIONS.filter((question) => PLACEHOLDER.test(answers.get(question) ?? ""));
 
-    return SECURITY_QUESTIONS.filter((question) => (answers.get(question) ?? "").length === 0).map(
-        (question) => `spec.md's Security section doesn't answer "${question}": who, what, or "Public, because …"`,
-    );
+    return [
+        ...unanswered.map(
+            (question) => `spec.md's Security section doesn't answer "${question}": who, what, or "Public, because …"`,
+        ),
+        ...placeholders.map(
+            (question) =>
+                `spec.md's answer to "${question}" is a placeholder: answer it, or mark it [NEEDS CLARIFICATION: …]`,
+        ),
+    ];
 }
 
 function criteriaProblems(text: string): string[] {

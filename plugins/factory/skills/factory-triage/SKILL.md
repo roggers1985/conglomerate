@@ -32,7 +32,7 @@ The table is fixed, so the same task always gets the same route:
 | **standard** | medium, *or* moderate risk | spec → plan → build → review → finish |
 | **full** | large, *or* high risk, *or* not reversible, *or* spanning several units | intent → spec → plan → tasks → build → review → docs → finish |
 
-When two rows fit, take the heavier track.
+When two rows fit, take the heavier track. **A change that adds or changes an entry point** (an endpoint, a server action, a webhook, a command, a job) **is never quick:** it takes at least the standard track, so its spec answers the security questions (ADR 0057).
 
 ## 3. Adjust the route
 

@@ -136,6 +136,21 @@ describe("specProblems", () => {
         ]);
     });
 
+    it("accepts the American spelling of Authorisation", () => {
+        const american = securityAnswers.replace("- Authorisation:", "- Authorization:");
+
+        expect(specProblems(spec(ac1, new Map([["Security", american]])), { needsProblem: false })).toEqual([]);
+    });
+
+    it("refuses placeholder answers, pointing to [NEEDS CLARIFICATION]", () => {
+        const placeholders = securityAnswers.replace("owners of the jobs", "TBD").replace("none", "n/a");
+
+        expect(specProblems(spec(ac1, new Map([["Security", placeholders]])), { needsProblem: false })).toEqual([
+            'spec.md\'s answer to "Authorisation" is a placeholder: answer it, or mark it [NEEDS CLARIFICATION: …]',
+            'spec.md\'s answer to "Sensitive data" is a placeholder: answer it, or mark it [NEEDS CLARIFICATION: …]',
+        ]);
+    });
+
     it("refuses an open [NEEDS CLARIFICATION] marker", () => {
         const unclear = spec(ac1, new Map([["Limits", "[NEEDS CLARIFICATION: how many jobs at most?]"]]));
 
