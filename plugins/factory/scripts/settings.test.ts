@@ -126,14 +126,20 @@ describe("readFactorySettings", () => {
         });
     });
 
-    it("refuses a settings file that is a symbolic link, falling back to defaults", async () => {
+    it("refuses a settings file that is a symbolic link, reporting it invalid", async () => {
         const realSettingsPath = path.join(dir, ".claude/real-factory.json");
         const symlinkSettingsPath = path.join(dir, ".claude/factory.json");
 
         await Bun.write(realSettingsPath, '{ "autonomy": "autonomous" }');
         await symlink(realSettingsPath, symlinkSettingsPath);
 
-        expect(await readFactorySettings(dir, { signal })).toEqual({ kind: "default", settings: DEFAULT_SETTINGS });
+        const result = await readFactorySettings(dir, { signal });
+
+        expect(result.kind).toBe("invalid");
+        expect(result.settings).toEqual(DEFAULT_SETTINGS);
+        if (result.kind === "invalid") {
+            expect(result.errors[0]).toContain("symbolic link");
+        }
     });
 });
 

@@ -211,7 +211,7 @@ async function readSettingsJson(
             return { kind: "invalid", errors: ["is not valid JSON"] };
         }
         if (error instanceof SymbolicLinkError) {
-            return { kind: "valid", value: null };
+            return { kind: "invalid", errors: [error.message] };
         }
         throw error;
     }

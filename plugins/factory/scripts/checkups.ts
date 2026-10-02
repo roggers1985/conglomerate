@@ -650,7 +650,7 @@ async function readSchedule(
     }
 }
 
-export async function loadProjectCheckups(
+async function loadProjectCheckups(
     projectDir: string,
     { today, signal }: { readonly today: string; readonly signal: AbortSignal },
 ): Promise<ProjectCheckups> {
