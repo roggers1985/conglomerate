@@ -35,7 +35,7 @@ export const LIMITS = {
         max: 10,
         use: "attempts at the same task or failing check before escalating",
     },
-    subagentsPerTask: { default: 10, min: 1, max: 50, use: "subagents per change at the autonomous level" },
+    subagentsPerChange: { default: 10, min: 1, max: 50, use: "subagents per change at the autonomous level" },
 } as const;
 
 /** The name of one tuning value. */
@@ -50,18 +50,32 @@ const limitSchema = (name: LimitName) =>
     z.number().int().min(LIMITS[name].min).max(LIMITS[name].max).describe(LIMITS[name].use);
 
 // Our own file, so strict: unknown keys are typos (ADR 0020). `$schema` lets an editor validate and complete it.
-const FactorySettingsSchema = z.strictObject({
-    $schema: z.string().max(500).optional(),
-    autonomy: z.enum(AUTONOMY_LEVELS).optional().describe("How much Claude decides without asking (ADR 0044)"),
-    limits: z
-        .strictObject({
-            reviewRounds: limitSchema("reviewRounds").optional(),
-            parallelTasks: limitSchema("parallelTasks").optional(),
-            attemptsPerTask: limitSchema("attemptsPerTask").optional(),
-            subagentsPerTask: limitSchema("subagentsPerTask").optional(),
-        })
-        .optional(),
-});
+const FactorySettingsSchema = z
+    .strictObject({
+        $schema: z.string().max(500).optional(),
+        autonomy: z.enum(AUTONOMY_LEVELS).optional().describe("How much Claude decides without asking (ADR 0044)"),
+        limits: z
+            .strictObject({
+                reviewRounds: limitSchema("reviewRounds").optional(),
+                parallelTasks: limitSchema("parallelTasks").optional(),
+                attemptsPerTask: limitSchema("attemptsPerTask").optional(),
+                subagentsPerChange: limitSchema("subagentsPerChange").optional(),
+            })
+            .optional(),
+    })
+    .superRefine(({ limits = {} }, context) => {
+        // Related limits are checked against each other once (code-safety): parallel tasks each need a subagent.
+        const parallelTasks = limits.parallelTasks ?? LIMITS.parallelTasks.default;
+        const subagentsPerChange = limits.subagentsPerChange ?? LIMITS.subagentsPerChange.default;
+
+        if (parallelTasks > subagentsPerChange) {
+            context.addIssue({
+                code: "custom",
+                message: `parallelTasks (${parallelTasks}) can't exceed subagentsPerChange (${subagentsPerChange})`,
+                path: ["limits", "parallelTasks"],
+            });
+        }
+    });
 
 /** A project's settings, complete: what it sets itself, with the defaults filled in. */
 export type FactorySettings = {
@@ -83,7 +97,7 @@ export const DEFAULT_SETTINGS: FactorySettings = {
         reviewRounds: LIMITS.reviewRounds.default,
         parallelTasks: LIMITS.parallelTasks.default,
         attemptsPerTask: LIMITS.attemptsPerTask.default,
-        subagentsPerTask: LIMITS.subagentsPerTask.default,
+        subagentsPerChange: LIMITS.subagentsPerChange.default,
     },
     own: new Set(),
 };
@@ -99,7 +113,7 @@ export const DEFAULT_SETTINGS: FactorySettings = {
  * const parsed = parseFactorySettings({ autonomy: "trusted", limits: { reviewRounds: 5 } });
  *
  * expect(parsed.kind === "valid" && parsed.value.limits).toEqual({
- *     reviewRounds: 5, parallelTasks: 3, attemptsPerTask: 3, subagentsPerTask: 10,
+ *     reviewRounds: 5, parallelTasks: 3, attemptsPerTask: 3, subagentsPerChange: 10,
  * });
  * expect(parseFactorySettings({ limits: { reviewRounds: 11 } }).kind).toBe("invalid");
  * ```

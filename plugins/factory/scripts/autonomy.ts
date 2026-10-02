@@ -41,7 +41,7 @@ const SOURCES: Readonly<Record<ProjectSettings["kind"], string>> = {
  *
  * @example
  * ```ts
- * const limits = { reviewRounds: 3, parallelTasks: 3, attemptsPerTask: 3, subagentsPerTask: 10 };
+ * const limits = { reviewRounds: 3, parallelTasks: 3, attemptsPerTask: 3, subagentsPerChange: 10 };
  * const settings = { autonomy: "trusted", limits, own: new Set(["autonomy"] as const) } as const;
  * const project = { kind: "project", settings } as const;
  * const section = renderAutonomyContext(project, { rules: "You decide." });

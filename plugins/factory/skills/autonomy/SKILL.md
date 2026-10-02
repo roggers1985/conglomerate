@@ -26,4 +26,4 @@ The full rules of each level are in `${CLAUDE_PLUGIN_ROOT}/conventions/autonomy/
 
 - **Anything else:** say which arguments are accepted, and change nothing.
 
-The same file holds the project's limits (review rounds, parallel tasks, attempts, subagents; ADR 0058). Its schema is `${CLAUDE_PLUGIN_ROOT}/schemas/factory.schema.json`: point the file's `"$schema"` at it so an editor validates and completes it.
+The same file holds the project's limits (review rounds, parallel tasks, attempts, subagents; ADR 0058). Its schema is `${CLAUDE_PLUGIN_ROOT}/schemas/factory.schema.json`: point the file's `"$schema"` at it so an editor validates and completes it. In the factory's own repository that's a relative path; in other projects, leave `"$schema"` out for now, because the plugin's folder differs per machine. Once the repository is public, use the schema's URL on GitHub instead.

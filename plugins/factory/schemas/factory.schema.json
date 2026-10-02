@@ -36,7 +36,7 @@
                     "maximum": 10,
                     "description": "attempts at the same task or failing check before escalating"
                 },
-                "subagentsPerTask": {
+                "subagentsPerChange": {
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 50,

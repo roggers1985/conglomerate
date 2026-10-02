@@ -16,7 +16,7 @@ The stages and the autonomy levels contain fixed numbers: 3 review rounds, 3 tas
 
 - **One settings file per project:** `.claude/factory.json`, which already held the autonomy level. It now also holds `limits`.
 - **Settings are for tuning values, not for rules.**
-  - **Configurable:** `reviewRounds`, `parallelTasks`, `attemptsPerTask` and `subagentsPerTask`. Each has a visible default (3, 3, 3 and 10) and bounds (1 to 10, or 1 to 50 for subagents), following ADR 0032 and 0034.
+  - **Configurable:** `reviewRounds`, `parallelTasks`, `attemptsPerTask` and `subagentsPerChange`. Each has a visible default (3, 3, 3 and 10) and bounds (1 to 10, or 1 to 50 for subagents), following ADR 0032 and 0034.
   - **Not configurable:** the rules that make up the plugin's character:
     - what is always the owner's;
     - intent and spec at `guided`;
@@ -29,7 +29,8 @@ The stages and the autonomy levels contain fixed numbers: 3 review rounds, 3 tas
 - **A JSON Schema, generated from the same Zod schema** the plugin parses the file with, so the two can't drift apart:
   - `bun run generate` writes `plugins/factory/schemas/factory.schema.json`, and `bun run validate` fails when it's out of date;
   - the file is excluded from Biome, like the other generated output;
-  - a project points `"$schema"` at it for validation and completion in an editor.
+  - a project points `"$schema"` at it for validation and completion in an editor. In this repository that's a relative path; other projects leave it out until the repository is public and the schema has a URL, because a path to the plugin differs per machine.
+- **Related limits are checked against each other:** `parallelTasks` can't exceed `subagentsPerChange`, also when one of them is a default (`code-safety`).
 - **Strict, with a safe fallback:** unknown keys are errors (typos). An invalid file falls back to all defaults, including `guided`, and session start says why (fail safe, ADR 0048).
 - **Delivered at session start:** after the autonomy section comes a "Factory settings" section with every value, and whether it is the default or set by the project. The skills refer to the settings by name instead of a fixed number.
 - **`settings.ts` owns the file;** `autonomy.ts` keeps the levels' rules. The dependency goes one way, from autonomy to settings.

@@ -40,11 +40,14 @@ describe("parseFactorySettings", () => {
     });
 
     it("accepts every limit at its bounds, and refuses one past them", () => {
+        // A single parallel task, so the subagent limit can go down to its minimum without breaking the relation.
+        const withLimit = (name: string, value: number) => ({ limits: { parallelTasks: 1, [name]: value } });
+
         for (const [name, limit] of Object.entries(LIMITS)) {
-            expect(settingsOf({ limits: { [name]: limit.min } })).not.toBeNull();
-            expect(settingsOf({ limits: { [name]: limit.max } })).not.toBeNull();
-            expect(parseFactorySettings({ limits: { [name]: limit.min - 1 } }).kind).toBe("invalid");
-            expect(parseFactorySettings({ limits: { [name]: limit.max + 1 } }).kind).toBe("invalid");
+            expect(settingsOf(withLimit(name, limit.min))).not.toBeNull();
+            expect(settingsOf(withLimit(name, limit.max))).not.toBeNull();
+            expect(parseFactorySettings(withLimit(name, limit.min - 1)).kind).toBe("invalid");
+            expect(parseFactorySettings(withLimit(name, limit.max + 1)).kind).toBe("invalid");
         }
     });
 
@@ -53,6 +56,15 @@ describe("parseFactorySettings", () => {
         expect(parseFactorySettings({ autonomy: "full" }).kind).toBe("invalid");
         expect(parseFactorySettings({ autonmy: "trusted" }).kind).toBe("invalid");
         expect(parseFactorySettings({ limits: { reviewRound: 4 } }).kind).toBe("invalid");
+    });
+
+    it("refuses more parallel tasks than subagents, also against a default", () => {
+        expect(settingsOf({ limits: { parallelTasks: 4, subagentsPerChange: 4 } })).not.toBeNull();
+        expect(parseFactorySettings({ limits: { parallelTasks: 5, subagentsPerChange: 4 } })).toEqual({
+            kind: "invalid",
+            errors: ["limits.parallelTasks: parallelTasks (5) can't exceed subagentsPerChange (4)"],
+        });
+        expect(parseFactorySettings({ limits: { subagentsPerChange: 2 } }).kind).toBe("invalid");
     });
 
     it("allows a $schema reference for editors", () => {
@@ -133,6 +145,6 @@ describe("factorySettingsJsonSchema", () => {
         expect(schema.additionalProperties).toBe(false);
         expect(schema.properties.autonomy.enum).toEqual([...AUTONOMY_LEVELS]);
         expect(schema.properties.limits.additionalProperties).toBe(false);
-        expect(schema.properties.limits.properties.subagentsPerTask).toMatchObject({ minimum: 1, maximum: 50 });
+        expect(schema.properties.limits.properties.subagentsPerChange).toMatchObject({ minimum: 1, maximum: 50 });
     });
 });
