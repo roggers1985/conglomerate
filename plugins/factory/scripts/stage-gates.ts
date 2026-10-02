@@ -30,6 +30,7 @@ const CRITERIA_MAX = 200; // acceptance criteria in one spec; more means the cha
 const HEADING = /^## (.+?)\s*$/;
 const LIST_ITEM = /^\s*[-*] /;
 const CRITERION = /^\s*[-*] \*\*(AC-\d+)\*\*:? (.+)$/;
+const DROPPED_MARKER = "(dropped)";
 // EARS: ubiquitous (THE … SHALL), event (WHEN), state (WHILE), unwanted behaviour (IF … THEN), optional (WHERE).
 const EARS_START = /^(WHEN|WHILE|IF|WHERE|THE)\b/;
 const EARS_SHALL = /\bSHALL\b/;
@@ -244,17 +245,47 @@ export function sectionText(markdown: string, heading: string): string | null {
  * ```
  */
 export function criteriaIds(spec: string): { readonly active: readonly string[]; readonly dropped: readonly string[] } {
-    const lines = (sections(spec).get("Acceptance criteria") ?? "").split("\n");
-    const numbered = lines.flatMap((line) => {
-        const id = /^\s*[-*] \*\*(AC-\d+)\*\*/.exec(line)?.[1];
-
-        return id === undefined ? [] : [{ id, isDropped: line.includes("(dropped)") }];
-    });
+    const numbered = criteria(spec);
 
     return {
         active: numbered.filter((criterion) => !criterion.isDropped).map((criterion) => criterion.id),
         dropped: numbered.filter((criterion) => criterion.isDropped).map((criterion) => criterion.id),
     };
+}
+
+/**
+ * Every numbered criterion under "Acceptance criteria" in a spec, with its text (ADR 0052). A criterion marked
+ * "(dropped)" is flagged, and the marker is left out of its text.
+ *
+ * @param spec - The contents of `spec.md`.
+ * @returns The criteria, in order; empty when there is no section or no criterion.
+ *
+ * @example
+ * ```ts
+ * const spec = "## Acceptance criteria\n\n- **AC-1**: WHEN asked, THE SYSTEM SHALL export.\n- **AC-2** (dropped): THE SYSTEM SHALL print.";
+ *
+ * expect(criteria(spec)).toEqual([
+ *     { id: "AC-1", text: "WHEN asked, THE SYSTEM SHALL export.", isDropped: false },
+ *     { id: "AC-2", text: "THE SYSTEM SHALL print.", isDropped: true },
+ * ]);
+ * ```
+ */
+export function criteria(
+    spec: string,
+): readonly { readonly id: string; readonly text: string; readonly isDropped: boolean }[] {
+    return (sections(spec).get("Acceptance criteria") ?? "")
+        .split("\n")
+        .map((line) => CRITERION.exec(line))
+        .filter(isNotNil)
+        .map((match) => {
+            const text = match[2] ?? "";
+
+            return {
+                id: match[1] ?? "",
+                text: text.replace(DROPPED_MARKER, "").replace(/^:/, "").trim(),
+                isDropped: text.includes(DROPPED_MARKER),
+            };
+        });
 }
 
 function taskBlocks(markdown: string): TaskBlock[] {
@@ -422,6 +453,30 @@ export const SPIKE_SECTIONS = ["Question", "Findings", "Recommendation"] as cons
 const EVIDENCE = /^\s*[-*] (AC-\d+):\s*(.*)$/;
 
 /**
+ * The evidence per acceptance criterion in `verification.md`'s "Evidence" section (ADR 0054).
+ *
+ * @param verification - The contents of `verification.md`.
+ * @returns The evidence text by criterion id; criteria with empty evidence are left out.
+ *
+ * @example
+ * ```ts
+ * const verification = "## Evidence\n\n- AC-1: `export.test.ts` › exports as CSV\n- AC-2:";
+ *
+ * expect(evidence(verification)).toEqual(new Map([["AC-1", "`export.test.ts` › exports as CSV"]]));
+ * ```
+ */
+export function evidence(verification: string): ReadonlyMap<string, string> {
+    return new Map(
+        (sections(verification).get("Evidence") ?? "")
+            .split("\n")
+            .map((line) => EVIDENCE.exec(line))
+            .filter(isNotNil)
+            .map((match) => [match[1] ?? "", (match[2] ?? "").trim()] as const)
+            .filter(([, text]) => text.length > 0),
+    );
+}
+
+/**
  * Checks `verification.md` before the build or verify stage may be done: the checks that ran are listed, and every
  * active acceptance criterion has evidence (the test or check that shows it works) (ADR 0054).
  *
@@ -514,13 +569,7 @@ const FINDING_STATUS = /^(fixed|accepted by owner: .{3,}|accepted: .{3,})$/i;
  */
 export function reviewProblems(markdown: string, { file }: { readonly file: string }): string[] {
     const text = sections(markdown).get("Findings") ?? "";
-    const findings = text
-        .split("\n")
-        .map((line) => TABLE_ROW.exec(line)?.[1])
-        .filter(isNotNil)
-        .filter((row) => !TABLE_SEPARATOR.test(row))
-        .map((row) => row.split(CELL_SEPARATOR).map((cell) => cell.trim()))
-        .filter((cells) => cells[0] !== "#");
+    const findings = findingRows(text);
     const hasTable = text.split("\n").some((line) => TABLE_ROW.test(line));
     const saysNone = NO_FINDINGS.test(text.trim());
     const hasUntabledFindings = text.trim().length > 0 && !hasTable && !saysNone;
@@ -533,6 +582,64 @@ export function reviewProblems(markdown: string, { file }: { readonly file: stri
         findings.length > FINDINGS_MAX ? `${file} has more than ${FINDINGS_MAX} findings: go back to planning` : null,
         ...findings.flatMap((cells) => findingProblems(cells, { file })),
     ].filter((problem) => problem !== null);
+}
+
+/** The cells of each row of a findings table, without the header and the separator. */
+function findingRows(findingsText: string): string[][] {
+    return findingsText
+        .split("\n")
+        .map((line) => TABLE_ROW.exec(line)?.[1])
+        .filter(isNotNil)
+        .filter((row) => !TABLE_SEPARATOR.test(row))
+        .map((row) => row.split(CELL_SEPARATOR).map((cell) => cell.trim()))
+        .filter((cells) => cells[0] !== "#");
+}
+
+/**
+ * The rows of a review document's findings table (ADR 0055).
+ *
+ * @param review - The review document.
+ * @returns The findings, in order, as trimmed text; empty for "None." or when there is no table. Rows that don't have
+ * five columns are left out (`reviewProblems` reports them).
+ *
+ * @example
+ * ```ts
+ * const review = [
+ *     "## Findings",
+ *     "",
+ *     "| # | Severity | Finding | Where | Status |",
+ *     "| - | - | - | - | - |",
+ *     "| 1 | low | A long name | `a.ts:3` | fixed |",
+ * ].join("\n");
+ *
+ * expect(reviewFindings(review)).toEqual([
+ *     { id: "1", severity: "low", finding: "A long name", where: "`a.ts:3`", status: "fixed" },
+ * ]);
+ * expect(reviewFindings("## Findings\n\nNone.")).toEqual([]);
+ * ```
+ */
+export function reviewFindings(review: string): readonly {
+    readonly id: string;
+    readonly severity: string;
+    readonly finding: string;
+    readonly where: string;
+    readonly status: string;
+}[] {
+    return findingRows(sections(review).get("Findings") ?? "").flatMap((cells) => {
+        const [id, severity, finding, where, status] = cells;
+
+        return cells.length === 5
+            ? [
+                  {
+                      id: id ?? "",
+                      severity: severity ?? "",
+                      finding: finding ?? "",
+                      where: where ?? "",
+                      status: status ?? "",
+                  },
+              ]
+            : [];
+    });
 }
 
 function findingProblems(cells: readonly string[], { file }: { readonly file: string }): string[] {
