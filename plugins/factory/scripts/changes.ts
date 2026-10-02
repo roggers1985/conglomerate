@@ -3,6 +3,10 @@
 //   bun changes.ts check <task.md>      validates one task document; exits 1 with the problems when it's invalid
 //   bun changes.ts status [projectDir]  the unfinished changes and where each one stopped
 //   bun changes.ts reminder [projectDir] SessionStart hook output; prints nothing when no change is unfinished
+//   bun changes.ts pr-body <change folder> [--base <branch>]
+//                                       the change's pull request description (ADR 0056); --base is the branch it
+//                                       merges into, `main` by default. Refuses, printing nothing, while a stage before
+//                                       finish isn't done or a document fails its gate
 
 import path from "node:path";
 import { z } from "zod";
@@ -13,6 +17,8 @@ import { interruptSignal } from "../../../lib/interrupt.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
 import { requiredText } from "../../../lib/schemas.ts";
+import { addedDecisionRecords } from "./decision-records.ts";
+import { renderPrBody } from "./pr-body.ts";
 import { resolveProjectDir } from "./project-dir.ts";
 import { AUTONOMY_LEVELS } from "./settings.ts";
 import {
@@ -477,19 +483,139 @@ async function readChanges(projectDir: string, { signal }: { readonly signal: Ab
     return mapConcurrent(folders, readOne, { concurrency: READS_IN_FLIGHT_MAX, signal });
 }
 
-const COMMANDS = ["check", "status", "reminder"] as const;
+const COMMANDS = ["check", "status", "reminder", "pr-body"] as const;
 
 type Command = (typeof COMMANDS)[number];
 
 const isCommand = (value: string | undefined): value is Command => COMMANDS.some((command) => command === value);
+
+const USAGE =
+    "Usage: changes.ts check <task.md> | status [projectDir] | reminder [projectDir] | pr-body <change folder> [--base <branch>] (base defaults to main)";
+const BASE_DEFAULT = "main";
+
+type PrBodyArguments =
+    | { readonly kind: "valid"; readonly folder: string; readonly base: string }
+    | { readonly kind: "invalid"; readonly error: string };
+
+const invalidArguments = (error: string): PrBodyArguments => ({ kind: "invalid", error });
+
+/** The arguments after `pr-body`: the change folder, and optionally `--base <branch>`. */
+function parsePrBodyArguments(args: readonly string[]): PrBodyArguments {
+    const baseAt = args.indexOf("--base");
+    const hasBase = baseAt !== -1;
+    const baseValue = hasBase ? args[baseAt + 1] : BASE_DEFAULT;
+    const isBaseUsable = baseValue !== undefined && baseValue.trim() !== "" && !baseValue.startsWith("-");
+    const others = hasBase ? args.filter((_, index) => index !== baseAt && index !== baseAt + 1) : args;
+    const unknownOption = others.find((arg) => arg.startsWith("-"));
+    const [folder, extra] = others;
+
+    if (!isBaseUsable) {
+        return invalidArguments("--base needs a branch name that isn't blank or starting with -");
+    }
+    if (unknownOption !== undefined) {
+        return invalidArguments(
+            unknownOption === "--base" ? "--base is given more than once" : `unknown option ${unknownOption}`,
+        );
+    }
+    if (folder === undefined) {
+        return invalidArguments("pr-body needs the change folder");
+    }
+    if (extra !== undefined) {
+        return invalidArguments(`unexpected argument ${extra}`);
+    }
+
+    return { kind: "valid", folder, base: baseValue };
+}
+
+/** The description of a change, or why it can't be rendered yet: every reason is a line for stderr. */
+type PrBodyOutcome =
+    | { readonly kind: "rendered"; readonly body: string }
+    | { readonly kind: "refused"; readonly problems: readonly string[] };
+
+const refused = (...problems: readonly string[]): PrBodyOutcome => ({ kind: "refused", problems });
+
+async function buildPrBody(
+    args: readonly string[],
+    { signal }: { readonly signal: AbortSignal },
+): Promise<PrBodyOutcome> {
+    const parsedArguments = parsePrBodyArguments(args);
+
+    if (parsedArguments.kind === "invalid") {
+        return refused(parsedArguments.error, USAGE);
+    }
+
+    const { folder, base } = parsedArguments;
+    const changeDir = path.resolve(folder);
+    const change = await readChange(changeDir, { gates: "always", signal });
+
+    if (change.kind === "invalid") {
+        return refused(...change.errors.map((error) => `✗ ${error}`));
+    }
+
+    const unfinished = change.value.stages.filter((stage) => stage.name !== "finish" && isUnfinished(stage));
+
+    if (unfinished.length > 0) {
+        const named = unfinished.map((stage) => `${stage.name} (${stage.status})`).join(", ");
+
+        return refused(`✗ not ready for a pull request: ${named} before finish`);
+    }
+
+    const readDocument = (file: string): Promise<string | null> =>
+        readText(path.join(changeDir, file), { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
+    const [spec, verification, review, securityReview] = await Promise.all(
+        ["spec.md", "verification.md", "review.md", "security-review.md"].map(readDocument),
+    );
+    const projectDir = resolveProjectDir({
+        argument: undefined,
+        envProjectDir: process.env["CLAUDE_PROJECT_DIR"],
+        cwd: process.cwd(),
+    });
+    const added = await addedDecisionRecords(projectDir, { base, signal });
+
+    if (added.kind === "unknown-base") {
+        return refused(`✗ the base branch "${added.base}" doesn't exist; pass the branch to merge into with --base`);
+    }
+
+    const rendered = renderPrBody({
+        task: change.value,
+        spec: spec ?? null,
+        verification: verification ?? null,
+        review: review ?? null,
+        securityReview: securityReview ?? null,
+        decisionRecords: added.records,
+    });
+
+    if (rendered.kind === "too-long") {
+        return refused(
+            `✗ the description is ${rendered.length} characters, over GitHub's limit of ${rendered.max}: shorten the spec, the evidence or the findings`,
+        );
+    }
+
+    return rendered;
+}
+
+const isUnfinished = (stage: StageEntry): boolean => stage.status === "pending" || stage.status === "in-progress";
 
 async function main(): Promise<void> {
     const [command, argument] = Bun.argv.slice(2);
     const signal = interruptSignal();
 
     if (!isCommand(command)) {
-        console.error(`Usage: changes.ts check <task.md> | status [projectDir] | reminder [projectDir]`);
+        console.error(USAGE);
         process.exitCode = 1;
+        return;
+    }
+
+    if (command === "pr-body") {
+        const outcome = await buildPrBody(Bun.argv.slice(3), { signal });
+
+        if (outcome.kind === "refused") {
+            console.error(outcome.problems.join("\n"));
+            process.exitCode = 1;
+            return;
+        }
+
+        process.stdout.write(outcome.body);
         return;
     }
 
