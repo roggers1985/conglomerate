@@ -1,6 +1,6 @@
 ---
 name: code-testing
-description: The owner's testing conventions. Covers what to test at which level (unit, integration, component, end-to-end), finding edge cases systematically, Testing Library, Playwright, test data, mocking and flakiness. Use when writing, reviewing or fixing unit, integration, component or end-to-end tests, or when deciding which tests a change needs.
+description: The owner's testing conventions. Covers what to test at which level (unit, integration, component, end-to-end), finding edge cases systematically, Testing Library, Playwright, test data, mocking, flakiness, and behaviour tests that keep a migration honest. Use when writing, reviewing or fixing unit, integration, component or end-to-end tests, when deciding which tests a change needs, or before a migration meant to keep behaviour (a library swap, a framework upgrade, a rewrite, a part replaced step by step).
 ---
 
 # Testing conventions
@@ -61,6 +61,48 @@ Most tests are unit and component tests; end-to-end tests are fewer and focus on
 - Assert with Playwright's web-first assertions (`await expect(locator).toBeVisible()`), never on a value you read first (`expect(await locator.isVisible()).toBe(true)`): the former waits and retries, the latter checks once.
 - Run against a production build, with isolated test data per test, so tests can run in parallel.
 - Visual comparison screenshots only where the visual result *is* the feature, e.g. a chart or a generated image.
+
+## Migrations that keep behaviour
+
+A migration that isn't meant to change what the code does (a library swap, a framework upgrade, a rewrite, a part replaced step by step) needs proof that it didn't. A test written after the migration can't give it: it only proves the new code does what the new code does. The proof is a *behaviour test* that passed on the old code, and then passes on the new code unchanged. This is a characterization test (Michael Feathers): it records what the code does now, not what someone thinks it should do.
+
+- **Write it before the migration, and see it pass on the old code.** Old code without tests is the main case, not the exception. A behaviour test that never ran on the old code proves nothing.
+- **Test at an interface that stays the same**: a public function, an endpoint, a command. Never internals: they are what the migration changes.
+- **Every intended difference** is listed in the spec and asserted by the test. Any other difference is a bug. When the differences outnumber what stays the same, it isn't a migration that keeps behaviour.
+- **A migration in several steps** runs the same test after every step.
+
+The factory's migration plan names the behaviour test: the interface, the form and, when needed, where the recorded outputs come from (`factory-planning`).
+
+### Two forms
+
+**Side by side** (old and new behind the same interface, e.g. a strangler fig, where the new code takes over piece by piece): one suite runs against both.
+
+```ts
+describe.each([
+  ["old", formatInvoiceOld],
+  ["new", formatInvoiceNew],
+])("formatInvoice (%s)", (_name, formatInvoice) => {
+  it("rounds each line to cents before adding them up", () => {
+    const invoice = buildInvoice({ lines: [{ amount: 0.004 }, { amount: 0.004 }] });
+
+    expect(formatInvoice(invoice).total).toBe("€0.00");
+  });
+});
+```
+
+When the old code goes, its entry goes; the suite stays.
+
+**In place** (a library swap, where the old code can't stay): commit the test before the swap. The swap leaves the test file unchanged, so the diff shows it.
+
+### When the old code can't run in a test
+
+When the old code depends on an external service, is too slow, or needs production data: record its real outputs once and compare the new code with them (a *golden master*). Keep the recording in the repository, small and reviewed, like any other test data.
+
+When the test framework itself is migrated, the test can't stay unchanged inside it. Move the behaviour test up to a level that doesn't depend on the framework: an end-to-end test, or running the command and checking its output.
+
+### Comparing in production
+
+Running both versions in production and comparing their results (e.g. GitHub's Scientist) is an option for high-risk migrations, chosen in the migration plan. It isn't a rule.
 
 ## Clean test output
 
