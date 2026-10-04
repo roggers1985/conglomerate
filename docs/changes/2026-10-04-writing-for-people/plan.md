@@ -58,7 +58,7 @@ One new decision, recorded in ADR 0061: the writing convention, and the audience
 - Verify: `bun run check`, which validates the skill's name, frontmatter and the catalog
 - Depends on: none
 - Parallel: no
-- Status: in-progress
+- Status: done
 
 ### T-2: Rewrite the stage templates and test them against their gates
 
@@ -67,7 +67,7 @@ One new decision, recorded in ADR 0061: the writing convention, and the audience
 - Verify: `bun test scripts/skill-templates.test.ts` and `bun run check`
 - Depends on: T-1
 - Parallel: yes
-- Status: pending
+- Status: in-progress
 
 ### T-3: Rewrite the checkup report template and teach docs-drift to spot hard-to-read text
 
@@ -76,7 +76,7 @@ One new decision, recorded in ADR 0061: the writing convention, and the audience
 - Verify: `bun run check`
 - Depends on: T-1
 - Parallel: yes
-- Status: pending
+- Status: in-progress
 
 ### T-4: Rewrite the pr-body plan as the first example
 
@@ -85,7 +85,7 @@ One new decision, recorded in ADR 0061: the writing convention, and the audience
 - Verify: `bun plugins/factory/dist/changes.js check docs/changes/2026-10-02-pr-body/task.md` (the plan still passes its gate), and a side-by-side reading that nothing in it changed meaning
 - Depends on: T-1
 - Parallel: yes
-- Status: pending
+- Status: in-progress
 
 ### T-5: Record the decision
 
