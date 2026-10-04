@@ -6,11 +6,11 @@ Date: 2026-10-02
 
 Accepted
 
-Extends [ADR-0032](0032-upper-bounds-on-everything.md) (bounds on file reads) and [ADR-0056](0056-docs-and-finish.md) (the pull request description is assembled by a script). Comes from the security review of the `pr-body` change (`docs/changes/2026-10-02-pr-body/`).
+Extends [ADR-0032](0032-upper-bounds-on-everything.md) (bounds on file reads) and [ADR-0056](0056-docs-and-finish.md) (the pull request description is assembled by a script). Comes from the security review of the `pull-request-description` change (`docs/changes/2026-10-02-pr-body/`).
 
 ## Context
 
-The `pr-body` command copies text from a change's documents and decision records into a pull request description. Its security review showed that a branch could make it read files outside the repository: through a committed symbolic link to a file, to a whole change folder, or to `docs/changes`. A FIFO or `/dev/zero` could also hang a read or get past the size limit. The fixes changed `lib/files.ts` and every place that reads files. These are decisions, so they're recorded here.
+The `pull-request-description` command copies text from a change's documents and decision records into a pull request description. Its security review showed that a branch could make it read files outside the repository: through a committed symbolic link to a file, to a whole change folder, or to `docs/changes`. A FIFO or `/dev/zero` could also hang a read or get past the size limit. The fixes changed `lib/files.ts` and every place that reads files. These are decisions, so they're recorded here.
 
 ## Decision
 
@@ -20,8 +20,8 @@ The `pr-body` command copies text from a change's documents and decision records
   - **`"follow"`** for the plugin's own files, the repository's tooling, `node_modules`, and the user's own settings in their home folder. `doctest` follows links in the project's source files too: it runs that code anyway, so refusing links would protect nothing.
   - Listing a folder (`readDir`) has no link choice; the rule is about reading a file's content.
 - **Decision records that a change adds are read from git,** by blob, and only when git records them as regular files. They're never read from the working tree.
-- **A change folder must be a real folder at `<project>/docs/changes/<name>`.** `check` and `pr-body` refuse a change folder, `docs/changes` or `docs` that is a link leading elsewhere. Reaching the project itself through a link stays allowed.
-- **The pull request description is assembled by `changes.js pr-body`** from the change's documents, instead of by hand. That extends ADR 0056, which said the finish stage needed no new script.
+- **A change folder must be a real folder at `<project>/docs/changes/<name>`.** `check` and `pull-request-description` refuse a change folder, `docs/changes` or `docs` that is a link leading elsewhere. Reaching the project itself through a link stays allowed.
+- **The pull request description is assembled by `changes.js pull-request-description`** from the change's documents, instead of by hand. That extends ADR 0056, which said the finish stage needed no new script.
 
 ## Consequences
 

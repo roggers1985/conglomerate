@@ -13,10 +13,10 @@ import { criteria, evidence, reviewFindings, sectionText } from "./stage-gates.t
  * GitHub's: a description that passes is accepted, and one just over the limit in code units may be refused although
  * GitHub would count it as fitting.
  */
-export const PR_BODY_LENGTH_MAX = 65_536;
+export const PULL_REQUEST_DESCRIPTION_LENGTH_MAX = 65_536;
 
-/** What {@link renderPrBody} needs: the change's route and the contents of its documents; `null` for a missing one. */
-type PrBodyInputs = {
+/** What {@link renderPullRequestDescription} needs: the change's route and the contents of its documents; `null` for a missing one. */
+type PullRequestDescriptionInputs = {
     readonly task: TaskDocument;
     readonly spec: string | null;
     readonly verification: string | null;
@@ -25,8 +25,8 @@ type PrBodyInputs = {
     readonly decisionRecords: readonly DecisionRecord[];
 };
 
-/** The outcome of {@link renderPrBody}: the description, or the length that made it too long for GitHub. */
-type PrBodyResult =
+/** The outcome of {@link renderPullRequestDescription}: the description, or the length that made it too long for GitHub. */
+type PullRequestDescriptionResult =
     | { readonly kind: "rendered"; readonly body: string }
     | { readonly kind: "too-long"; readonly length: number; readonly max: number };
 
@@ -52,7 +52,7 @@ const FILE_NAME_BREAKING = /[\r\n`]/g; // would end the code span or the list it
  * Pure and deterministic: the same inputs give the same description (no dates, no randomness). A review part is left
  * out when its stage isn't on the route (missing or skipped), whatever its document says; when the stage is on the
  * route and the document is missing, the part says nothing was recorded. A description over
- * {@link PR_BODY_LENGTH_MAX} UTF-16 code units (`string.length`, never fewer than GitHub's characters) is reported,
+ * {@link PULL_REQUEST_DESCRIPTION_LENGTH_MAX} UTF-16 code units (`string.length`, never fewer than GitHub's characters) is reported,
  * never truncated.
  *
  * @param inputs - The change's task document, the contents of its documents (`null` when a file doesn't exist) and
@@ -61,7 +61,7 @@ const FILE_NAME_BREAKING = /[\r\n`]/g; // would end the code span or the list it
  *
  * @example
  * ```ts
- * const result = renderPrBody({
+ * const result = renderPullRequestDescription({
  *     task: {
  *         title: "Export jobs",
  *         created: "2026-10-02",
@@ -93,7 +93,7 @@ const FILE_NAME_BREAKING = /[\r\n`]/g; // would end the code span or the list it
  * expect(result.kind === "rendered" && result.body).toContain("Evidence: `export.test.ts`");
  * ```
  */
-export function renderPrBody(inputs: PrBodyInputs): PrBodyResult {
+export function renderPullRequestDescription(inputs: PullRequestDescriptionInputs): PullRequestDescriptionResult {
     const text = `${[
         routeSection(inputs.task),
         criteriaSection(inputs),
@@ -105,8 +105,8 @@ export function renderPrBody(inputs: PrBodyInputs): PrBodyResult {
     // GitHub reads an HTML comment opener as hiding everything after it, so the copied text never carries one.
     const body = text.replaceAll(COMMENT_OPENER, COMMENT_OPENER_BROKEN);
 
-    if (body.length > PR_BODY_LENGTH_MAX) {
-        return { kind: "too-long", length: body.length, max: PR_BODY_LENGTH_MAX };
+    if (body.length > PULL_REQUEST_DESCRIPTION_LENGTH_MAX) {
+        return { kind: "too-long", length: body.length, max: PULL_REQUEST_DESCRIPTION_LENGTH_MAX };
     }
 
     return { kind: "rendered", body };
@@ -119,7 +119,7 @@ function routeSection(task: TaskDocument): string {
     return `## Route\n\nTrack: ${task.track}\n\n${stages}\n\nDeviations:\n\n${deviations}`;
 }
 
-function criteriaSection({ spec, verification }: PrBodyInputs): string {
+function criteriaSection({ spec, verification }: PullRequestDescriptionInputs): string {
     if (spec === null) {
         return "## Acceptance criteria\n\nNo spec on this route.";
     }
@@ -141,7 +141,7 @@ const droppedNoteText = (count: number): string =>
     count === 1 ? "1 criterion was dropped." : `${count} criteria were dropped.`;
 
 /** The review part, or `null` when neither review is on the route (a stage that is missing or skipped). */
-function reviewSection({ task, review, securityReview }: PrBodyInputs): string | null {
+function reviewSection({ task, review, securityReview }: PullRequestDescriptionInputs): string | null {
     const isOnRoute = (name: string): boolean =>
         task.stages.some((stage) => stage.name === name && stage.status !== "skipped");
     const hasReview = isOnRoute("review");

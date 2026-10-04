@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { assert } from "../../../lib/assert.ts";
 import type { TaskDocument } from "./changes.ts";
 import type { DecisionRecord } from "./decision-records.ts";
-import { PR_BODY_LENGTH_MAX, renderPrBody } from "./pr-body.ts";
+import { PULL_REQUEST_DESCRIPTION_LENGTH_MAX, renderPullRequestDescription } from "./pull-request-description.ts";
 
 const TABLE_HEADER = "| # | Severity | Finding | Where | Status |\n| - | - | - | - | - |";
 
@@ -53,8 +53,8 @@ function buildTask({
     };
 }
 
-function render(overrides: Partial<Parameters<typeof renderPrBody>[0]> = {}): string {
-    const result = renderPrBody({
+function render(overrides: Partial<Parameters<typeof renderPullRequestDescription>[0]> = {}): string {
+    const result = renderPullRequestDescription({
         task: buildTask(),
         spec,
         verification,
@@ -69,7 +69,7 @@ function render(overrides: Partial<Parameters<typeof renderPrBody>[0]> = {}): st
     return result.body;
 }
 
-describe("renderPrBody", () => {
+describe("renderPullRequestDescription", () => {
     it("AC-2: lists the track, every stage with its status, in order", () => {
         const body = render();
 
@@ -245,13 +245,17 @@ describe("renderPrBody", () => {
 
     it("AC-5: lists the decision records, marking the Proposed ones", () => {
         const decisionRecords: readonly DecisionRecord[] = [
-            { file: "docs/decisions/0056-pr-body.md", title: "56. The pull request description", isProposed: false },
+            {
+                file: "docs/decisions/0056-pull-request-description.md",
+                title: "56. The pull request description",
+                isProposed: false,
+            },
             { file: "docs/decisions/0057-x.md", title: "57. Something", isProposed: true },
         ];
         const body = render({ decisionRecords });
 
         expect(body).toContain(
-            "## Decisions\n\n- 56. The pull request description (`docs/decisions/0056-pr-body.md`)\n",
+            "## Decisions\n\n- 56. The pull request description (`docs/decisions/0056-pull-request-description.md`)\n",
         );
         expect(body).toContain("- 57. Something (`docs/decisions/0057-x.md`) — Proposed");
     });
@@ -300,8 +304,8 @@ describe("renderPrBody", () => {
 
     it("AC-8: renders a body of exactly the maximum length, and refuses one character more", () => {
         const base = render({ review: buildReview({ summary: "x" }) });
-        const padding = PR_BODY_LENGTH_MAX - base.length;
-        const exact = renderPrBody({
+        const padding = PULL_REQUEST_DESCRIPTION_LENGTH_MAX - base.length;
+        const exact = renderPullRequestDescription({
             task: buildTask(),
             spec,
             verification,
@@ -309,7 +313,7 @@ describe("renderPrBody", () => {
             securityReview: buildReview({ summary: "No security issues." }),
             decisionRecords: [],
         });
-        const over = renderPrBody({
+        const over = renderPullRequestDescription({
             task: buildTask(),
             spec,
             verification,
@@ -319,7 +323,11 @@ describe("renderPrBody", () => {
         });
 
         expect(exact.kind).toBe("rendered");
-        expect(exact.kind === "rendered" ? exact.body.length : 0).toBe(PR_BODY_LENGTH_MAX);
-        expect(over).toEqual({ kind: "too-long", length: PR_BODY_LENGTH_MAX + 1, max: PR_BODY_LENGTH_MAX });
+        expect(exact.kind === "rendered" ? exact.body.length : 0).toBe(PULL_REQUEST_DESCRIPTION_LENGTH_MAX);
+        expect(over).toEqual({
+            kind: "too-long",
+            length: PULL_REQUEST_DESCRIPTION_LENGTH_MAX + 1,
+            max: PULL_REQUEST_DESCRIPTION_LENGTH_MAX,
+        });
     });
 });

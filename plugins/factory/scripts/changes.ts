@@ -3,7 +3,7 @@
 //   bun changes.ts check <task.md>      validates one task document; exits 1 with the problems when it's invalid
 //   bun changes.ts status [projectDir]  the unfinished changes and where each one stopped
 //   bun changes.ts reminder [projectDir] SessionStart hook output; prints nothing when no change is unfinished
-//   bun changes.ts pr-body <change folder> [--base <branch>]
+//   bun changes.ts pull-request-description <change folder> [--base <branch>]
 //                                       the change's pull request description (ADR 0056); --base is the branch it
 //                                       merges into, `main` by default. Refuses, printing nothing, while a stage before
 //                                       finish isn't done or a document fails its gate
@@ -19,8 +19,8 @@ import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
 import { requiredText } from "../../../lib/schemas.ts";
 import { addedDecisionRecords } from "./decision-records.ts";
-import { renderPrBody } from "./pr-body.ts";
 import { resolveProjectDir } from "./project-dir.ts";
+import { renderPullRequestDescription } from "./pull-request-description.ts";
 import { AUTONOMY_LEVELS } from "./settings.ts";
 import {
     criteriaIds,
@@ -542,24 +542,24 @@ function failureMessage(error: unknown): string {
     return error.message;
 }
 
-const COMMANDS = ["check", "status", "reminder", "pr-body"] as const;
+const COMMANDS = ["check", "status", "reminder", "pull-request-description"] as const;
 
 type Command = (typeof COMMANDS)[number];
 
 const isCommand = (value: string | undefined): value is Command => COMMANDS.some((command) => command === value);
 
 const USAGE =
-    "Usage: changes.ts check <task.md> | status [projectDir] | reminder [projectDir] | pr-body <change folder> [--base <branch>] (base defaults to main)";
+    "Usage: changes.ts check <task.md> | status [projectDir] | reminder [projectDir] | pull-request-description <change folder> [--base <branch>] (base defaults to main)";
 const BASE_DEFAULT = "main";
 
-type PrBodyArguments =
+type PullRequestDescriptionArguments =
     | { readonly kind: "valid"; readonly folder: string; readonly base: string }
     | { readonly kind: "invalid"; readonly error: string };
 
-const invalidArguments = (error: string): PrBodyArguments => ({ kind: "invalid", error });
+const invalidArguments = (error: string): PullRequestDescriptionArguments => ({ kind: "invalid", error });
 
-/** The arguments after `pr-body`: the change folder, and optionally `--base <branch>`. */
-function parsePrBodyArguments(args: readonly string[]): PrBodyArguments {
+/** The arguments after `pull-request-description`: the change folder, and optionally `--base <branch>`. */
+function parsePullRequestDescriptionArguments(args: readonly string[]): PullRequestDescriptionArguments {
     const baseAt = args.indexOf("--base");
     const hasBase = baseAt !== -1;
     const baseValue = hasBase ? args[baseAt + 1] : BASE_DEFAULT;
@@ -577,7 +577,7 @@ function parsePrBodyArguments(args: readonly string[]): PrBodyArguments {
         );
     }
     if (folder === undefined) {
-        return invalidArguments("pr-body needs the change folder");
+        return invalidArguments("pull-request-description needs the change folder");
     }
     if (extra !== undefined) {
         return invalidArguments(`unexpected argument ${extra}`);
@@ -586,7 +586,7 @@ function parsePrBodyArguments(args: readonly string[]): PrBodyArguments {
     return { kind: "valid", folder, base: baseValue };
 }
 
-/** What `check` or `pr-body` prints: its output for stdout, or why it refused, every reason a line for stderr. */
+/** What `check` or `pull-request-description` prints: its output for stdout, or why it refused, every reason a line for stderr. */
 type CommandOutcome =
     | { readonly kind: "done"; readonly output: string }
     | { readonly kind: "refused"; readonly problems: readonly string[] };
@@ -676,12 +676,12 @@ async function checkTask(taskPath: string, { signal }: { readonly signal: AbortS
     };
 }
 
-/** `pr-body`: the change's pull request description, or why it can't be rendered yet. */
-async function buildPrBody(
+/** `pull-request-description`: the change's pull request description, or why it can't be rendered yet. */
+async function buildPullRequestDescription(
     args: readonly string[],
     { signal }: { readonly signal: AbortSignal },
 ): Promise<CommandOutcome> {
-    const parsedArguments = parsePrBodyArguments(args);
+    const parsedArguments = parsePullRequestDescriptionArguments(args);
 
     if (parsedArguments.kind === "invalid") {
         return refused(parsedArguments.error, USAGE);
@@ -716,7 +716,7 @@ async function buildPrBody(
         return refused(`✗ the base branch "${added.base}" doesn't exist; pass the branch to merge into with --base`);
     }
 
-    const rendered = renderPrBody({
+    const rendered = renderPullRequestDescription({
         task,
         spec: documents.spec,
         verification: documents.verification,
@@ -747,12 +747,12 @@ async function main(): Promise<void> {
     }
 
     // The commands about one change refuse with ✗ lines, also when a read fails, instead of a stack trace.
-    const isAboutOneChange = command === "pr-body" || command === "check";
+    const isAboutOneChange = command === "pull-request-description" || command === "check";
 
     if (isAboutOneChange) {
         const run =
-            command === "pr-body"
-                ? buildPrBody(Bun.argv.slice(3), { signal })
+            command === "pull-request-description"
+                ? buildPullRequestDescription(Bun.argv.slice(3), { signal })
                 : checkTask(argument ?? "task.md", { signal });
         const outcome = await run.catch(refusedOnError);
 

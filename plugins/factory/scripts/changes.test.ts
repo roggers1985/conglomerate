@@ -13,7 +13,7 @@ import {
     STAGES,
     TRACKS,
 } from "./changes.ts";
-import { PR_BODY_LENGTH_MAX } from "./pr-body.ts";
+import { PULL_REQUEST_DESCRIPTION_LENGTH_MAX } from "./pull-request-description.ts";
 
 type StageEntry = TaskDocument["stages"][number];
 
@@ -503,7 +503,7 @@ describe("changes CLI", () => {
     }, 5_000);
 });
 
-describe("changes pr-body CLI", () => {
+describe("changes pull-request-description CLI", () => {
     const script = path.join(import.meta.dir, "changes.ts");
     const Change = "docs/changes/2026-10-02-export";
     const Author = ["-c", "user.name=Test", "-c", "user.email=test@example.com"];
@@ -532,7 +532,7 @@ describe("changes pr-body CLI", () => {
         cwd: string,
         ...args: string[]
     ): Promise<{ readonly stdout: string; readonly stderr: string; readonly exitCode: number }> => {
-        const cli = Bun.spawn(["bun", script, "pr-body", ...args], {
+        const cli = Bun.spawn(["bun", script, "pull-request-description", ...args], {
             cwd,
             env: environment(),
             stdout: "pipe",
@@ -598,7 +598,7 @@ describe("changes pr-body CLI", () => {
 
     // A repository with `main`, and a branch `change` that adds the change's folder and a decision record.
     async function createChange(document: TaskDocument, files: Readonly<Record<string, string>> = {}): Promise<void> {
-        dir = await mkdtemp(path.join(tmpdir(), "changes-pr-body-"));
+        dir = await mkdtemp(path.join(tmpdir(), "changes-pull-request-description-"));
         git("init", "--quiet", "--initial-branch=main");
         git("commit", "--quiet", "--allow-empty", "--message=Start");
         git("switch", "--quiet", "--create", "change");
@@ -690,7 +690,7 @@ describe("changes pr-body CLI", () => {
     });
 
     it("AC-8: refuses a description over GitHub's limit with its length and the limit, and prints nothing", async () => {
-        const summary = "x".repeat(PR_BODY_LENGTH_MAX);
+        const summary = "x".repeat(PULL_REQUEST_DESCRIPTION_LENGTH_MAX);
         await createChange(routeOf({ finish: "in-progress" }), {
             [`${Change}/review.md`]: `## Summary\n\n${summary}\n\n## Findings\n\nNone.\n`,
         });
@@ -701,7 +701,7 @@ describe("changes pr-body CLI", () => {
         expect(result.stdout).toBe("");
         expect(result.stderr).toMatch(/^✗ the description is \d+ UTF-16 code units long, over GitHub's limit of 65536/);
         expect(result.stderr).toContain("shorten the spec, the evidence or the findings");
-        expect(Number(/is (\d+) UTF-16/.exec(result.stderr)?.[1])).toBeGreaterThan(PR_BODY_LENGTH_MAX);
+        expect(Number(/is (\d+) UTF-16/.exec(result.stderr)?.[1])).toBeGreaterThan(PULL_REQUEST_DESCRIPTION_LENGTH_MAX);
     });
 
     it("refuses --base given twice, and an extra argument, with the usage", async () => {
@@ -728,7 +728,7 @@ describe("changes pr-body CLI", () => {
         await mkdir(bin);
         await Bun.write(path.join(bin, "git"), `#!/bin/sh\ntouch "${started}"\nexec sleep 5\n`);
         await chmod(path.join(bin, "git"), 0o755);
-        const cli = Bun.spawn(["bun", script, "pr-body", Change], {
+        const cli = Bun.spawn(["bun", script, "pull-request-description", Change], {
             cwd: dir,
             env: environment(`${bin}:`),
             stdout: "pipe",
@@ -827,7 +827,7 @@ describe("changes pr-body CLI", () => {
 
         expect(unknownOption.stderr).toContain("unknown option --branch");
         expect(unknownOption.stderr).toContain("Usage:");
-        expect(noFolder.stderr).toContain("pr-body needs the change folder");
+        expect(noFolder.stderr).toContain("pull-request-description needs the change folder");
         expect(noTask.stderr).toContain("✗ has no task.md");
 
         for (const result of [unknownOption, noFolder, noTask]) {
@@ -875,7 +875,7 @@ describe("changes pr-body CLI", () => {
             await rm(outside, { recursive: true, force: true });
         });
 
-        it("refuses a symlinked spec.md in check and in pr-body, never printing its target", async () => {
+        it("refuses a symlinked spec.md in check and in pull-request-description, never printing its target", async () => {
             await createChange(routeOf({ finish: "in-progress" }));
             await linkOutside("spec.md", `${Spec}\n${Secret}\n`);
 
@@ -887,7 +887,7 @@ describe("changes pr-body CLI", () => {
             }
         });
 
-        it("refuses a symlinked task.md in check and in pr-body, never printing its target", async () => {
+        it("refuses a symlinked task.md in check and in pull-request-description, never printing its target", async () => {
             await createChange(routeOf({ finish: "in-progress" }));
             await linkOutside("task.md", `${asMarkdown(routeOf({ finish: "in-progress" }))}\n${Secret}\n`);
 
@@ -911,7 +911,7 @@ describe("changes pr-body CLI", () => {
         };
 
         for (const folder of [Change, "docs/changes"]) {
-            it(`refuses a change read through a linked ${folder} in check and in pr-body, naming the folder`, async () => {
+            it(`refuses a change read through a linked ${folder} in check and in pull-request-description, naming the folder`, async () => {
                 await createChange(routeOf({ finish: "in-progress" }));
                 await moveOutside(folder);
 
@@ -956,7 +956,7 @@ describe("changes pr-body CLI", () => {
             },
         );
 
-        it("refuses a linked decision record in pr-body with a single ✗ line, not a stack trace", async () => {
+        it("refuses a linked decision record in pull-request-description with a single ✗ line, not a stack trace", async () => {
             await createChange(routeOf({ finish: "in-progress" }));
             outside = await mkdtemp(path.join(tmpdir(), "changes-outside-"));
             await Bun.write(path.join(outside, "record.md"), `${Adr}\n${Secret}\n`);
