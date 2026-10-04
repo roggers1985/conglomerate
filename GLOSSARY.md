@@ -62,7 +62,11 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Autonomy level.** *Here:* how much Claude decides without asking: `guided` (the owner decides), `trusted` (Claude decides within the conventions) or `autonomous` (Claude runs the work end to end, the owner reviews afterwards). Set per project in `.claude/factory.json`, per session with `/factory:autonomy` (ADR 0044).
 
-**Convention.** A rule for how code is written. *Here:* the always-on ones are in `plugins/factory/conventions/core.md`, added to every session; the detailed ones are `code-*` skills.
+**Convention.** A rule for how code or documentation is written. *Here:* the always-on ones are in `plugins/factory/conventions/core.md`, added to every session; the detailed ones are the `code-*` skills and the `writing-documentation` skill.
+
+**Writing convention.** *Here:* how documentation for people is written, in the `writing-documentation` skill: what and why first, the conclusion at the start, short sentences, plain words, lists and tables, references at the end of a point, and no loss of precision. The stage templates follow it, and the docs-drift checkup reports documents that don't (ADR 0061).
+
+**Audience by location.** *Here:* who a document is written for follows from where it lives, so no marker per file is needed. The `writing-documentation` skill holds the table of locations (ADR 0061).
 
 **Checkup.** A recurring review of one aspect of a project (security, dependencies, docs, …), run on a schedule by an agent (ADR 0010).
 - **Schedule:** `docs/checkups/checkups.json`, which says which checkups run how often, and their **priority** (`urgent`, `normal`, `quiet`; ADR 0030).

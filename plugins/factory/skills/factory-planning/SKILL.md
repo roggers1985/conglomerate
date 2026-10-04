@@ -16,26 +16,30 @@ Planning decides **how** to build what the spec says, in the change's folder (`d
 
 ## Approach
 
-The design in a few paragraphs: which parts change, how data flows, and why this way. Name the units
-(`docs/architecture/`) it touches.
+The design in a few paragraphs. Open with the idea in a sentence or two. Then say which parts change, how data
+flows, and why this way. Name the units it touches (`docs/architecture/`).
 
 ## Files and data
 
-The files to add or change, and any schema, API or config change, with its limits (from the spec's Limits).
+The files to add or change. Also any change to a schema, an API or the configuration, with its limits from the
+spec's Limits section.
 
 ## Trade-offs
 
-The options considered, and why this one. Always name the simplest option, even if it isn't chosen.
+The options you considered, and why you chose this one. Always name the simplest option, even if you don't choose
+it.
 
 ## Costs
 
-A back-of-the-envelope sketch of network, disk, memory and CPU (ADR 0038): e.g. "10,000 jobs × ~1 KB = 10 MB per
-export; streamed, so memory stays flat". Say where batching applies, and "negligible" where it truly is.
+A rough estimate of the network, disk, memory and CPU the change uses. For example: "10,000 jobs × ~1 KB = 10 MB per
+export. It's streamed, so memory stays flat." Say where batching applies. Write "negligible" only where it truly is
+(ADR 0038).
 
 ## Conventions and decisions
 
-The convention gate: "Follows the conventions and ADRs", or each deviation with its reason. Name the ADRs that apply,
-and any new decision this plan makes (it gets an ADR, written with the build).
+The convention gate: does the plan follow the conventions and ADRs? Write "Follows the conventions and ADRs", or list
+each deviation with its reason. Name the ADRs that apply, and every new decision this plan makes. Each new decision
+gets its own ADR, written during the build.
 ```
 
 On the **standard** track, the task list goes into the plan as a `## Tasks` section. On the **full** track, it gets its own stage and file.
@@ -47,7 +51,7 @@ Small tasks, each a few minutes of work for one agent, in the order they're buil
 ```markdown
 # Tasks: <title>
 
-### T-1: Parse and bound the export request
+### T-1: Parse the export request and check its limits
 
 - Files: `src/export/request.ts`, `src/export/request.test.ts`
 - Covers: AC-1, AC-4

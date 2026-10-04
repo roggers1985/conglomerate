@@ -44,6 +44,7 @@ Terms used below:
 ## 4. Finish
 
 1. **Write the report** to `docs/checkups/<name>/<today>.md` using the template below. Create the folder if this is the first run.
+   - The report is written for the owner, as the template below says.
    - The report's date is what marks this checkup as done; there is nothing else to update.
    - **A run with no findings still gets a report.** Write "No findings." in the summary, leave the findings table with a single row `| - | - | No findings | <what you checked> | - |`, and write "None." under the other sections.
 2. **Commit** the report together with any fixes.
@@ -58,6 +59,15 @@ Terms used below:
 
 ## Report template
 
+The report is written for the owner, so it follows the `writing-documentation` skill. It should tell them what matters in a minute of reading.
+
+- **The summary first, in plain words.** Open with the overall state and the most important finding. The owner should know what matters without reading further.
+- **The most important first.** Sort the findings by severity, highest first. Under "Needs a human", put the most urgent decision first.
+- **Findings readable at a glance.** One finding per row, in one short sentence: what is wrong and why it matters. Paths, line numbers and links go in the Evidence column.
+- **References at the end of a point,** never in the middle of a sentence.
+
+Keep the headings and the findings table's columns exactly as they are. The retro checkup and the next run of the same checkup read them.
+
 ```markdown
 # Checkup: <name> (<today>)
 
@@ -66,21 +76,21 @@ Previous report: <path or "none">
 
 ## Summary
 
-<2–4 sentences: overall state and the most important finding.>
+<2–4 short sentences in plain words. First the overall state, then the most important finding.>
 
 ## Findings
 
 | # | Severity | Finding | Evidence | Status |
 | - | -------- | ------- | -------- | ------ |
-| 1 | high / medium / low | … | file:line or source link | fixed / needs a human / open |
+| 1 | high / medium / low | <what is wrong and why it matters, in one sentence> | file:line or source link | fixed / needs a human / open |
 
 ## Fixed in this run
 
-- …
+- <what changed> (<file or commit>)
 
 ## Needs a human
 
-- … (with a concrete proposal)
+- <what needs deciding>. Proposal: <a concrete proposal>.
 
 ## Not checked
 

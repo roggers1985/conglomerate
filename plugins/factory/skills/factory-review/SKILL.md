@@ -57,14 +57,14 @@ Write the findings to `security-review.md`. Every security hole is **high**.
 
 ## Summary
 
-Two or three sentences: does the change do what the spec says, and what matters most.
+Two or three sentences. Start with the verdict: does the change do what the spec says? Then say what matters most.
 
 ## Findings
 
 | # | Severity | Finding | Where | Status |
 | - | -------- | ------- | ----- | ------ |
-| 1 | high | AC-3 isn't met: a failed export leaves the button disabled | `src/export/button.tsx:42` | fixed |
-| 2 | low | `data` could say what it holds | `src/export/csv.ts:10` | accepted: matches the API's term |
+| 1 | high | AC-3 isn't met. A failed export leaves the button disabled. | `src/export/button.tsx:42` | fixed |
+| 2 | low | The name `data` doesn't say what it holds. | `src/export/csv.ts:10` | accepted: it's the term the API uses |
 ```
 
 With no findings, write "None." under Findings.

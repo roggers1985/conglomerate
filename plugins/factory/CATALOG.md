@@ -45,7 +45,9 @@ Skills are named `<domain>-<topic>` (ADR 0013).
 
 ## writing: Content, copy and documentation for people
 
-_No skills yet._
+| Skill | What it is | Task (model, effort) |
+| --- | --- | --- |
+| `writing-documentation` | How to write documentation for people, and who each document is for, by where it lives. |  |
 
 ## marketing: Marketing plans, positioning and communication
 

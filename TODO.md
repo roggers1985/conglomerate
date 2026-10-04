@@ -28,6 +28,7 @@ Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, 
 To do:
 
 - [ ] Use the stages on a first real change (in this repository or another project), and feed what it shows back into the skills and ADRs (ADR 0056)
+- [ ] The pull request description also lists the plan's deviations, not only the route's. Today it says "Deviations: None." while `plan.md` records how the build or review deviated (seen in the writing change, pull request #16)
 
 To consider:
 

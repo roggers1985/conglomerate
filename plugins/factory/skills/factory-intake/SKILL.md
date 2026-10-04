@@ -18,23 +18,24 @@ Written with the owner, and corrected by them. Short: a page at most.
 
 ## Problem
 
-What is wrong or missing today, for whom, and how we know.
+What is wrong or missing today. Say who it affects, and how we know.
 
 ## Outcome
 
-What is different when this is done, in the owner's and users' terms. How we'll know it worked.
+What is different when this is done, in the words of the owner and the users. Say how we'll know it worked.
 
 ## Affected
 
-The users, systems, units (`docs/architecture/`) and data this touches.
+Who and what this change touches: users, systems, units and data. A unit is a part of the architecture, as the
+register describes it (`docs/architecture/`).
 
 ## Constraints
 
-Deadlines, budgets, compatibility, regulations, decisions (ADRs) it must respect.
+What the change must respect: deadlines, budgets, compatibility, regulations and earlier decisions (ADRs).
 
 ## Open questions
 
-What the spec has to answer. "None." when there are none.
+The questions the spec has to answer. Write "None." when there are none.
 ```
 
 ## The spec stage: `spec.md`
@@ -46,8 +47,8 @@ What the system does when the change is done, precisely enough to test, and noth
 
 ## Current behaviour
 
-What the system does today in this area, from the code and docs, so the change builds on it instead of rebuilding
-it. For something entirely new: "Nothing exists yet."
+What the system does today in this area, so the change builds on it instead of rebuilding it. Take it from the
+code and the docs. For something entirely new, write "Nothing exists yet."
 
 ## Acceptance criteria
 
@@ -57,20 +58,21 @@ it. For something entirely new: "Nothing exists yet."
 
 ## Edge cases
 
-Found systematically (see `code-testing`): empty, one, many, at and past every limit, invalid input, cancellation,
-concurrent use, missing permissions. Each with the expected behaviour, or a criterion above that covers it.
+The unusual cases, each with the behaviour expected, or the criterion above that covers it. Find them
+systematically, checking each of: empty, one, many, at and past every limit, invalid input, cancellation, concurrent
+use and missing permissions (`code-testing`).
 
 ## Limits
 
-The bounds of every input, collection and wait this change introduces (ADR 0032, 0034): e.g. "at most 10,000 jobs
-per export; larger exports are refused with a message".
+The bounds of every input, collection and wait this change introduces, and what happens past them. For example:
+"At most 10,000 jobs per export. A larger export is refused with a message." (ADR 0032, 0034)
 
 ## Security
 
-- Authentication: who must be logged in, e.g. "only logged-in users", or "Public, because …"
-- Authorisation: who may do what, e.g. "only the job's owner may export it"
-- Untrusted input: what comes from outside, and that it's parsed with a schema at the boundary
-- Sensitive data: personal or secret data this touches, and who may see it, or "none"
+- Authentication: who must be logged in. For example "only logged-in users", or "Public, because …".
+- Authorisation: who may do what. For example "only the job's owner may export it".
+- Untrusted input: what comes from outside, and confirm that it's parsed with a schema where it enters the system.
+- Sensitive data: the personal or secret data this touches, and who may see it. Or "none".
 
 ## Out of scope
 
