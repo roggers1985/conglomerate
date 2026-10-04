@@ -15,6 +15,7 @@ import {
     readJson,
     readText,
     SymbolicLinkError,
+    symbolicLinkMessage,
     TEXT_BYTES_MAX,
     whenMissing,
 } from "../../../lib/files.ts";
@@ -466,8 +467,8 @@ function otherDueLine(others: readonly CheckupStatus[], { afterUrgent }: { reado
  * @example
  * ```ts
  * expect(reminderOutput({ kind: "unscheduled" })).toBeNull();
- * expect(reminderOutput({ kind: "invalid", errors: ["is not valid JSON"] })?.systemMessage).toBe(
- *     "Checkups: docs/checkups/checkups.json is invalid: is not valid JSON",
+ * expect(reminderOutput({ kind: "invalid", errors: ["docs/checkups/checkups.json is not valid JSON"] })?.systemMessage).toBe(
+ *     "Checkups are invalid: docs/checkups/checkups.json is not valid JSON",
  * );
  * ```
  */
@@ -478,7 +479,7 @@ export function reminderOutput(project: ProjectCheckups): ReminderOutput | null 
 
     const reminder =
         project.kind === "invalid"
-            ? { notice: `Checkups: ${SCHEDULE_PATH} is invalid: ${project.errors.join("; ")}`, context: "" }
+            ? { notice: `Checkups are invalid: ${project.errors.join("; ")}`, context: "" }
             : buildReminder(project.statuses);
 
     if (reminder === null) {
@@ -518,7 +519,7 @@ export function statusReport(project: ProjectCheckups, { today }: { readonly tod
     }
 
     if (project.kind === "invalid") {
-        return [`${SCHEDULE_PATH} is invalid:`, ...project.errors.map((error) => `- ${error}`)].join("\n");
+        return ["Checkups are invalid:", ...project.errors.map((error) => `- ${error}`)].join("\n");
     }
 
     const declinedLine =
@@ -626,7 +627,10 @@ async function readSkillDefaults(
     }
 }
 
-/** A checkup's defaults: from the project's own skill when it has one that declares them, else from the plugin's. */
+/**
+ * A checkup's defaults: from the project's own skill when it has one that declares them, else from the plugin's. A
+ * project skill that is a symbolic link makes the checkup invalid, and the plugin's defaults are then not used.
+ */
 async function readCheckupDefaults(
     projectDir: string,
     { name, signal }: { readonly name: string; readonly signal: AbortSignal },
@@ -653,7 +657,12 @@ async function readCheckupDefaults(
     return project.defaults === null ? plugin : project;
 }
 
-const symbolicLinkMessage = (relativePath: string): string => `${relativePath} is a symbolic link; use a regular file`;
+/** The schedule's own problems, each starting with the file's path, so every line of a report names its file. */
+function prefixErrors<Value>(parsed: Parsed<Value>): Parsed<Value> {
+    return parsed.kind === "valid"
+        ? parsed
+        : { kind: "invalid", errors: parsed.errors.map((error) => `${SCHEDULE_PATH}: ${error}`) };
+}
 
 async function readSchedule(
     projectDir: string,
@@ -662,10 +671,10 @@ async function readSchedule(
     try {
         const json = await readScheduleJson(projectDir, { signal });
 
-        return json === null ? null : parseSchedule(json);
+        return json === null ? null : prefixErrors(parseSchedule(json));
     } catch (error: unknown) {
         if (error instanceof SyntaxError) {
-            return { kind: "invalid", errors: ["is not valid JSON"] };
+            return { kind: "invalid", errors: [`${SCHEDULE_PATH} is not valid JSON`] };
         }
         if (error instanceof SymbolicLinkError) {
             return { kind: "invalid", errors: [symbolicLinkMessage(SCHEDULE_PATH)] };
@@ -694,7 +703,7 @@ async function loadProjectCheckups(
 
             return skillDefaults.kind === "invalid"
                 ? skillDefaults
-                : resolveCheckup(entry, { defaults: skillDefaults.defaults });
+                : prefixErrors(resolveCheckup(entry, { defaults: skillDefaults.defaults }));
         }),
     );
     const errors = resolved.flatMap((result) => (result.kind === "invalid" ? result.errors : []));

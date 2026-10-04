@@ -3,7 +3,15 @@ import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { isFileNotFound } from "./errors.ts";
-import { readDir, readDirRecursive, readJson, readText, SymbolicLinkError, whenMissing } from "./files.ts";
+import {
+    readDir,
+    readDirRecursive,
+    readJson,
+    readText,
+    SymbolicLinkError,
+    symbolicLinkMessage,
+    whenMissing,
+} from "./files.ts";
 
 const signal = AbortSignal.timeout(5_000);
 let dir = "";
@@ -291,5 +299,13 @@ describe("whenMissing", () => {
                 symbolicLinks: "follow",
             }).catch(whenMissing(null)),
         ).rejects.toMatchObject({ name: "AbortError" });
+    });
+});
+
+describe("symbolicLinkMessage", () => {
+    it("names the file and tells to use a regular file", () => {
+        expect(symbolicLinkMessage(".claude/factory.json")).toBe(
+            ".claude/factory.json is a symbolic link; use a regular file",
+        );
     });
 });

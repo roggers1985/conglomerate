@@ -726,13 +726,16 @@ describe("changes pr-body CLI", () => {
         const bin = path.join(dir, "bin");
         const started = path.join(dir, "git-started");
         await mkdir(bin);
-        await Bun.write(path.join(bin, "git"), `#!/bin/sh\ntouch "${started}"\nexec sleep 30\n`);
+        await Bun.write(path.join(bin, "git"), `#!/bin/sh\ntouch "${started}"\nexec sleep 5\n`);
         await chmod(path.join(bin, "git"), 0o755);
         const cli = Bun.spawn(["bun", script, "pr-body", Change], {
             cwd: dir,
             env: environment(`${bin}:`),
             stdout: "pipe",
             stderr: "pipe",
+            // Bounds the CLI, shorter than the test's own timeout, so `cli.exited` always resolves.
+            timeout: 8_000,
+            killSignal: "SIGKILL",
         });
 
         try {
@@ -747,7 +750,9 @@ describe("changes pr-body CLI", () => {
             expect(stdout).toBe("");
             expect(exitCode).not.toBe(0);
         } finally {
-            // A failed wait or assertion must not leave the CLI, or its stand-in git, running.
+            // A failed wait or assertion must not leave the CLI running: it is killed here, and by the spawn's timeout
+            // if the test is stopped first. Only the CLI is killed; the stand-in git (a grandchild) ends by itself
+            // after its 5-second sleep, so an orphan outlives the test by seconds at most.
             cli.kill("SIGKILL");
             await cli.exited;
         }
