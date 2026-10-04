@@ -27,7 +27,12 @@ When the reviewer is interrupted (a usage limit, an error), resume that same age
 4. **The conventions and ADRs,** in substance: the plan's convention gate said the change follows them, and this is where that's checked. Readability, bounds and fail fast, parsing at the boundary, cancellation, API design, documentation with tested examples, the testing conventions.
 5. **The tests:** they test behaviour, not implementation; they cover the edge cases and limits of the spec; nothing is skipped or focused.
 6. **Bugs and risks** the tests don't catch: races, unchecked errors, time zones, off-by-one.
-7. **Authentication and authorisation on every entry point** the change adds or touches, in every review, with or without a security-review stage (ADR 0057). An entry point without a check is a **high** finding, unless the spec's Security section marks it as public and says why. "Not yet" in the spec doesn't make it public: it's still a high finding, which only the owner can accept, with a tracked task to add the check.
+7. **The behaviour test, when the route has a migration plan:**
+   - it ran on the old code: `verification.md` records the command, the commit and the result;
+   - the migration didn't change it: diff the test file from the commit that added it to the end of the change (`git diff <that commit> change/<name> -- <test file>`). The only changes allowed are the intended differences the spec lists.
+
+   A behaviour test changed without a listed reason is a **high** finding: the proof that behaviour stayed the same is gone.
+8. **Authentication and authorisation on every entry point** the change adds or touches, in every review, with or without a security-review stage (ADR 0057). An entry point without a check is a **high** finding, unless the spec's Security section marks it as public and says why. "Not yet" in the spec doesn't make it public: it's still a high finding, which only the owner can accept, with a tracked task to add the check.
 
    **A known gap is accepted once, not on every change.** In an existing application, old entry points without checks are recorded in the architecture register's debt table (`docs/architecture/`), with the owner's acceptance, the entry points it covers, and an expiry date (12 months, ADR 0046). While that entry is valid, a finding on one of those entry points is closed as `accepted by owner: see the architecture register, debt #<n>`. A new entry point, or an expired entry, is a new high finding.
 
