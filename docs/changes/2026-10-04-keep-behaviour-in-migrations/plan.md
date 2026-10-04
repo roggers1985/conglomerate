@@ -69,7 +69,7 @@ One new decision, recorded in ADR 0062: a migration meant to keep behaviour firs
 - Verify: `bun run check`
 - Depends on: none
 - Parallel: yes
-- Status: in-progress
+- Status: done
 
 ### T-2: Add the migration plan's gate to the route check
 
