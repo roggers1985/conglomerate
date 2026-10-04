@@ -451,6 +451,15 @@ export const VERIFICATION_SECTIONS = ["Checks", "Evidence"] as const;
 /** The sections `spike.md` must have. */
 export const SPIKE_SECTIONS = ["Question", "Findings", "Recommendation"] as const;
 
+/** The sections `migration-plan.md` must have: the steps, the two sides, the behaviour test, the checks and the way back. */
+export const MIGRATION_PLAN_SECTIONS = [
+    "Steps",
+    "Old and new side by side",
+    "Behaviour test",
+    "Verification",
+    "Rollback",
+] as const;
+
 const EVIDENCE = /^\s*[-*] (AC-\d+):(.*)$/s;
 
 /**
@@ -534,6 +543,25 @@ export function verificationProblems(
  */
 export function spikeProblems(markdown: string): string[] {
     return sectionProblems(markdown, SPIKE_SECTIONS, { file: "spike.md" });
+}
+
+/**
+ * Checks `migration-plan.md` before the migration-plan stage may be done: the steps, how the old and new run side by
+ * side, the test that shows the behaviour stayed the same, the verification and the rollback.
+ *
+ * @param markdown - The contents of `migration-plan.md`.
+ * @returns Every problem found; empty when the gate passes.
+ *
+ * @example
+ * ```ts
+ * const plan = MIGRATION_PLAN_SECTIONS.map((section) => `## ${section}\n\nSomething.`).join("\n\n");
+ *
+ * expect(migrationPlanProblems(plan)).toEqual([]);
+ * expect(migrationPlanProblems("## Steps\n\nMove it.")).toContain('migration-plan.md has no "## Rollback" section');
+ * ```
+ */
+export function migrationPlanProblems(markdown: string): string[] {
+    return sectionProblems(markdown, MIGRATION_PLAN_SECTIONS, { file: "migration-plan.md" });
 }
 
 /** The sections a review document (`review.md`, `security-review.md`) must have. */
