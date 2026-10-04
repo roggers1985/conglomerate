@@ -282,9 +282,9 @@ describe("reminderOutput", () => {
     });
 
     it("warns about an invalid schedule", () => {
-        const output = reminderOutput({ kind: "invalid", errors: ["is not valid JSON"] });
+        const output = reminderOutput({ kind: "invalid", errors: ["docs/checkups/checkups.json is not valid JSON"] });
 
-        expect(output?.systemMessage).toBe("Checkups: docs/checkups/checkups.json is invalid: is not valid JSON");
+        expect(output?.systemMessage).toBe("Checkups are invalid: docs/checkups/checkups.json is not valid JSON");
     });
 });
 
@@ -446,7 +446,7 @@ describe("checkups CLI", () => {
         await createProject([{ name: "legal" }], {});
 
         expect(await run("status")).toContain(
-            '- "legal" has no intervalDays in the schedule, and its skill declares no default',
+            '- docs/checkups/checkups.json: "legal" has no intervalDays in the schedule, and its skill declares no default',
         );
     });
 
@@ -462,8 +462,20 @@ describe("checkups CLI", () => {
         const status = await run("status");
 
         expect(status).toBe(
-            "docs/checkups/checkups.json is invalid:\n- docs/checkups/checkups.json is a symbolic link; use a regular file\n",
+            "Checkups are invalid:\n- docs/checkups/checkups.json is a symbolic link; use a regular file\n",
         );
+    });
+
+    it("names the schedule file in each of its problems", async () => {
+        projectDir = await mkdtemp(path.join(tmpdir(), "checkups-"));
+        await mkdir(path.join(projectDir, "docs/checkups"), { recursive: true });
+        await Bun.write(path.join(projectDir, "docs/checkups/checkups.json"), "{ checkups: ");
+
+        expect(await run("status")).toBe("Checkups are invalid:\n- docs/checkups/checkups.json is not valid JSON\n");
+
+        await Bun.write(path.join(projectDir, "docs/checkups/checkups.json"), '{ "checkups": "legal" }');
+
+        expect(await run("status")).toMatch(/^Checkups are invalid:\n- docs\/checkups\/checkups\.json: checkups/);
     });
 
     describe("a project checkup skill that is a symbolic link", () => {
@@ -489,7 +501,7 @@ describe("checkups CLI", () => {
 
             expect(exitCode).toBe(0);
             expect(stderr).toBe("");
-            expect(stdout).toBe(`docs/checkups/checkups.json is invalid:\n- ${skillMessage}\n`);
+            expect(stdout).toBe(`Checkups are invalid:\n- ${skillMessage}\n`);
         });
 
         it("is reported invalid by the reminder, naming the file", async () => {
@@ -499,9 +511,7 @@ describe("checkups CLI", () => {
 
             expect(exitCode).toBe(0);
             expect(stderr).toBe("");
-            expect(JSON.parse(stdout).systemMessage).toBe(
-                `Checkups: docs/checkups/checkups.json is invalid: ${skillMessage}`,
-            );
+            expect(JSON.parse(stdout).systemMessage).toBe(`Checkups are invalid: ${skillMessage}`);
         });
     });
 });

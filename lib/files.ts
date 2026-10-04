@@ -44,6 +44,23 @@ export class SymbolicLinkError extends Error {
     }
 }
 
+/**
+ * The message that tells a person a file they must fix is a symbolic link, in one shape for every file.
+ *
+ * @param relativePath - The file's path as the person knows it, relative to the project.
+ * @returns The message, e.g. for a `SymbolicLinkError` caught while reading the file.
+ *
+ * @example
+ * ```ts
+ * expect(symbolicLinkMessage(".claude/factory.json")).toBe(
+ *     ".claude/factory.json is a symbolic link; use a regular file",
+ * );
+ * ```
+ */
+export function symbolicLinkMessage(relativePath: string): string {
+    return `${relativePath} is a symbolic link; use a regular file`;
+}
+
 type ListOptions = {
     /** The most entries accepted; at least 1. */
     readonly maxEntries: number;

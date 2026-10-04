@@ -138,7 +138,7 @@ describe("readFactorySettings", () => {
         expect(result.kind).toBe("invalid");
         expect(result.settings).toEqual(DEFAULT_SETTINGS);
         if (result.kind === "invalid") {
-            expect(result.errors[0]).toContain("symbolic link");
+            expect(result.errors).toEqual([".claude/factory.json is a symbolic link; use a regular file"]);
         }
     });
 });
