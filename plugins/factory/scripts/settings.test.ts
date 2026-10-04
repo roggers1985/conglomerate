@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -124,6 +124,22 @@ describe("readFactorySettings", () => {
         await expect(readFactorySettings(dir, { signal: AbortSignal.abort() })).rejects.toMatchObject({
             name: "AbortError",
         });
+    });
+
+    it("refuses a settings file that is a symbolic link, reporting it invalid", async () => {
+        const realSettingsPath = path.join(dir, ".claude/real-factory.json");
+        const symlinkSettingsPath = path.join(dir, ".claude/factory.json");
+
+        await Bun.write(realSettingsPath, '{ "autonomy": "autonomous" }');
+        await symlink(realSettingsPath, symlinkSettingsPath);
+
+        const result = await readFactorySettings(dir, { signal });
+
+        expect(result.kind).toBe("invalid");
+        expect(result.settings).toEqual(DEFAULT_SETTINGS);
+        if (result.kind === "invalid") {
+            expect(result.errors).toEqual([".claude/factory.json is a symbolic link; use a regular file"]);
+        }
     });
 });
 

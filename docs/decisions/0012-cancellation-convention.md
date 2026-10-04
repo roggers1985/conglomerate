@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR-0059](0059-clean-test-output.md): `readTextSync`, used by the test setup, takes no signal.
 
 ## Context
 

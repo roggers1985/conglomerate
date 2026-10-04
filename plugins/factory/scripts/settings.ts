@@ -3,7 +3,7 @@
 
 import path from "node:path";
 import { z } from "zod";
-import { JSON_BYTES_MAX, readJson, whenMissing } from "../../../lib/files.ts";
+import { JSON_BYTES_MAX, readJson, SymbolicLinkError, symbolicLinkMessage, whenMissing } from "../../../lib/files.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
 
@@ -175,7 +175,7 @@ export async function readFactorySettings(
     projectDir: string,
     { signal }: { readonly signal: AbortSignal },
 ): Promise<ProjectSettings> {
-    const json = await readSettingsJson(path.join(projectDir, FACTORY_SETTINGS_PATH), { signal });
+    const json = await readSettingsJson(projectDir, { signal });
 
     if (json.kind === "invalid") {
         return { kind: "invalid", settings: DEFAULT_SETTINGS, errors: json.errors };
@@ -196,17 +196,24 @@ export async function readFactorySettings(
 
 /** The settings file's JSON, `null` when there is no file, or invalid when it isn't JSON. */
 async function readSettingsJson(
-    settingsPath: string,
+    projectDir: string,
     { signal }: { readonly signal: AbortSignal },
 ): Promise<Parsed<unknown>> {
+    const settingsPath = path.join(projectDir, FACTORY_SETTINGS_PATH);
+
     try {
         return {
             kind: "valid",
-            value: await readJson(settingsPath, { maxBytes: JSON_BYTES_MAX, signal }).catch(whenMissing(null)),
+            value: await readJson(settingsPath, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "refuse" }).catch(
+                whenMissing(null),
+            ),
         };
     } catch (error: unknown) {
         if (error instanceof SyntaxError) {
             return { kind: "invalid", errors: ["is not valid JSON"] };
+        }
+        if (error instanceof SymbolicLinkError) {
+            return { kind: "invalid", errors: [symbolicLinkMessage(FACTORY_SETTINGS_PATH)] };
         }
         throw error;
     }

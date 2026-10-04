@@ -23,7 +23,11 @@ const AUTONOMY_DIR = path.resolve(import.meta.dir, "..", "conventions", "autonom
  * ```
  */
 export function readAutonomyRules(level: AutonomyLevel, { signal }: { readonly signal: AbortSignal }): Promise<string> {
-    return readText(path.join(AUTONOMY_DIR, `${level}.md`), { maxBytes: TEXT_BYTES_MAX, signal });
+    return readText(path.join(AUTONOMY_DIR, `${level}.md`), {
+        maxBytes: TEXT_BYTES_MAX,
+        signal,
+        symbolicLinks: "follow",
+    });
 }
 
 const SOURCES: Readonly<Record<ProjectSettings["kind"], string>> = {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CheckupStatus, ScheduleEntry } from "./checkups.ts";
@@ -282,9 +282,9 @@ describe("reminderOutput", () => {
     });
 
     it("warns about an invalid schedule", () => {
-        const output = reminderOutput({ kind: "invalid", errors: ["is not valid JSON"] });
+        const output = reminderOutput({ kind: "invalid", errors: ["docs/checkups/checkups.json is not valid JSON"] });
 
-        expect(output?.systemMessage).toBe("Checkups: docs/checkups/checkups.json is invalid: is not valid JSON");
+        expect(output?.systemMessage).toBe("Checkups are invalid: docs/checkups/checkups.json is not valid JSON");
     });
 });
 
@@ -340,9 +340,19 @@ describe("checkups CLI", () => {
     const script = path.join(import.meta.dir, "checkups.ts");
     let projectDir = "";
 
+    const runCaptured = async (command: string): Promise<{ stdout: string; stderr: string; exitCode: number }> => {
+        const cli = Bun.spawn(["bun", script, command, projectDir], { stdout: "pipe", stderr: "pipe" });
+        const [stdout, stderr, exitCode] = await Promise.all([
+            new Response(cli.stdout).text(),
+            new Response(cli.stderr).text(),
+            cli.exited,
+        ]);
+
+        return { stdout, stderr, exitCode };
+    };
+
     const run = async (command: string): Promise<string> => {
-        const cli = Bun.spawn(["bun", script, command, projectDir], { stdout: "pipe" });
-        const [stdout, exitCode] = await Promise.all([new Response(cli.stdout).text(), cli.exited]);
+        const { stdout, exitCode } = await runCaptured(command);
 
         expect(exitCode).toBe(0);
         return stdout;
@@ -436,7 +446,72 @@ describe("checkups CLI", () => {
         await createProject([{ name: "legal" }], {});
 
         expect(await run("status")).toContain(
-            '- "legal" has no intervalDays in the schedule, and its skill declares no default',
+            '- docs/checkups/checkups.json: "legal" has no intervalDays in the schedule, and its skill declares no default',
         );
+    });
+
+    it("refuses a schedule file that is a symbolic link, reporting it invalid", async () => {
+        projectDir = await mkdtemp(path.join(tmpdir(), "checkups-"));
+        const realSchedulePath = path.join(projectDir, "docs/checkups/real-checkups.json");
+        const symlinkSchedulePath = path.join(projectDir, "docs/checkups/checkups.json");
+
+        await mkdir(path.join(projectDir, "docs/checkups"), { recursive: true });
+        await Bun.write(realSchedulePath, JSON.stringify({ checkups: [] }));
+        await symlink(realSchedulePath, symlinkSchedulePath);
+
+        const status = await run("status");
+
+        expect(status).toBe(
+            "Checkups are invalid:\n- docs/checkups/checkups.json is a symbolic link; use a regular file\n",
+        );
+    });
+
+    it("names the schedule file in each of its problems", async () => {
+        projectDir = await mkdtemp(path.join(tmpdir(), "checkups-"));
+        await mkdir(path.join(projectDir, "docs/checkups"), { recursive: true });
+        await Bun.write(path.join(projectDir, "docs/checkups/checkups.json"), "{ checkups: ");
+
+        expect(await run("status")).toBe("Checkups are invalid:\n- docs/checkups/checkups.json is not valid JSON\n");
+
+        await Bun.write(path.join(projectDir, "docs/checkups/checkups.json"), '{ "checkups": "legal" }');
+
+        expect(await run("status")).toMatch(/^Checkups are invalid:\n- docs\/checkups\/checkups\.json: checkups/);
+    });
+
+    describe("a project checkup skill that is a symbolic link", () => {
+        const skillMessage = ".claude/skills/checkup-legal/SKILL.md is a symbolic link; use a regular file";
+
+        const createLinkedSkillProject = async (): Promise<void> => {
+            await createProject([{ name: "legal" }], {});
+            const skillFile = path.join(projectDir, ".claude/skills/checkup-legal/SKILL.md");
+            const realFile = path.join(projectDir, "real-skill.md");
+
+            await Bun.write(
+                realFile,
+                "---\nname: checkup-legal\nmetadata:\n  intervalDays: 90\n  priority: quiet\n---\n",
+            );
+            await rm(skillFile);
+            await symlink(realFile, skillFile);
+        };
+
+        it("is reported invalid by status, naming the file", async () => {
+            await createLinkedSkillProject();
+
+            const { stdout, stderr, exitCode } = await runCaptured("status");
+
+            expect(exitCode).toBe(0);
+            expect(stderr).toBe("");
+            expect(stdout).toBe(`Checkups are invalid:\n- ${skillMessage}\n`);
+        });
+
+        it("is reported invalid by the reminder, naming the file", async () => {
+            await createLinkedSkillProject();
+
+            const { stdout, stderr, exitCode } = await runCaptured("reminder");
+
+            expect(exitCode).toBe(0);
+            expect(stderr).toBe("");
+            expect(JSON.parse(stdout).systemMessage).toBe(`Checkups are invalid: ${skillMessage}`);
+        });
     });
 });

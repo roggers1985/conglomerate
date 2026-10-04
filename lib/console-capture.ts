@@ -90,7 +90,8 @@ function captureSites(): { site: Frame | undefined; test: Frame | undefined } {
 function testNameAt(frame: Frame, sources: Map<string, string | undefined>): string | undefined {
     if (!sources.has(frame.file)) {
         try {
-            sources.set(frame.file, readTextSync(frame.file, { maxBytes: TEXT_BYTES_MAX }));
+            // The project's own test files, which the test run executes anyway (ADR 0060).
+            sources.set(frame.file, readTextSync(frame.file, { maxBytes: TEXT_BYTES_MAX, symbolicLinks: "follow" }));
         } catch {
             sources.set(frame.file, undefined);
         }

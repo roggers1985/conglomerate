@@ -68,7 +68,7 @@ async function main(): Promise<void> {
         cwd: process.cwd(),
     });
     const [conventions, routes, project] = await Promise.all([
-        readText(CORE_CONVENTIONS_PATH, { maxBytes: TEXT_BYTES_MAX, signal }),
+        readText(CORE_CONVENTIONS_PATH, { maxBytes: TEXT_BYTES_MAX, signal, symbolicLinks: "follow" }),
         readRoutes({ signal }),
         readFactorySettings(projectDir, { signal }),
     ]);

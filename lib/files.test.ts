@@ -1,12 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { isFileNotFound } from "./errors.ts";
-import { readDir, readDirRecursive, readJson, readText, readTextSync, whenMissing } from "./files.ts";
+import {
+    readDir,
+    readDirRecursive,
+    readJson,
+    readText,
+    readTextSync,
+    SymbolicLinkError,
+    symbolicLinkMessage,
+    whenMissing,
+} from "./files.ts";
 
 const signal = AbortSignal.timeout(5_000);
 let dir = "";
+
+function makeFifo(file: string): void {
+    const result = Bun.spawnSync(["mkfifo", file], { stdout: "pipe", stderr: "pipe" });
+
+    if (result.exitCode !== 0) {
+        throw new Error(`mkfifo ${file} failed: ${result.stderr.toString()}`);
+    }
+}
 
 beforeEach(async () => {
     dir = await mkdtemp(path.join(tmpdir(), "files-"));
@@ -20,48 +37,56 @@ describe("readText and readJson", () => {
     it("read a file's text and JSON", async () => {
         await Bun.write(path.join(dir, "a.json"), '{ "a": 1 }');
 
-        expect(await readText(path.join(dir, "a.json"), { maxBytes: 100, signal })).toBe('{ "a": 1 }');
-        expect(await readJson(path.join(dir, "a.json"), { maxBytes: 100, signal })).toEqual({ a: 1 });
+        expect(await readText(path.join(dir, "a.json"), { maxBytes: 100, signal, symbolicLinks: "follow" })).toBe(
+            '{ "a": 1 }',
+        );
+        expect(await readJson(path.join(dir, "a.json"), { maxBytes: 100, signal, symbolicLinks: "follow" })).toEqual({
+            a: 1,
+        });
     });
 
     it("read a file of exactly maxBytes, and refuse one byte more", async () => {
         await Bun.write(path.join(dir, "five.txt"), "12345");
 
-        expect(await readText(path.join(dir, "five.txt"), { maxBytes: 5, signal })).toBe("12345");
-        await expect(readText(path.join(dir, "five.txt"), { maxBytes: 4, signal })).rejects.toThrow(
-            `${path.join(dir, "five.txt")} is 5 bytes, over the limit of 4 bytes`,
+        expect(await readText(path.join(dir, "five.txt"), { maxBytes: 5, signal, symbolicLinks: "follow" })).toBe(
+            "12345",
         );
+        await expect(
+            readText(path.join(dir, "five.txt"), { maxBytes: 4, signal, symbolicLinks: "follow" }),
+        ).rejects.toThrow(`${path.join(dir, "five.txt")} is 5 bytes, over the limit of 4 bytes`);
     });
 
     it("count bytes, not characters", async () => {
         await Bun.write(path.join(dir, "euro.txt"), "€");
 
-        await expect(readText(path.join(dir, "euro.txt"), { maxBytes: 2, signal })).rejects.toThrow(
-            "is 3 bytes, over the limit of 2 bytes",
-        );
+        await expect(
+            readText(path.join(dir, "euro.txt"), { maxBytes: 2, signal, symbolicLinks: "follow" }),
+        ).rejects.toThrow("is 3 bytes, over the limit of 2 bytes");
     });
 
     it("read an empty file", async () => {
         await Bun.write(path.join(dir, "empty.txt"), "");
 
-        expect(await readText(path.join(dir, "empty.txt"), { maxBytes: 1, signal })).toBe("");
+        expect(await readText(path.join(dir, "empty.txt"), { maxBytes: 1, signal, symbolicLinks: "follow" })).toBe("");
     });
 
     it("refuse a maxBytes below 1 or not a whole number", async () => {
         await Bun.write(path.join(dir, "a.txt"), "a");
 
-        await expect(readText(path.join(dir, "a.txt"), { maxBytes: 0, signal })).rejects.toThrow(
-            "maxBytes must be at least 1",
-        );
-        await expect(readText(path.join(dir, "a.txt"), { maxBytes: 1.5, signal })).rejects.toThrow(
-            "maxBytes must be an integer",
-        );
+        await expect(
+            readText(path.join(dir, "a.txt"), { maxBytes: 0, signal, symbolicLinks: "follow" }),
+        ).rejects.toThrow("maxBytes must be at least 1");
+        await expect(
+            readText(path.join(dir, "a.txt"), { maxBytes: 1.5, signal, symbolicLinks: "follow" }),
+        ).rejects.toThrow("maxBytes must be an integer");
     });
 
     it("reject with a not-found error for a missing file", async () => {
-        const error = await readText(path.join(dir, "missing.txt"), { maxBytes: 1, signal }).catch(
-            (caught: unknown) => caught,
-        );
+        const error = await readText(path.join(dir, "missing.txt"), {
+            maxBytes: 1,
+            signal,
+            symbolicLinks: "follow",
+        }).catch((caught: unknown) => caught);
 
         expect(isFileNotFound(error)).toBe(true);
     });
@@ -69,35 +94,174 @@ describe("readText and readJson", () => {
     it("reject a file that is not valid JSON", async () => {
         await Bun.write(path.join(dir, "broken.json"), "{");
 
-        await expect(readJson(path.join(dir, "broken.json"), { maxBytes: 10, signal })).rejects.toBeInstanceOf(
-            SyntaxError,
-        );
+        await expect(
+            readJson(path.join(dir, "broken.json"), { maxBytes: 10, signal, symbolicLinks: "follow" }),
+        ).rejects.toBeInstanceOf(SyntaxError);
     });
 
     it("stop when aborted", async () => {
         await Bun.write(path.join(dir, "a.json"), "{}");
 
         await expect(
-            readJson(path.join(dir, "a.json"), { maxBytes: 10, signal: AbortSignal.abort() }),
+            readJson(path.join(dir, "a.json"), { maxBytes: 10, signal: AbortSignal.abort(), symbolicLinks: "follow" }),
         ).rejects.toMatchObject({ name: "AbortError" });
+    });
+
+    it("follow a symbolic link to a regular file when the caller asks to follow links", async () => {
+        await Bun.write(path.join(dir, "target.json"), '{ "a": 1 }');
+        await symlink(path.join(dir, "target.json"), path.join(dir, "link.json"));
+
+        expect(await readText(path.join(dir, "link.json"), { maxBytes: 100, signal, symbolicLinks: "follow" })).toBe(
+            '{ "a": 1 }',
+        );
+        expect(await readJson(path.join(dir, "link.json"), { maxBytes: 100, signal, symbolicLinks: "follow" })).toEqual(
+            { a: 1 },
+        );
+    });
+
+    it("refuse a FIFO at once, without waiting for a writer", async () => {
+        const fifo = path.join(dir, "pipe");
+        makeFifo(fifo);
+
+        await expect(readText(fifo, { maxBytes: 100, signal, symbolicLinks: "follow" })).rejects.toThrow(
+            `${fifo} is a FIFO, not a regular file`,
+        );
+    }, 1_000);
+
+    it("refuse a symbolic link to a FIFO at once", async () => {
+        const fifo = path.join(dir, "pipe");
+        makeFifo(fifo);
+        await symlink(fifo, path.join(dir, "link"));
+
+        await expect(
+            readText(path.join(dir, "link"), { maxBytes: 100, signal, symbolicLinks: "follow" }),
+        ).rejects.toThrow("is a FIFO, not a regular file");
+    }, 1_000);
+
+    it("refuse a device, whose size says nothing about how much it yields", async () => {
+        await symlink("/dev/zero", path.join(dir, "zero.txt"));
+
+        await expect(readText("/dev/zero", { maxBytes: 100, signal, symbolicLinks: "follow" })).rejects.toThrow(
+            "/dev/zero is a character device, not a regular file",
+        );
+        await expect(
+            readText(path.join(dir, "zero.txt"), { maxBytes: 100, signal, symbolicLinks: "follow" }),
+        ).rejects.toThrow("is a character device, not a regular file");
+    }, 1_000);
+
+    it("refuse a directory", async () => {
+        await mkdir(path.join(dir, "sub"));
+
+        await expect(
+            readText(path.join(dir, "sub"), { maxBytes: 100, signal, symbolicLinks: "follow" }),
+        ).rejects.toThrow(`${path.join(dir, "sub")} is a directory, not a regular file`);
+        await expect(
+            readJson(path.join(dir, "sub"), { maxBytes: 100, signal, symbolicLinks: "follow" }),
+        ).rejects.toThrow("is a directory, not a regular file");
+    });
+
+    it('with symbolicLinks: "refuse", refuse a symbolic link, naming it, and still read a regular file', async () => {
+        await Bun.write(path.join(dir, "target.json"), '{ "a": 1 }');
+        await symlink(path.join(dir, "target.json"), path.join(dir, "link.json"));
+        const options = { maxBytes: 100, signal, symbolicLinks: "refuse" } as const;
+
+        await expect(readText(path.join(dir, "link.json"), options)).rejects.toThrow(
+            new SymbolicLinkError(path.join(dir, "link.json")),
+        );
+        await expect(readJson(path.join(dir, "link.json"), options)).rejects.toBeInstanceOf(SymbolicLinkError);
+        expect(await readText(path.join(dir, "target.json"), options)).toBe('{ "a": 1 }');
+        expect(await readJson(path.join(dir, "target.json"), options)).toEqual({ a: 1 });
+    });
+
+    it('with symbolicLinks: "refuse", refuse a dangling link and a link to a FIFO as links, at once', async () => {
+        const fifo = path.join(dir, "pipe");
+        makeFifo(fifo);
+        await symlink(fifo, path.join(dir, "to-fifo"));
+        await symlink(path.join(dir, "missing.txt"), path.join(dir, "dangling.txt"));
+        const options = { maxBytes: 100, signal, symbolicLinks: "refuse" } as const;
+
+        await expect(readText(path.join(dir, "to-fifo"), options)).rejects.toThrow(
+            `${path.join(dir, "to-fifo")} is a symbolic link`,
+        );
+        await expect(readText(path.join(dir, "dangling.txt"), options)).rejects.toThrow(
+            `${path.join(dir, "dangling.txt")} is a symbolic link`,
+        );
+    }, 1_000);
+
+    it('with symbolicLinks: "refuse", still refuse a FIFO, and report a missing file as missing', async () => {
+        const fifo = path.join(dir, "pipe");
+        makeFifo(fifo);
+        const options = { maxBytes: 100, signal, symbolicLinks: "refuse" } as const;
+
+        await expect(readText(fifo, options)).rejects.toThrow(`${fifo} is a FIFO, not a regular file`);
+        const error = await readText(path.join(dir, "missing.txt"), options).catch((caught: unknown) => caught);
+
+        expect(isFileNotFound(error)).toBe(true);
+    }, 1_000);
+
+    it("reject a symbolic link whose target is missing with a not-found error", async () => {
+        await symlink(path.join(dir, "missing.txt"), path.join(dir, "dangling.txt"));
+
+        const error = await readText(path.join(dir, "dangling.txt"), {
+            maxBytes: 1,
+            signal,
+            symbolicLinks: "follow",
+        }).catch((caught: unknown) => caught);
+
+        expect(isFileNotFound(error)).toBe(true);
     });
 });
 
 describe("readTextSync", () => {
+    const follow = "follow" as const;
+
     it("reads a file of exactly maxBytes, and refuses one byte more", async () => {
         await Bun.write(path.join(dir, "five.txt"), "12345");
 
-        expect(readTextSync(path.join(dir, "five.txt"), { maxBytes: 5 })).toBe("12345");
-        expect(() => readTextSync(path.join(dir, "five.txt"), { maxBytes: 4 })).toThrow(
+        expect(readTextSync(path.join(dir, "five.txt"), { maxBytes: 5, symbolicLinks: follow })).toBe("12345");
+        expect(() => readTextSync(path.join(dir, "five.txt"), { maxBytes: 4, symbolicLinks: follow })).toThrow(
             "is 5 bytes, over the limit of 4 bytes",
         );
     });
 
     it("rejects a maxBytes that is not a positive integer, and throws for a missing file", () => {
-        expect(() => readTextSync(path.join(dir, "a.txt"), { maxBytes: 0 })).toThrow("maxBytes must be at least 1");
-        expect(() => readTextSync(path.join(dir, "a.txt"), { maxBytes: 1.5 })).toThrow("maxBytes must be an integer");
-        expect(() => readTextSync(path.join(dir, "missing.txt"), { maxBytes: 1 })).toThrow("ENOENT");
+        const file = path.join(dir, "a.txt");
+
+        expect(() => readTextSync(file, { maxBytes: 0, symbolicLinks: follow })).toThrow("maxBytes must be at least 1");
+        expect(() => readTextSync(file, { maxBytes: 1.5, symbolicLinks: follow })).toThrow(
+            "maxBytes must be an integer",
+        );
+        expect(() => readTextSync(path.join(dir, "missing.txt"), { maxBytes: 1, symbolicLinks: follow })).toThrow(
+            "ENOENT",
+        );
     });
+
+    it("follows a symbolic link when asked to, and refuses it, naming it, when asked to refuse", async () => {
+        await Bun.write(path.join(dir, "target.txt"), "hi");
+        await symlink(path.join(dir, "target.txt"), path.join(dir, "link.txt"));
+        await symlink(path.join(dir, "missing.txt"), path.join(dir, "dangling.txt"));
+
+        expect(readTextSync(path.join(dir, "link.txt"), { maxBytes: 5, symbolicLinks: follow })).toBe("hi");
+        expect(readTextSync(path.join(dir, "target.txt"), { maxBytes: 5, symbolicLinks: "refuse" })).toBe("hi");
+        expect(() => readTextSync(path.join(dir, "link.txt"), { maxBytes: 5, symbolicLinks: "refuse" })).toThrow(
+            new SymbolicLinkError(path.join(dir, "link.txt")),
+        );
+        expect(() => readTextSync(path.join(dir, "dangling.txt"), { maxBytes: 5, symbolicLinks: "refuse" })).toThrow(
+            "is a symbolic link",
+        );
+    });
+
+    it("refuses a directory and a FIFO at once, without waiting for a writer", () => {
+        const fifo = path.join(dir, "pipe");
+        makeFifo(fifo);
+
+        expect(() => readTextSync(dir, { maxBytes: 5, symbolicLinks: follow })).toThrow(
+            "is a directory, not a regular file",
+        );
+        expect(() => readTextSync(fifo, { maxBytes: 5, symbolicLinks: follow })).toThrow(
+            `${fifo} is a FIFO, not a regular file`,
+        );
+    }, 1_000);
 });
 
 describe("readDir and readDirRecursive", () => {
@@ -162,9 +326,11 @@ describe("readDir and readDirRecursive", () => {
 
 describe("whenMissing", () => {
     it("turns a missing file or directory into the fallback", async () => {
-        expect(await readText(path.join(dir, "missing.txt"), { maxBytes: 1, signal }).catch(whenMissing(null))).toBe(
-            null,
-        );
+        expect(
+            await readText(path.join(dir, "missing.txt"), { maxBytes: 1, signal, symbolicLinks: "follow" }).catch(
+                whenMissing(null),
+            ),
+        ).toBe(null);
         expect(await readDir(path.join(dir, "missing"), { maxEntries: 1, signal }).catch(whenMissing([]))).toEqual([]);
     });
 
@@ -175,10 +341,24 @@ describe("whenMissing", () => {
             readDir(path.join(dir, "a.txt"), { maxEntries: 1, signal }).catch(whenMissing([])),
         ).rejects.toMatchObject({ code: "ENOTDIR" });
         await expect(
-            readText(path.join(dir, "a.txt"), { maxBytes: 1, signal }).catch(whenMissing(null)),
+            readText(path.join(dir, "a.txt"), { maxBytes: 1, signal, symbolicLinks: "follow" }).catch(
+                whenMissing(null),
+            ),
         ).rejects.toThrow("over the limit");
         await expect(
-            readText(path.join(dir, "a.txt"), { maxBytes: 2, signal: AbortSignal.abort() }).catch(whenMissing(null)),
+            readText(path.join(dir, "a.txt"), {
+                maxBytes: 2,
+                signal: AbortSignal.abort(),
+                symbolicLinks: "follow",
+            }).catch(whenMissing(null)),
         ).rejects.toMatchObject({ name: "AbortError" });
+    });
+});
+
+describe("symbolicLinkMessage", () => {
+    it("names the file and tells to use a regular file", () => {
+        expect(symbolicLinkMessage(".claude/factory.json")).toBe(
+            ".claude/factory.json is a symbolic link; use a regular file",
+        );
     });
 });
