@@ -63,6 +63,7 @@ These conventions apply to all work in this session. They come from the factory 
 ## Documentation
 
 - Every export has a full doc comment (TSDoc in TypeScript), including at least one example for functions and classes. Examples run as tests. Internal code only gets a comment when the *why* isn't obvious.
+- Documentation for people follows the `writing-documentation` skill: what and why first, short and plain, and just as precise.
 
 ## Tests
 
@@ -76,4 +77,4 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Topic conventions
 
-For React/UI work, load the `code-react` skill and the `code-styling` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill. For loops, retries, queues, caches, concurrency, input limits, assertions or error handling, load the `code-safety` skill. For database schemas, migrations and queries, load the `code-sql` skill. For examples of the readability and optionality rules, and for naming, load the `code-readability` skill. For schemas and parsing, load the `code-parsing` skill.
+For React/UI work, load the `code-react` skill and the `code-styling` skill, and the `code-accessibility` skill to write a11y tests with it. For writing tests, load the `code-testing` skill. For async or I/O code, load the `code-cancellation` skill for the language-specific rules. For doc comments, load the `code-documentation` skill. For signatures, options and return types, load the `code-api-design` skill. For loops, retries, queues, caches, concurrency, input limits, assertions or error handling, load the `code-safety` skill. For database schemas, migrations and queries, load the `code-sql` skill. For examples of the readability and optionality rules, and for naming, load the `code-readability` skill. For schemas and parsing, load the `code-parsing` skill. For documentation meant for people, load the `writing-documentation` skill.
