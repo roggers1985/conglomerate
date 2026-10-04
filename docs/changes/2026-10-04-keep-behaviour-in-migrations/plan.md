@@ -78,7 +78,7 @@ One new decision, recorded in ADR 0062: a migration meant to keep behaviour firs
 - Verify: `bun test plugins/factory/scripts/stage-gates.test.ts plugins/factory/scripts/changes.test.ts`, `bun run doctest` and `bun run check`
 - Depends on: none
 - Parallel: yes
-- Status: in-progress
+- Status: done
 
 ### T-3: Teach triage, planning, build and review about migrations
 
@@ -87,7 +87,7 @@ One new decision, recorded in ADR 0062: a migration meant to keep behaviour firs
 - Verify: `bun test scripts/skill-templates.test.ts` and `bun run check`
 - Depends on: T-2
 - Parallel: no
-- Status: pending
+- Status: in-progress
 
 ### T-4: Record the decision
 
