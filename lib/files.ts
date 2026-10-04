@@ -1,3 +1,4 @@
+import { readFileSync, statSync } from "node:fs";
 import { open, opendir } from "node:fs/promises";
 import path from "node:path";
 import { assert } from "./assert.ts";
@@ -76,6 +77,45 @@ export async function readText(filePath: string, { maxBytes, signal }: ReadOptio
     } finally {
         await handle.close();
     }
+}
+
+/**
+ * Reads a text file (UTF-8) synchronously, after checking that it isn't larger than `maxBytes`.
+ *
+ * @remarks
+ * Only for code that cannot wait, such as a `console` method or a synchronous assertion. It takes no signal, because a
+ * synchronous read cannot be cancelled; prefer {@link readText} everywhere else.
+ *
+ * @param filePath - The file to read.
+ * @param options.maxBytes - The largest file accepted, in bytes; at least 1.
+ * @returns The file's contents.
+ * @throws Error when the file is larger than `maxBytes`.
+ * @throws Error with code `ENOENT` when the file doesn't exist.
+ *
+ * @example
+ * ```ts
+ * const { mkdtemp, rm } = await import("node:fs/promises");
+ * const { tmpdir } = await import("node:os");
+ * const dir = await mkdtemp(`${tmpdir()}/files-`);
+ * await Bun.write(`${dir}/note.txt`, "hello");
+ *
+ * expect(readTextSync(`${dir}/note.txt`, { maxBytes: 5 })).toBe("hello");
+ * expect(() => readTextSync(`${dir}/note.txt`, { maxBytes: 4 })).toThrow("over the limit of 4 bytes");
+ *
+ * await rm(dir, { recursive: true });
+ * ```
+ */
+export function readTextSync(filePath: string, { maxBytes }: { readonly maxBytes: number }): string {
+    assert(Number.isInteger(maxBytes), `maxBytes must be an integer, got ${maxBytes}`);
+    assert(maxBytes >= 1, `maxBytes must be at least 1, got ${maxBytes}`);
+
+    const { size } = statSync(filePath);
+
+    if (size > maxBytes) {
+        throw new Error(`${filePath} is ${size} bytes, over the limit of ${maxBytes} bytes`);
+    }
+
+    return readFileSync(filePath, { encoding: "utf8" });
 }
 
 /**

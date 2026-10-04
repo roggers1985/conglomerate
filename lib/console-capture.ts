@@ -1,5 +1,7 @@
 import path from "node:path";
 import { format } from "node:util";
+import { readTextSync, TEXT_BYTES_MAX } from "./files.ts";
+import { findTestName } from "./test-name.ts";
 
 /** The `console` methods that print, and so are captured. */
 export type ConsoleMethod = "log" | "info" | "warn" | "error" | "debug";
@@ -17,21 +19,30 @@ const MAX_REPORTED_CHARACTERS = 300;
 const FRAME = /^\s*at (?:.* \()?(.+?):(\d+):(\d+)\)?$/;
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 
+/** A stack frame of project code. */
+type Frame = {
+    readonly file: string;
+    /** `file:line:column`, with the file relative to the repository root when it is inside it. */
+    readonly location: string;
+    readonly line: number;
+    readonly column: number;
+};
+
 type CapturedCall = {
     readonly method: ConsoleMethod;
     readonly text: string;
-    /** Where the code that logged is, as `file:line:column`; empty when no frame outside this file was found. */
-    readonly site: string;
-    /** The test file frame, when the logging code is not itself in a test file; empty otherwise. */
-    readonly testSite: string;
+    /** The code that logged: the first project frame; `undefined` when no frame outside this file was found. */
+    readonly site: Frame | undefined;
+    /** The test: the outermost frame in a test file, which is the test's own callback; `undefined` when there is none. */
+    readonly test: Frame | undefined;
 };
 
 const matches = (text: string, pattern: string | RegExp): boolean =>
     typeof pattern === "string" ? text.includes(pattern) : pattern.test(text);
 
 /** Reads the frames of a stack that are project code: not this file, the setup, `node_modules` or the runtime. */
-function projectFrames(stack: string): { file: string; location: string }[] {
-    const frames: { file: string; location: string }[] = [];
+function projectFrames(stack: string): Frame[] {
+    const frames: Frame[] = [];
 
     for (const line of stack.split("\n").slice(0, MAX_STACK_FRAMES)) {
         const match = FRAME.exec(line);
@@ -48,15 +59,20 @@ function projectFrames(stack: string): { file: string; location: string }[] {
             const relative = path.relative(ROOT, file);
             const shown = relative.startsWith("..") ? file : relative;
 
-            frames.push({ file, location: `${shown}:${match[2]}:${match[3]}` });
+            frames.push({
+                file,
+                location: `${shown}:${match[2]}:${match[3]}`,
+                line: Number(match[2]),
+                column: Number(match[3]),
+            });
         }
     }
 
     return frames;
 }
 
-/** Captures where the running code is: the first project frame, and the first test file frame if it is another. */
-function captureSites(): { site: string; testSite: string } {
+/** Captures where the running code is: the first project frame, and the outermost test file frame. */
+function captureSites(): { site: Frame | undefined; test: Frame | undefined } {
     const previousLimit = Error.stackTraceLimit;
 
     Error.stackTraceLimit = MAX_STACK_FRAMES;
@@ -66,25 +82,49 @@ function captureSites(): { site: string; testSite: string } {
     Error.stackTraceLimit = previousLimit;
 
     const frames = projectFrames(stack);
-    const first = frames[0];
-    const test = frames.find((frame) => TEST_FILE.test(frame.file));
 
-    return {
-        site: first?.location ?? "",
-        testSite: test === undefined || test === first ? "" : test.location,
-    };
+    return { site: frames[0], test: frames.findLast((frame) => TEST_FILE.test(frame.file)) };
 }
 
-/** One line for a captured call: `console.warn at lib/files.ts:120:9 (from test x.test.ts:3:5): "message"`. */
-function describeCall(call: CapturedCall): string {
+/** The name of the test a frame is in, read from the test file's source; `undefined` when it cannot be found. */
+function testNameAt(frame: Frame, sources: Map<string, string | undefined>): string | undefined {
+    if (!sources.has(frame.file)) {
+        try {
+            sources.set(frame.file, readTextSync(frame.file, { maxBytes: TEXT_BYTES_MAX }));
+        } catch {
+            sources.set(frame.file, undefined);
+        }
+    }
+
+    const source = sources.get(frame.file);
+
+    return source === undefined ? undefined : findTestName(source, frame);
+}
+
+/**
+ * One line for a captured call, always naming the test and its file:
+ * `console.warn at lib/files.ts:120:9 in test "reads › a file" (x.test.ts:3:5): "message"`. The `at` part is left out
+ * when the code that logged is the test's own frame.
+ */
+function describeCall(call: CapturedCall, sources: Map<string, string | undefined>): string {
     const shortened =
         call.text.length > MAX_REPORTED_CHARACTERS
             ? `${call.text.slice(0, MAX_REPORTED_CHARACTERS)}… (${call.text.length - MAX_REPORTED_CHARACTERS} more characters)`
             : call.text;
-    const where = call.site === "" ? "" : ` at ${call.site}`;
-    const from = call.testSite === "" ? "" : ` (from test ${call.testSite})`;
+    const isInTest = call.test !== undefined && call.test === call.site;
+    const where = call.site === undefined || isInTest ? "" : ` at ${call.site.location}`;
+    const name = call.test === undefined ? undefined : testNameAt(call.test, sources);
+    const quoted = name === undefined ? "<name not found>" : JSON.stringify(name);
+    const file = call.test === undefined ? "no test file in the stack" : call.test.location;
 
-    return `console.${call.method}${where}${from}: ${JSON.stringify(shortened)}`;
+    return `console.${call.method}${where} in test ${quoted} (${file}): ${JSON.stringify(shortened)}`;
+}
+
+/** One line for each captured call; each test file is read once. */
+function describeCalls(calls: readonly CapturedCall[]): string[] {
+    const sources = new Map<string, string | undefined>();
+
+    return calls.map((call) => describeCall(call, sources));
 }
 
 /**
@@ -113,7 +153,7 @@ function describeCall(call: CapturedCall): string {
  * capture.start();
  * console.log("left over");
  *
- * expect(capture.stop()[0]).toMatch(/^console\.log at .+:\d+:\d+: "left over"$/);
+ * expect(capture.stop()[0]).toMatch(/^console\.log in test .+ \(.+:\d+:\d+\): "left over"$/);
  * ```
  */
 export class ConsoleCapture {
@@ -179,7 +219,7 @@ export class ConsoleCapture {
         const index = this.#calls.findIndex((call) => call.method === method && matches(call.text, pattern));
 
         if (index === -1) {
-            const captured = this.#calls.map(describeCall);
+            const captured = describeCalls(this.#calls);
 
             throw new Error(
                 `expected console.${method} matching ${String(pattern)}, captured: ${JSON.stringify(captured)}`,
@@ -193,9 +233,11 @@ export class ConsoleCapture {
      * Stops capturing, puts the real `console` methods back and forgets the captured calls.
      *
      * @returns The calls nobody claimed with {@link ConsoleCapture.expect}, one line each, in call order:
-     * `console.<method> at <file>:<line>:<column>: "<text>"`. The location is the first stack frame outside
-     * `node_modules` and the capture itself, relative to the repository root, so it names the code that logged. When
-     * that code is not a test file, `(from test <file>:<line>:<column>)` follows, naming the test file frame. Texts
+     * `console.<method> at <file>:<line>:<column> in test "<name>" (<test file>:<line>:<column>): "<text>"`. The `at`
+     * location is the first stack frame outside `node_modules` and the capture itself, relative to the repository
+     * root, so it names the code that logged; it is left out when that is the test's own frame. The test is the
+     * outermost frame in a test file. Bun does not expose a test's name, so it is read from the test file's source
+     * (suite names joined with ` › `); `<name not found>` when it is computed or the file cannot be read. Texts
      * longer than 300 characters are cut, with the number of omitted characters. Empty when the output was all
      * expected, or when capture was not started.
      *
@@ -217,7 +259,7 @@ export class ConsoleCapture {
 
         this.#originals = {};
 
-        const unexpected = this.#calls.map(describeCall);
+        const unexpected = describeCalls(this.#calls);
 
         this.#calls = [];
 

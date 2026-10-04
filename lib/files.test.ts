@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { isFileNotFound } from "./errors.ts";
-import { readDir, readDirRecursive, readJson, readText, whenMissing } from "./files.ts";
+import { readDir, readDirRecursive, readJson, readText, readTextSync, whenMissing } from "./files.ts";
 
 const signal = AbortSignal.timeout(5_000);
 let dir = "";
@@ -80,6 +80,23 @@ describe("readText and readJson", () => {
         await expect(
             readJson(path.join(dir, "a.json"), { maxBytes: 10, signal: AbortSignal.abort() }),
         ).rejects.toMatchObject({ name: "AbortError" });
+    });
+});
+
+describe("readTextSync", () => {
+    it("reads a file of exactly maxBytes, and refuses one byte more", async () => {
+        await Bun.write(path.join(dir, "five.txt"), "12345");
+
+        expect(readTextSync(path.join(dir, "five.txt"), { maxBytes: 5 })).toBe("12345");
+        expect(() => readTextSync(path.join(dir, "five.txt"), { maxBytes: 4 })).toThrow(
+            "is 5 bytes, over the limit of 4 bytes",
+        );
+    });
+
+    it("rejects a maxBytes that is not a positive integer, and throws for a missing file", () => {
+        expect(() => readTextSync(path.join(dir, "a.txt"), { maxBytes: 0 })).toThrow("maxBytes must be at least 1");
+        expect(() => readTextSync(path.join(dir, "a.txt"), { maxBytes: 1.5 })).toThrow("maxBytes must be an integer");
+        expect(() => readTextSync(path.join(dir, "missing.txt"), { maxBytes: 1 })).toThrow("ENOENT");
     });
 });
 

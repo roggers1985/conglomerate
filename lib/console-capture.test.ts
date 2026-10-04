@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { ConsoleCapture, expectConsole } from "./console-capture.ts";
 
-/** The ` at <file>:<line>:<column>` part of a report. */
-const SITE = / at \S+:\d+:\d+/;
+/** The ` in test "<name>" (<file>:<line>:<column>)` part of a report. */
+const SITE = / in test .+? \(\S+:\d+:\d+\)/;
 
 describe("ConsoleCapture", () => {
     it("captures every printing console method, formatted like console does", () => {
@@ -24,15 +24,31 @@ describe("ConsoleCapture", () => {
         ]);
     });
 
-    it("names the file, line and column of the code that logged, not of the capture", () => {
+    it("names the test and its file and line, not the capture", () => {
         const capture = new ConsoleCapture();
 
         capture.start();
         console.warn("here");
 
         expect(capture.stop()).toEqual([
-            expect.stringMatching(/^console\.warn at lib\/console-capture\.test\.ts:\d+:\d+: "here"$/),
+            expect.stringMatching(
+                /^console\.warn in test "ConsoleCapture › names the test and its file and line, not the capture" \(lib\/console-capture\.test\.ts:\d+:\d+\): "here"$/,
+            ),
         ]);
+    });
+
+    it("names the code that logged as well, when it is not the test itself", () => {
+        const capture = new ConsoleCapture();
+        const logger = (): void => {
+            console.warn("nested");
+        };
+
+        capture.start();
+        logger();
+
+        expect(capture.stop()[0]).toMatch(
+            /^console\.warn at lib\/console-capture\.test\.ts:\d+:\d+ in test "ConsoleCapture › names the code that logged as well, when it is not the test itself" \(lib\/console-capture\.test\.ts:\d+:\d+\): "nested"$/,
+        );
     });
 
     it("cuts long messages at a limit and says how much was left out", () => {
@@ -108,7 +124,9 @@ describe("ConsoleCapture", () => {
         console.error("boom");
 
         expect(() => capture.expect("warn", "boom")).toThrow("expected console.warn matching boom");
-        expect(() => capture.expect("error", /bang/)).toThrow("console.error at lib/console-capture.test.ts:");
+        expect(() => capture.expect("error", /bang/)).toThrow(
+            'console.error in test \\"ConsoleCapture › throws when nothing matches, listing what was captured\\" (lib/console-capture.test.ts:',
+        );
         expect(capture.stop()).toHaveLength(1);
     });
 });

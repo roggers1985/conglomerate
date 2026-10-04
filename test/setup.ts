@@ -11,8 +11,8 @@ beforeEach(() => {
     consoleCapture.start();
 });
 
-// Bun does not tell `afterEach` which test ran (`expect.getState()` does not exist in 1.4.2), so the failure names
-// the call site instead; Bun's own `(fail) <test name>` line names the test.
+// Bun does not tell `afterEach` which test ran (`expect.getState()` does not exist in 1.4.2), so the failure takes the
+// test's file and line from the stack and reads the test's name from that file's source (`lib/test-name.ts`).
 const MAX_REPORTED_CALLS = 20;
 
 afterEach(() => {
