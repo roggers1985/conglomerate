@@ -18,7 +18,7 @@ The build turns the task list (`tasks.md`, or the Tasks section of `plan.md`) in
 
 1. **Pick the next task:** the first `pending` one whose dependencies are all `done`. Set it to `in-progress` in the task list.
 2. **Choose its task agent** by what the task needs (model routing, `models.json`):
-   - `factory:tasks:code-small` for a mechanical edit;
+   - `factory:tasks:code-small` only for an edit that touches no convention (a rename, formatting, a typo). Anything that involves a convention (fail fast, the exported surface, bounds, error handling) goes to `code` at least: a small model gets the mechanics right and the convention wrong (a silent fallback, an export only for a test);
    - `factory:tasks:code` for ordinary work;
    - `factory:tasks:code-complex` for concurrency, security-sensitive code or a hard bug.
 3. **Dispatch it in its own worktree** (Agent tool, `isolation: "worktree"`, ADR 0042). Tell the subagent:
@@ -27,12 +27,16 @@ The build turns the task list (`tasks.md`, or the Tasks section of `plan.md`) in
    - **test-first:** write the test for the criteria the task covers, naming each criterion in the test's name (e.g. `it("AC-1: downloads the jobs as CSV")`), see it fail, then make it pass;
    - to follow the conventions, and to stay inside the task's files. Anything else it notices goes in its reply, not in the code;
    - to run the task's **Verify** command and the project's **fast checks** (type check, lint, and the tests near the change), and to commit only when they pass. The full suite runs after the merge (step 4), so it doesn't run once per task;
-   - **verify before claiming done:** reply with the commands it ran and their results, not with "it works".
+   - **verify before claiming done:** reply with the commands it ran and their results, not with "it works";
+   - **not to regenerate generated files** (the project's generate command): you do that after the merge, so task branches don't conflict on them;
+   - that in a worktree Claude Code blocks heredocs and chained shell commands: edit files with the Edit and Write tools, and run one command at a time.
 4. **Take the result in:**
    - merge the task's branch into `change/<name>`;
+   - regenerate the project's generated files there (its own generate command, e.g. `bun run generate`), and commit what changed;
    - run the project's **full** check suite there. When it fails, the task isn't done: give it back to a subagent with the failure;
    - remove the worktree and both of its branches (`git worktree remove`, `git branch -d`);
    - set the task to `done` in the task list, and commit.
+   - **When a subagent is interrupted** (a usage limit, an error), resume that same agent with `SendMessage`: it keeps its context and its uncommitted work. Don't start a new one. To inspect its worktree, use `git -C <worktree> …`; never `cd` into it, which moves your session into the worktree.
 5. **When it fails:** give the same task at most `attemptsPerTask` attempts (the "Factory settings" section of the session context; 3 by default, ADR 0058). If the last one fails, try once with a stronger task agent (`code-complex`, then `model: "fable"`, ADR 0021). If that fails too, stop and report to the owner what was tried.
 
 **Parallel tasks:**

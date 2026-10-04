@@ -44,7 +44,9 @@ Title it after the change. Build its description with the command `bun "${CLAUDE
 - the review's summary, and any findings that were accepted rather than fixed, with their reasons;
 - the ADRs the change added, marking those that are *Proposed*.
 
-Pass its output to `gh pr create --body-file -` (or a temporary file), and add the attribution line Claude uses for pull requests at the end (ADR 0056).
+Check first whether the branch already has a pull request (`gh pr view <branch>`). If it has, update its title and description with `gh pr edit` instead of creating a new one. Otherwise pass the output to `gh pr create --body-file -` (or a temporary file). Add the attribution line Claude uses for pull requests at the end (ADR 0056).
+
+Afterwards, check the result on GitHub (`gh pr view`: title and description). On a branch that already has a pull request, `gh pr create` only prints that pull request's address and changes nothing.
 
 ## Cleaning up
 

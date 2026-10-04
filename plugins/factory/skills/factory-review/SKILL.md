@@ -9,7 +9,9 @@ metadata:
 
 The review checks the built change on `change/<name>` before it's finished (ADR 0055). **The reviewer is never the builder:** dispatch a fresh `factory:tasks:review` subagent (Opus, high effort), so it looks with a clean context. The main session coordinates and fixes; the reviewer only reports.
 
-**The reviewer works in its own worktree** (Agent tool, `isolation: "worktree"`, ADR 0042), so it can't switch branches or change files in the coordinator's checkout. Tell it to switch to the change's branch there (`git switch change/<name>`), install dependencies from the lockfile, run what it needs, and change nothing: it reports, and its worktree is removed afterwards.
+**The reviewer works in its own worktree** (Agent tool, `isolation: "worktree"`, ADR 0042), so it can't switch branches or change files in the coordinator's checkout. Tell it to switch to the change's branch there (`git switch change/<name>`), install dependencies from the lockfile, run what it needs, and change nothing: it reports, and its worktree is removed afterwards. Tell it that in a worktree Claude Code blocks heredocs and chained shell commands, so it runs one command at a time.
+
+When the reviewer is interrupted (a usage limit, an error), resume that same agent with `SendMessage` instead of starting a new one. To inspect its worktree, use `git -C <worktree> …`; never `cd` into it, which moves your session into the worktree.
 
 ## What the reviewer gets
 
