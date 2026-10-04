@@ -8,6 +8,7 @@ import {
     readDirRecursive,
     readJson,
     readText,
+    readTextSync,
     SymbolicLinkError,
     symbolicLinkMessage,
     whenMissing,
@@ -209,6 +210,58 @@ describe("readText and readJson", () => {
 
         expect(isFileNotFound(error)).toBe(true);
     });
+});
+
+describe("readTextSync", () => {
+    const follow = "follow" as const;
+
+    it("reads a file of exactly maxBytes, and refuses one byte more", async () => {
+        await Bun.write(path.join(dir, "five.txt"), "12345");
+
+        expect(readTextSync(path.join(dir, "five.txt"), { maxBytes: 5, symbolicLinks: follow })).toBe("12345");
+        expect(() => readTextSync(path.join(dir, "five.txt"), { maxBytes: 4, symbolicLinks: follow })).toThrow(
+            "is 5 bytes, over the limit of 4 bytes",
+        );
+    });
+
+    it("rejects a maxBytes that is not a positive integer, and throws for a missing file", () => {
+        const file = path.join(dir, "a.txt");
+
+        expect(() => readTextSync(file, { maxBytes: 0, symbolicLinks: follow })).toThrow("maxBytes must be at least 1");
+        expect(() => readTextSync(file, { maxBytes: 1.5, symbolicLinks: follow })).toThrow(
+            "maxBytes must be an integer",
+        );
+        expect(() => readTextSync(path.join(dir, "missing.txt"), { maxBytes: 1, symbolicLinks: follow })).toThrow(
+            "ENOENT",
+        );
+    });
+
+    it("follows a symbolic link when asked to, and refuses it, naming it, when asked to refuse", async () => {
+        await Bun.write(path.join(dir, "target.txt"), "hi");
+        await symlink(path.join(dir, "target.txt"), path.join(dir, "link.txt"));
+        await symlink(path.join(dir, "missing.txt"), path.join(dir, "dangling.txt"));
+
+        expect(readTextSync(path.join(dir, "link.txt"), { maxBytes: 5, symbolicLinks: follow })).toBe("hi");
+        expect(readTextSync(path.join(dir, "target.txt"), { maxBytes: 5, symbolicLinks: "refuse" })).toBe("hi");
+        expect(() => readTextSync(path.join(dir, "link.txt"), { maxBytes: 5, symbolicLinks: "refuse" })).toThrow(
+            new SymbolicLinkError(path.join(dir, "link.txt")),
+        );
+        expect(() => readTextSync(path.join(dir, "dangling.txt"), { maxBytes: 5, symbolicLinks: "refuse" })).toThrow(
+            "is a symbolic link",
+        );
+    });
+
+    it("refuses a directory and a FIFO at once, without waiting for a writer", () => {
+        const fifo = path.join(dir, "pipe");
+        makeFifo(fifo);
+
+        expect(() => readTextSync(dir, { maxBytes: 5, symbolicLinks: follow })).toThrow(
+            "is a directory, not a regular file",
+        );
+        expect(() => readTextSync(fifo, { maxBytes: 5, symbolicLinks: follow })).toThrow(
+            `${fifo} is a FIFO, not a regular file`,
+        );
+    }, 1_000);
 });
 
 describe("readDir and readDirRecursive", () => {

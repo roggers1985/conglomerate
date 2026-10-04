@@ -1,0 +1,3 @@
+[test]
+# Clean test output (ADR 0059): fail a test on unexpected console output and unhandled errors.
+preload = ["./test/setup.ts"]

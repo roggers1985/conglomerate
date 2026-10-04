@@ -1,4 +1,4 @@
-import { constants, type Stats } from "node:fs";
+import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, type Stats, statSync } from "node:fs";
 import { type FileHandle, lstat, open, opendir, stat } from "node:fs/promises";
 import path from "node:path";
 import { assert } from "./assert.ts";
@@ -160,6 +160,75 @@ export async function readText(filePath: string, { maxBytes, signal, symbolicLin
 }
 
 /**
+ * Reads a regular text file (UTF-8) synchronously, after checking that it isn't larger than `maxBytes`.
+ *
+ * @remarks
+ * Only for code that cannot wait, such as a `console` method or a synchronous assertion. It takes no signal, because a
+ * synchronous read cannot be cancelled (ADR 0059); the size limit bounds it. Prefer {@link readText} everywhere else.
+ *
+ * It checks like `readText`: only regular files are read, and the caller must choose what happens at a symbolic link
+ * with `symbolicLinks`. A FIFO is refused before it is opened, and `"refuse"` opens with `O_NOFOLLOW`.
+ *
+ * @param filePath - The file to read.
+ * @param options.maxBytes - The largest file accepted, in bytes; at least 1.
+ * @param options.symbolicLinks - Whether to `"follow"` or `"refuse"` a path that is a symbolic link; required, see
+ *   `readText`.
+ * @returns The file's contents.
+ * @throws SymbolicLinkError when `symbolicLinks` is `"refuse"` and the path is a symbolic link, even a dangling one.
+ * @throws Error when the file, or the target of a followed link, isn't a regular file, naming what it is.
+ * @throws Error when the file is larger than `maxBytes`.
+ * @throws Error with code `ENOENT` when the file doesn't exist.
+ *
+ * @example
+ * ```ts
+ * const { mkdtemp, rm, symlink } = await import("node:fs/promises");
+ * const { tmpdir } = await import("node:os");
+ * const dir = await mkdtemp(`${tmpdir()}/files-`);
+ * await Bun.write(`${dir}/note.txt`, "hello");
+ * await symlink(`${dir}/note.txt`, `${dir}/link.txt`);
+ *
+ * expect(readTextSync(`${dir}/note.txt`, { maxBytes: 5, symbolicLinks: "refuse" })).toBe("hello");
+ * expect(() => readTextSync(`${dir}/note.txt`, { maxBytes: 4, symbolicLinks: "refuse" })).toThrow("over the limit of 4 bytes");
+ * expect(readTextSync(`${dir}/link.txt`, { maxBytes: 5, symbolicLinks: "follow" })).toBe("hello");
+ * expect(() => readTextSync(`${dir}/link.txt`, { maxBytes: 5, symbolicLinks: "refuse" })).toThrow("is a symbolic link");
+ *
+ * await rm(dir, { recursive: true });
+ * ```
+ */
+export function readTextSync(
+    filePath: string,
+    { maxBytes, symbolicLinks }: Pick<ReadOptions, "maxBytes" | "symbolicLinks">,
+): string {
+    assert(Number.isInteger(maxBytes), `maxBytes must be an integer, got ${maxBytes}`);
+    assert(maxBytes >= 1, `maxBytes must be at least 1, got ${maxBytes}`);
+
+    const isRefusingLinks = symbolicLinks === "refuse";
+    // Before opening: opening a FIFO waits for a writer.
+    const pathStats = isRefusingLinks ? lstatSync(filePath) : statSync(filePath);
+
+    if (pathStats.isSymbolicLink()) {
+        throw new SymbolicLinkError(filePath);
+    }
+
+    checkRegularFile(filePath, pathStats);
+
+    const fd = openForReadingSync(filePath, { isRefusingLinks });
+
+    try {
+        const stats = fstatSync(fd);
+        checkRegularFile(filePath, stats);
+
+        if (stats.size > maxBytes) {
+            throw new Error(`${filePath} is ${stats.size} bytes, over the limit of ${maxBytes} bytes`);
+        }
+
+        return readFileSync(fd, { encoding: "utf8" });
+    } finally {
+        closeSync(fd);
+    }
+}
+
+/**
  * Opens a file for reading. Non-blocking, so a path swapped for a FIFO since the first check still opens at once; the
  * check after opening refuses it. It changes nothing for a regular file. (Windows has no O_NONBLOCK, and no FIFOs at
  * a file path.) With `O_NOFOLLOW`, opening a symbolic link fails with `ELOOP`, so a link swapped in is refused too.
@@ -168,18 +237,34 @@ async function openForReading(
     filePath: string,
     { isRefusingLinks }: { readonly isRefusingLinks: boolean },
 ): Promise<FileHandle> {
-    const flags = constants.O_RDONLY | constants.O_NONBLOCK | (isRefusingLinks ? constants.O_NOFOLLOW : 0);
-
     try {
-        return await open(filePath, flags);
+        return await open(filePath, openFlags({ isRefusingLinks }));
     } catch (error: unknown) {
-        const isLink = isRefusingLinks && hasErrorCode(error, "ELOOP");
-
-        if (isLink) {
-            throw new SymbolicLinkError(filePath);
-        }
-        throw error;
+        throw linkErrorOr(error, filePath, { isRefusingLinks });
     }
+}
+
+/** The synchronous twin of `openForReading`. */
+function openForReadingSync(filePath: string, { isRefusingLinks }: { readonly isRefusingLinks: boolean }): number {
+    try {
+        return openSync(filePath, openFlags({ isRefusingLinks }));
+    } catch (error: unknown) {
+        throw linkErrorOr(error, filePath, { isRefusingLinks });
+    }
+}
+
+const openFlags = ({ isRefusingLinks }: { readonly isRefusingLinks: boolean }): number =>
+    constants.O_RDONLY | constants.O_NONBLOCK | (isRefusingLinks ? constants.O_NOFOLLOW : 0);
+
+/** A `SymbolicLinkError` for the `ELOOP` that `O_NOFOLLOW` gives on a link; any other error unchanged. */
+function linkErrorOr(
+    error: unknown,
+    filePath: string,
+    { isRefusingLinks }: { readonly isRefusingLinks: boolean },
+): unknown {
+    const isLink = isRefusingLinks && hasErrorCode(error, "ELOOP");
+
+    return isLink ? new SymbolicLinkError(filePath) : error;
 }
 
 const hasErrorCode = (error: unknown, code: string): boolean =>
