@@ -12,8 +12,8 @@ classification:
 stages:
   - { name: spec, level: guided, status: done }
   - { name: plan, level: trusted, status: done }
-  - { name: build, level: trusted, status: in-progress }
-  - { name: review, level: trusted, status: pending }
+  - { name: build, level: trusted, status: done }
+  - { name: review, level: trusted, status: in-progress }
   - { name: finish, level: trusted, status: pending }
 deviations: []
 ---
