@@ -19,14 +19,7 @@ This matters most in the owner's existing applications, where most changes happe
 ## Acceptance criteria
 
 - **AC-1**: THE SYSTEM SHALL say in `core.md`, in one line, that a migration meant to keep behaviour first gets a behaviour test that passes on the old code, and then on the new code unchanged.
-- **AC-2**: THE SYSTEM SHALL describe in `code-testing` how to write that behaviour test:
-  - write it before the migration, and see it pass on the old code;
-  - test at an interface that stays the same, never at internals;
-  - with old and new side by side, run one suite against both;
-  - when the code is replaced in place, commit the test before the swap, and leave it unchanged by the swap;
-  - assert every intended difference that the spec lists;
-  - when the old code can't run in a test, compare with its recorded outputs (a golden master);
-  - running both versions in production and comparing them is an option for high-risk migrations, not a rule.
+- **AC-2**: THE SYSTEM SHALL describe in `code-testing` how to write that behaviour test. It is written before the migration and seen to pass on the old code. It tests an interface that stays the same, never internals. Side by side, one suite runs against both versions; replaced in place, the test is committed before the swap and the swap leaves it unchanged. It asserts every intended difference the spec lists. When the old code can't run in a test, it compares with the old code's recorded outputs (a golden master). Running both versions in production and comparing them is an option for high-risk migrations, not a rule.
 - **AC-3**: WHEN a task moves code to another solution without meaning to change its behaviour, THE SYSTEM SHALL have triage add the migration-plan stage, as it does for schema and data changes.
 - **AC-4**: THE SYSTEM SHALL give the migration plan a template with these sections: Steps, Old and new side by side, Behaviour test, Verification and Rollback. The Behaviour test section names the interface it tests, its form (side by side, or in place), and where the old outputs come from when the old code can't run.
 - **AC-5**: WHEN the migration-plan stage is done, THE SYSTEM SHALL refuse a `migration-plan.md` that misses one of those sections, or has one empty, in the route check (`changes.js check`).
