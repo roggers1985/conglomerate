@@ -70,6 +70,7 @@ These conventions apply to all work in this session. They come from the factory 
 - Add tests for each feature you make, even when not explicitly asked, and make them extensive: unit tests for every edge case (found systematically: equivalence classes, boundaries, a fixed checklist), integration and component tests (Testing Library) for the largest part of the surface, and Playwright end-to-end tests for every key flow's happy path and critical failure paths.
 - Test behaviour, never implementation. Mock only the outer edges (network, clock, randomness). A flaky test is a bug.
 - Test output is clean: unexpected console output, warnings, unhandled errors or leaks are bugs (ADR 0059, `code-testing`).
+- **A migration meant to keep behaviour** (a library swap, a framework upgrade, a rewrite, a part replaced step by step) first gets a behaviour test that passes on the old code, and then passes on the new code unchanged (`code-testing`).
 
 ## Styling
 
