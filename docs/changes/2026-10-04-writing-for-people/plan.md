@@ -67,7 +67,7 @@ One new decision, recorded in ADR 0061: the writing convention, and the audience
 - Verify: `bun test scripts/skill-templates.test.ts` and `bun run check`
 - Depends on: T-1
 - Parallel: yes
-- Status: in-progress
+- Status: done
 
 ### T-3: Rewrite the checkup report template and teach docs-drift to spot hard-to-read text
 
@@ -94,4 +94,4 @@ One new decision, recorded in ADR 0061: the writing convention, and the audience
 - Verify: `bun run check`
 - Depends on: T-1
 - Parallel: no
-- Status: pending
+- Status: done
