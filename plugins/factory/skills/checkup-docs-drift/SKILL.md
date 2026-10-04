@@ -30,12 +30,23 @@ Outdated instructions are worse than none: agents follow them. This checkup keep
 7. **Glossaries** (`GLOSSARY.md` and similar): entries that no longer match the code, and concepts used in the docs or ADRs that have no entry yet.
 8. **Task lists** (`TODO.md` and similar): items that are already done according to the code or git history, and items that no longer make sense.
 9. **Code comments that state facts**: comments with numbers, dates or behaviour ("as of <date>", "N of M", "we do X because Y") that the code no longer matches.
+10. **Documentation for people that is hard to read** (`docs/**`, `README.md`: the audience by location, as the `writing-documentation` skill defines it). Look for:
+    - long sentences that carry several ideas;
+    - the conclusion at the end of a paragraph instead of the start;
+    - references (ADRs, files, links) in the middle of a sentence;
+    - terms that aren't explained where they first appear;
+    - prose where a list or table would do.
+
+    Report each with a concrete suggestion: the rewritten sentence or the new structure. "Hard to read" alone is not a finding. A rewrite keeps every number, name, path and condition; one that drops a fact is wrong.
+
+    Skip documents for agents first (`task.md` under `docs/`), accepted ADRs (never rewritten, see the protocol) and historical documents (see point 5).
 
 ## Fixes you may make yourself
 
 - Correct paths, names, commands, links, env var lists and outdated facts in docs and comments.
 - Remove task list items that are demonstrably done (cite the commit).
 - Fix ADR status lines and links, as long as no decision changes.
+- Small, clearly safe readability rewrites (point 10): split a sentence, move a conclusion to the start, move a reference to the end, explain a term. Every fact stays.
 
 ## Allowed production access
 
@@ -45,3 +56,4 @@ None.
 
 - Changing a convention, an architectural statement or an accepted decision. Propose a superseding ADR or a code fix instead.
 - Task list items where it's unclear whether they're done or still wanted.
+- Larger readability rewrites, such as a restructured section or prose turned into a table. Include the proposed text.
