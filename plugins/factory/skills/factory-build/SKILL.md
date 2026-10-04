@@ -14,6 +14,8 @@ The build turns the task list (`tasks.md`, or the Tasks section of `plan.md`) in
 - Work on the change's branch: `git switch change/<name>`. On the quick track, create it first from the default branch (`git switch -c change/<YYYY-MM-DD>-<short-name>`).
 - Set the build stage to `in-progress` in `task.md`, and commit.
 
+**When the route has a migration plan,** the first task writes the behaviour test the plan names and runs it on the old code, before any task changes the code under test (`code-testing`, "Migrations that keep behaviour"). A test that never passed on the old code proves nothing. In place, the test is committed before the swap. `verification.md` records that run under Checks: the command, the commit it ran on, and the result.
+
 ## Each task
 
 1. **Pick the next task:** the first `pending` one whose dependencies are all `done`. Set it to `in-progress` in the task list.

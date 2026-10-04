@@ -78,11 +78,44 @@ Small tasks, each a few minutes of work for one agent, in the order they're buil
 
 ## The migration-plan stage
 
-When the route has one, write `migration-plan.md` before the plan. It says how data or schemas change without losing anything, following `code-sql`:
-- the steps, each safe to release on its own;
-- how old and new code coexist during the migration;
-- how to verify each step;
-- how to roll back, or why a step can't be rolled back (the owner approves those explicitly).
+When the route has one, write `migration-plan.md` before the plan. It covers two kinds of migration:
+- **code that moves to another solution without changing its behaviour** (a library swap, a framework upgrade, a rewrite, a part replaced step by step). Its behaviour test follows `code-testing`, "Migrations that keep behaviour";
+- **schema and data changes**, without losing anything, following `code-sql`.
+
+```markdown
+# Migration plan: <title>
+
+## Steps
+
+The steps in order, each safe to release on its own. For each: what changes, and what the system looks like after
+it.
+
+## Old and new side by side
+
+How the old and new code coexist during the migration. For example: both behind the same interface, with a flag
+that chooses. Or: the old code is replaced in place in one step.
+
+## Behaviour test
+
+The test that shows the behaviour stayed the same. It passes on the old code first, then on the new code
+unchanged. Name:
+
+- the interface it tests: a public function, an endpoint or a command, never internals;
+- its form: side by side (one suite runs against both versions), or in place (committed before the swap);
+- where the recorded outputs come from when the old code can't run in a test (a golden master).
+
+For a schema or data migration without such code, say how the data is checked instead. For example: row counts and
+checksums before and after. Never leave this section empty.
+
+## Verification
+
+How to verify each step: the command or check, and what result shows the step worked.
+
+## Rollback
+
+How to roll back each step. Where a step can't be rolled back, say why. The owner approves each such step
+explicitly.
+```
 
 ## The gate
 
@@ -94,7 +127,8 @@ When the route has one, write `migration-plan.md` before the plan. It says how d
    - a `[NEEDS CLARIFICATION]` is still open;
    - a task lacks its files, criteria, verification or status;
    - a task depends on a later one;
-   - a criterion is left uncovered, or a task covers one the spec doesn't have.
+   - a criterion is left uncovered, or a task covers one the spec doesn't have;
+   - a done migration plan misses one of its five sections, or has one empty.
 5. Fix what it reports, then commit.
 
 When planning shows the change is bigger or riskier than triage thought, stop and re-triage (see `factory-triage`).

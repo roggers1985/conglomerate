@@ -3,6 +3,7 @@ import path from "node:path";
 import { readText, TEXT_BYTES_MAX } from "../lib/files.ts";
 import {
     intentProblems,
+    migrationPlanProblems,
     planProblems,
     reviewProblems,
     specProblems,
@@ -58,16 +59,22 @@ describe("the stage skills' templates", () => {
     });
 
     it("AC-5: the planning skill's plan template passes the plan gate", async () => {
-        const [plan = ""] = await templates("factory-planning", { count: 2 });
+        const [plan = ""] = await templates("factory-planning", { count: 3 });
 
         expect(planProblems(plan, { hasTasksSection: false })).toEqual([]);
     });
 
     it("AC-5: the planning skill's tasks template passes the task list gate", async () => {
-        const [, tasks = ""] = await templates("factory-planning", { count: 2 });
+        const [, tasks = ""] = await templates("factory-planning", { count: 3 });
         const criteria = criteriaNamed(tasks, { prefix: /^\s*[-*] Covers:/ });
 
         expect(taskListProblems(tasks, { file: "tasks.md", criteria })).toEqual([]);
+    });
+
+    it("AC-4: the planning skill's migration plan template passes the migration plan gate", async () => {
+        const [, , migrationPlan = ""] = await templates("factory-planning", { count: 3 });
+
+        expect(migrationPlanProblems(migrationPlan)).toEqual([]);
     });
 
     it("AC-5: the build skill's verification template passes the verification gate", async () => {
