@@ -33,7 +33,7 @@ The skill gives examples instead of numeric limits, such as words per sentence. 
 **The audience of a document follows from its location.** The skill holds the table of locations, and it is the only place that defines them. In short:
 
 - documentation in `docs/`, and the repository's `README.md`, `GLOSSARY.md` and `TODO.md`, is for people first;
-- instructions for agents are for agents first: `CLAUDE.md`, a change's `task.md`, and the plugin's skills, conventions, agents, commands and checkup protocol;
+- instructions for agents are for agents first: `CLAUDE.md`, a change's `task.md`, and skills, conventions, agents, commands and checkup instructions, in the plugin or in a project's `.claude/`;
 - generated files are out of scope.
 
 Most documents are read by both, and text that is readable for people is also clearer for agents. A marker per file, such as an emoji or a frontmatter field, was rejected. The location already says it, and a marker can be forgotten or go stale.

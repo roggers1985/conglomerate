@@ -14,10 +14,10 @@ Where a document lives decides who it is written for.
 | Location | Written for | What that means |
 |---|---|---|
 | `docs/` (except `task.md`), `README.md`, `GLOSSARY.md`, `TODO.md` | people first | Follow this skill. It stays usable for agents. |
-| `CLAUDE.md`, a change's `task.md`, and the plugin's `skills/`, `conventions/`, `agents/`, `commands/` and `checkups/` | agents first | Concise and direct. No style change required. |
+| `CLAUDE.md`, a change's `task.md`, and `skills/`, `conventions/`, `agents/`, `commands/` and `checkups/`, in the plugin or in a project's `.claude/` | agents first | Concise and direct. No style change required. |
 | Generated files (`CATALOG.md`, bundles, notices) | n/a | Out of scope: the generator rewrites them. |
 
-A file in none of these rows: ask who reads it first, and propose adding it here.
+A file in none of these rows: ask who reads it first, follow that row, and propose to the owner to add it here.
 
 Most documents are read by both. Text that is readable for people is also clearer for agents. Code comments and TSDoc follow `code-documentation`.
 
@@ -36,7 +36,7 @@ There are no numeric limits, such as words per sentence: a count invites countin
 
 ## Examples
 
-**Dense: several ideas, semicolons, a path in the middle.** From the pr-body plan:
+**Dense: several ideas joined by semicolons.** From the pr-body plan:
 
 > A pure renderer turns a change's parsed documents into the description; a thin command collects the inputs, refuses what isn't ready, and prints. All of it in unit `factory` (`plugins/factory/scripts/`), no new dependencies.
 
