@@ -57,7 +57,7 @@ After the last task, verify the whole change on `change/<name>`:
 ## Checks
 
 - `bun run check`: passed (312 tests)
-- Ran the app and exported 3 jobs: the CSV opened in a spreadsheet with the right columns.
+- Ran the app and exported 3 jobs. The CSV opened in a spreadsheet, with the right columns.
 
 ## Evidence
 
