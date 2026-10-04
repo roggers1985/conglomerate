@@ -2,55 +2,101 @@
 
 ## Approach
 
-A pure renderer turns a change's parsed documents into the description; a thin command collects the inputs, refuses what isn't ready, and prints. All of it in unit `factory` (`plugins/factory/scripts/`), no new dependencies.
+The description is built in two parts:
 
-1. **Parsing helpers** in `stage-gates.ts`, next to the gates that already read these formats: the criteria with their text and whether they're dropped, the evidence per criterion, and the review findings as rows. The gates keep their own checks; the helpers expose what they already parse, so the formats are read in one place.
-2. **`decision-records.ts`**: the decision records added on the branch, from git (`git diff --name-only --diff-filter=A <base>...HEAD -- docs/decisions`), each with whether its status is Proposed. git runs with an argument list, never through a shell, with the caller's signal plus a timeout. The base branch is checked first (`git rev-parse --verify --quiet`).
-3. **`pr-body.ts`**: `renderPrBody(inputs)`, a pure function from the parsed documents to Markdown, which refuses a description over the limit. Pure, so it is deterministic (AC-9) and easy to test.
-4. **`changes.ts`**: the `pr-body <change folder> [--base <branch>]` subcommand. It reads the change with every gate applied (AC-7), refuses while a stage before `finish` is pending or in progress (AC-6), runs the git part, renders, and prints only when everything succeeded (AC-1).
-5. **`factory-finish`**: uses the command instead of assembling by hand.
+- a **renderer**: a pure function (no I/O, same input gives the same output) that turns the change's parsed documents into the description;
+- a thin **command**: it collects the inputs, refuses a change that isn't ready, and prints the result.
+
+Both live in unit `factory`, with no new dependencies (`plugins/factory/scripts/`).
+
+The work comes in five steps:
+
+1. **Parsing helpers in `stage-gates.ts`.** They sit next to the gates that already read these formats, and expose:
+   - the criteria, with their text and whether they're dropped;
+   - the evidence per criterion;
+   - the review findings, as rows.
+
+   The gates keep their own checks. The helpers only expose what the gates already parse, so the formats are read in one place.
+2. **`decision-records.ts`** finds the decision records added on the branch, each with whether its status is Proposed.
+   - It checks the base branch first (`git rev-parse --verify --quiet`).
+   - It then asks git for the added records (`git diff --name-only --diff-filter=A <base>...HEAD -- docs/decisions`).
+   - git runs with an argument list, never through a shell. It takes the caller's signal plus a timeout, so it can be cancelled and can't hang.
+3. **`pr-body.ts`** holds `renderPrBody(inputs)`: a pure function from the parsed documents to Markdown. It refuses a description over the limit. Because it is pure, it is deterministic (AC-9) and easy to test.
+4. **`changes.ts`** gets the `pr-body <change folder> [--base <branch>]` subcommand. It:
+   - reads the change with every gate applied (AC-7);
+   - refuses while a stage before `finish` is pending or in progress (AC-6);
+   - runs the git part and renders;
+   - prints only when everything succeeded (AC-1).
+5. **`factory-finish`** uses the command instead of assembling the description by hand.
 
 ## Files and data
 
-- `plugins/factory/scripts/stage-gates.ts` and its test: three exported helpers (`criteria`, `evidence`, `reviewFindings`).
-- `plugins/factory/scripts/decision-records.ts` and its test (new): `addedDecisionRecords(projectDir, { base, signal })`.
-- `plugins/factory/scripts/pr-body.ts` and its test (new): `renderPrBody`, `PR_BODY_LENGTH_MAX = 65_536`.
-- `plugins/factory/scripts/changes.ts` and its test: the subcommand; `dist/changes.js` regenerated.
-- `plugins/factory/skills/factory-finish/SKILL.md`, `TODO.md` (the item is done), `GLOSSARY.md` if needed.
-- No data or schema changes. Limits from the spec: 65,536 characters, 1 MiB per document (existing), at most 100 decision records.
+The work touches four scripts with their tests, one skill and two documents.
+
+| File | What changes |
+|---|---|
+| `plugins/factory/scripts/stage-gates.ts` and its test | Three exported helpers: `criteria`, `evidence` and `reviewFindings`. |
+| `plugins/factory/scripts/decision-records.ts` and its test (new) | `addedDecisionRecords(projectDir, { base, signal })`. |
+| `plugins/factory/scripts/pr-body.ts` and its test (new) | `renderPrBody`, and `PR_BODY_LENGTH_MAX = 65_536`. |
+| `plugins/factory/scripts/changes.ts` and its test | The subcommand. `dist/changes.js` is regenerated. |
+| `plugins/factory/skills/factory-finish/SKILL.md` | Uses the command. |
+| `TODO.md` | The item is done. |
+| `GLOSSARY.md` | Only if needed. |
+
+No data or schema changes.
+
+The limits come from the spec:
+
+- the description: at most 65,536 characters;
+- each document: at most 1 MiB (the existing limit);
+- decision records: at most 100.
 
 ## Trade-offs
 
-- **Decision records from git, or from the documents' mentions of "ADR NNNN":** git, as the spec says. Mentions miss records written during the build. The cost is the plugin's first subprocess, so cancellation and a timeout need care (ADR 0012).
-- **Helpers in `stage-gates.ts`, or a separate parser module:** in `stage-gates.ts`, because the gates already hold the regular expressions for these formats; a second copy would drift. The simplest option.
-- **One file for everything:** rejected. A pure renderer next to an I/O-heavy command keeps the deterministic part testable without git.
+**Decision records: from git, or from the documents' mentions of "ADR NNNN"?** From git, as the spec says. Mentions miss records written during the build. The cost: git becomes the plugin's first subprocess, so cancellation and a timeout need care (ADR 0012).
+
+**The helpers: in `stage-gates.ts`, or in a separate parser module?** In `stage-gates.ts`. The gates already hold the regular expressions for these formats, and a second copy would drift. It is also the simplest option.
+
+**One file for everything?** Rejected. A pure renderer in its own file, next to the I/O-heavy command, keeps the deterministic part testable without git.
 
 ## Costs
 
-Negligible. At most six documents of at most 1 MiB, in practice a few KB each; one `git rev-parse` and one `git diff`, each well under a second; at most 100 small decision records read for their status line; output at most 64 KB. No batching needed.
+Negligible, so no batching is needed.
+
+| What | How much |
+|---|---|
+| Documents read | At most six, of at most 1 MiB each. In practice a few KB each. |
+| git calls | One `git rev-parse` and one `git diff`, each well under a second. |
+| Decision records read | At most 100 small ones, each only for its status line. |
+| Output | At most 64 KB. |
 
 ## Conventions and decisions
 
-Follows the conventions and ADRs. In particular:
-- cancellation for git and file reads, with a timeout through the same signal (ADR 0012, `code-cancellation`);
-- bounds with tests on both sides: description length, decision records (ADR 0032, 0034);
-- parse, don't validate: git's output is parsed into paths, documents through the existing gates (ADR 0020);
-- fail fast: refuse instead of printing a partial or truncated description (ADR 0048);
-- results as objects or discriminated unions where an outcome is data (ADR 0017, 0041);
-- TSDoc with tested examples on every export (ADR 0016).
+This plan follows the conventions and ADRs. The ones that matter most here:
 
-No new decision needs an ADR: the change implements what ADR 0056 left to a script.
+- **Cancellation:** git and file reads can be cancelled, with a timeout through the same signal (ADR 0012, `code-cancellation`).
+- **Bounds:** the description's length and the number of decision records are limited, with tests on both sides of each limit (ADR 0032, 0034).
+- **Parse, don't validate:** git's output is parsed into paths, and the documents are parsed through the existing gates (ADR 0020).
+- **Fail fast:** refuse instead of printing a partial or truncated description (ADR 0048).
+- **Results as data:** objects or discriminated unions where an outcome is data (ADR 0017, 0041).
+- **Documentation:** TSDoc with tested examples on every export (ADR 0016).
+
+No new decision needs an ADR. The change implements what ADR 0056 left to a script.
 
 ## Deviations
 
-The security review (`security-review.md`) and the review (`review.md`) led to changes beyond the planned files, each with its reason there:
+The security review and the review led to changes beyond the planned files. The reason for each is in those documents (`security-review.md`, `review.md`).
 
-- `lib/files.ts`: `readText` and `readJson` refuse non-regular files and take a required `symbolicLinks` choice, and every call site passes one (security findings 1, 5 and 8; review finding 2).
-- `decision-records.ts` reads records from git blobs instead of the working tree (security finding 1).
-- `changes.ts`: the project folder comes from the change folder, change documents and folders may not be links, refusals are single `✗` lines, and `status`/`reminder` report one broken change as invalid instead of failing (security findings 2, 5 and 7).
-- `checkups.ts`, `settings.ts`: a linked checkup schedule, project checkup skill or `.claude/factory.json` is refused and reported as invalid with a readable reason, instead of being followed (review findings 2, 11, 15 and 16).
-- `stage-gates.ts`: five expressions made linear (security findings 4 and 6).
-- ADR 0060 records the decisions; CLAUDE.md and ADR 0056 follow it (review finding 3).
+- **`lib/files.ts`:** `readText` and `readJson` refuse files that aren't regular files. They take a required `symbolicLinks` choice, and every call site passes one (security findings 1, 5 and 8; review finding 2).
+- **`decision-records.ts`** reads records from git blobs instead of the working tree (security finding 1).
+- **`changes.ts`** changes in four ways (security findings 2, 5 and 7):
+  - the project folder comes from the change folder;
+  - change documents and folders may not be symbolic links;
+  - refusals are single `✗` lines;
+  - `status` and `reminder` report one broken change as invalid, instead of failing.
+- **`checkups.ts`, `settings.ts`:** a checkup schedule, project checkup skill or `.claude/factory.json` that is a symbolic link is refused instead of followed. It is reported as invalid, with a readable reason (review findings 2, 11, 15 and 16).
+- **`stage-gates.ts`:** five regular expressions now run in linear time (security findings 4 and 6).
+- **ADR 0060** records these decisions. CLAUDE.md and ADR 0056 follow it (review finding 3).
 
 ## Tasks
 
