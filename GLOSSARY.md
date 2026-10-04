@@ -84,7 +84,7 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Hotspot and change coupling.** From git history: a *hotspot* is a file that changes often and is complex; *change coupling* means files that keep changing in the same commits. Both point to where an architecture hurts.
 
-**Strangler fig.** Replacing part of a system step by step, with the old and new side by side behind a stable interface, until the old part can be removed. The alternative to a big-bang rewrite.
+**Strangler fig.** Replacing part of a system step by step, with the old and new side by side behind a stable interface, until the old part can be removed. The alternative to a big-bang rewrite. *Here:* a behaviour test runs against both sides (ADR 0062).
 
 **Readiness.** *Here:* `docs/readiness.md`, which compares the factory with alternatives such as Superpowers, Spec Kit and OpenSpec, and tracks the criteria for publishing it. The `readiness` checkup keeps it current (ADR 0050).
 
@@ -167,6 +167,10 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 **Property-based test.** Instead of listing example inputs, stating a property that must always hold ("sorting twice gives the same result") and letting a tool generate hundreds of inputs to try to break it.
 
 **Mutation testing.** Making small deliberate changes (mutations) to the code and checking that some test fails. It measures whether tests actually catch bugs, which coverage can't.
+
+**Behaviour test (characterization test).** A test that records what existing code does now, not what someone thinks it should do. Written before a change, it shows afterwards whether the behaviour stayed the same. The term "characterization test" is Michael Feathers'. *Here:* a migration meant to keep behaviour (a library swap, a framework upgrade, a rewrite, a part replaced step by step) first gets one. It passes on the old code, then on the new code unchanged. The migration plan names it, the first build task writes it and runs it on the old code, and the review checks it wasn't changed (`code-testing`, ADR 0062).
+
+**Golden master.** The real outputs of existing code, recorded once and kept as the expected result. New code is compared with them. Used when the old code can't run in a test, for example because it calls an external service, is too slow or needs production data. *Here:* the form a behaviour test takes in that case. The recording lives in the repository like other test data, and the migration plan says where it comes from (`code-testing`, ADR 0062).
 
 **Coverage.** Which lines of code the tests ran. It shows what isn't tested, but not whether what is tested is tested well.
 
