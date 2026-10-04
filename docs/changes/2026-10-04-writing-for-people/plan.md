@@ -76,7 +76,7 @@ One new decision, recorded in ADR 0061: the writing convention, and the audience
 - Verify: `bun run check`
 - Depends on: T-1
 - Parallel: yes
-- Status: in-progress
+- Status: done
 
 ### T-4: Rewrite the pr-body plan as the first example
 
@@ -85,7 +85,7 @@ One new decision, recorded in ADR 0061: the writing convention, and the audience
 - Verify: `bun plugins/factory/dist/changes.js check docs/changes/2026-10-02-pr-body/task.md` (the plan still passes its gate), and a side-by-side reading that nothing in it changed meaning
 - Depends on: T-1
 - Parallel: yes
-- Status: in-progress
+- Status: done
 
 ### T-5: Record the decision
 
