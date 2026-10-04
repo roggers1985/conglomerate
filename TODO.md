@@ -19,6 +19,8 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 - [ ] Autonomy levels, next steps (ADR 0044):
   - hooks that enforce what can be enforced, e.g. block `gh pr merge` at `guided`, and force-pushes and edits to accepted ADRs at every level.
 
+- [ ] `changes status` and the session-start reminder follow a committed `docs/changes` symbolic link, so titles of another project's changes could appear in the session context (never in a pull request). Compare `realpath(docs/changes)` with the project's own in `readChanges`, and report one invalid entry when they differ (security review of the pr-body change, residual risk 1)
+
 ## Factory stages
 
 Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, Kiro, and Anthropic's AI-native SDLC playbook.
@@ -29,7 +31,6 @@ To do:
 
 To consider:
 
-- [ ] A script that assembles a change's pull request description from its documents (`changes.js pr-body <change>`): route, criteria with evidence, review summary, ADRs (ADR 0056; done by hand today)
 - [ ] A script that checks the evidence in `verification.md`: each named test exists and names its criterion (today the gate checks that evidence is named, and the review agent checks that it holds, ADR 0054, 0055)
 - [ ] A skill for writing skills in the owner's style (Superpowers' `writing-skills`)
 - [ ] A systematic debugging skill (Superpowers)

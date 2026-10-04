@@ -67,7 +67,7 @@ export async function readPackageNotice(
     const dir = path.join(nodeModulesDir, name);
     const manifest = parse(
         PackageJsonSchema,
-        await readJson(path.join(dir, "package.json"), { maxBytes: JSON_BYTES_MAX, signal }),
+        await readJson(path.join(dir, "package.json"), { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "follow" }),
     );
 
     if (manifest.kind === "invalid") {
@@ -81,7 +81,11 @@ export async function readPackageNotice(
         throw new Error(`${name} ships no LICENSE file, so its notice can't be generated`);
     }
 
-    const licenseText = await readText(path.join(dir, licenseFile), { maxBytes: TEXT_BYTES_MAX, signal });
+    const licenseText = await readText(path.join(dir, licenseFile), {
+        maxBytes: TEXT_BYTES_MAX,
+        signal,
+        symbolicLinks: "follow",
+    });
 
     return {
         name,
@@ -170,7 +174,7 @@ export async function renderLegalFiles({
 }): Promise<GeneratedFiles> {
     const nodeModulesDir = path.join(repositoryRoot, "node_modules");
     const [license, notices] = await Promise.all([
-        readText(path.join(repositoryRoot, "LICENSE"), { maxBytes: TEXT_BYTES_MAX, signal }),
+        readText(path.join(repositoryRoot, "LICENSE"), { maxBytes: TEXT_BYTES_MAX, signal, symbolicLinks: "follow" }),
         Promise.all(
             [...packages].map(([name, bundles]) => readPackageNotice(name, { nodeModulesDir, bundles, signal })),
         ),

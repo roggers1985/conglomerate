@@ -120,7 +120,9 @@ async function validateManifest(
     { entry, signal }: ValidateOptions & { readonly entry: MarketplaceEntry },
 ): Promise<string[]> {
     const manifestPath = path.join(pluginDir, ".claude-plugin", "plugin.json");
-    const manifest = parsePluginManifest(await readJson(manifestPath, { maxBytes: JSON_BYTES_MAX, signal }));
+    const manifest = parsePluginManifest(
+        await readJson(manifestPath, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "follow" }),
+    );
 
     if (manifest.kind === "invalid") {
         return manifest.errors.map((error) => `plugin.json: ${error}`);
@@ -139,9 +141,11 @@ async function validateGenerated(
 ): Promise<string[]> {
     const routes = await readRoutes({ signal });
     const { skills, errors } = await readPluginSkills(pluginDir, { routes, signal });
-    const catalog = await readText(path.join(pluginDir, CATALOG_FILE), { maxBytes: TEXT_BYTES_MAX, signal }).catch(
-        whenMissing(null),
-    );
+    const catalog = await readText(path.join(pluginDir, CATALOG_FILE), {
+        maxBytes: TEXT_BYTES_MAX,
+        signal,
+        symbolicLinks: "follow",
+    }).catch(whenMissing(null));
     const catalogIsCurrent = catalog === renderCatalog(skills, { routes });
     const catalogErrors = catalogIsCurrent ? [] : [`${CATALOG_FILE} is out of date: run \`bun run generate\``];
     const [agents, bundles, currentBundles] = await Promise.all([
@@ -177,7 +181,9 @@ async function readExistingFiles(
 ): Promise<ReadonlyMap<string, string>> {
     const contents = await Promise.all(
         fileNames.map((fileName) =>
-            readText(path.join(dir, fileName), { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null)),
+            readText(path.join(dir, fileName), { maxBytes: TEXT_BYTES_MAX, signal, symbolicLinks: "follow" }).catch(
+                whenMissing(null),
+            ),
         ),
     );
 
@@ -219,7 +225,9 @@ async function validatePlugin(
  */
 export async function validateRepository(root: string, { signal }: ValidateOptions): Promise<RepositoryValidation> {
     const marketplacePath = path.join(root, ".claude-plugin", "marketplace.json");
-    const marketplace = parseMarketplace(await readJson(marketplacePath, { maxBytes: JSON_BYTES_MAX, signal }));
+    const marketplace = parseMarketplace(
+        await readJson(marketplacePath, { maxBytes: JSON_BYTES_MAX, signal, symbolicLinks: "follow" }),
+    );
 
     if (marketplace.kind === "invalid") {
         return { errors: marketplace.errors.map((error) => `marketplace.json: ${error}`) };

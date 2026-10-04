@@ -37,12 +37,14 @@ First check that the route is ready: every stage before *finish* is `done` or `s
 
 ### The pull request
 
-Title it after the change, and build its description from the change's documents, so the reviewer has everything in one place:
+Title it after the change. Build its description with the command `bun "${CLAUDE_PLUGIN_ROOT}/dist/changes.js" pull-request-description docs/changes/<name>` (add `--base <branch>` when the default branch isn't `main`). The command refuses while a stage before *finish* isn't done, or a document fails its gate—fix what it reports instead of writing the description by hand. It produces:
 
 - the route (the track, the stages, and the deviations with their reasons);
 - the acceptance criteria from `spec.md`, each with its evidence from `verification.md`;
 - the review's summary, and any findings that were accepted rather than fixed, with their reasons;
 - the ADRs the change added, marking those that are *Proposed*.
+
+Pass its output to `gh pr create --body-file -` (or a temporary file), and add the attribution line Claude uses for pull requests at the end (ADR 0056).
 
 ## Cleaning up
 

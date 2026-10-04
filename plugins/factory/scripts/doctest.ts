@@ -299,7 +299,9 @@ async function main(): Promise<void> {
         files.map(async (file) => ({
             file,
             label: path.relative(process.cwd(), file),
-            exports: findDocumentedExports(await readText(file, { maxBytes: TEXT_BYTES_MAX, signal })),
+            exports: findDocumentedExports(
+                await readText(file, { maxBytes: TEXT_BYTES_MAX, signal, symbolicLinks: "follow" }),
+            ),
         })),
     );
     const problems = modules.flatMap(({ label, exports }) =>

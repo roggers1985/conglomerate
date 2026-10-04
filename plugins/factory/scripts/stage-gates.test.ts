@@ -1,10 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import {
     criteriaIds,
+    criteria as criteriaOf,
+    evidence as evidenceOf,
     INTENT_SECTIONS,
     intentProblems,
     PLAN_SECTIONS,
     planProblems,
+    reviewFindings,
     reviewProblems,
     SPEC_SECTIONS,
     specProblems,
@@ -423,5 +426,166 @@ describe("reviewProblems", () => {
 
         expect(check(review(...rows(200)))).toEqual([]);
         expect(check(review(...rows(201)))).toEqual(["review.md has more than 200 findings: go back to planning"]);
+    });
+});
+
+describe("section headings", () => {
+    it("reads a 1 MiB heading line in linear time", () => {
+        const heading = `## Problem${" ".repeat(1024 * 1024)}x\n`;
+        const startedAt = performance.now();
+
+        intentProblems(heading);
+
+        expect(performance.now() - startedAt).toBeLessThan(200);
+    });
+
+    it("ignores trailing whitespace in a heading", () => {
+        const text = INTENT_SECTIONS.map((heading) => `## ${heading}   \n\nSomething.\n`).join("\n");
+
+        expect(intentProblems(text)).toEqual([]);
+    });
+});
+
+describe("label lines with a long run of whitespace", () => {
+    const longLines = (prefix: string): string[] => [
+        `${prefix} ${" ".repeat(1024 * 1024)}x\r`,
+        `${prefix} ${" ".repeat(1024 * 1024)}`,
+    ];
+    const expectFast = (run: () => unknown) => {
+        const startedAt = performance.now();
+
+        run();
+
+        expect(performance.now() - startedAt).toBeLessThan(200);
+    };
+
+    it("reads a security answer in linear time", () => {
+        for (const line of longLines("- Authentication:")) {
+            expectFast(() => specProblems(spec(ac1, new Map([["Security", line]])), { needsProblem: false }));
+        }
+    });
+
+    it("reads an evidence line in linear time", () => {
+        for (const line of longLines("- AC-1:")) {
+            expectFast(() => evidenceOf(`## Evidence\n\n${line}`));
+            expectFast(() => verificationProblems(`## Checks\n\nx\n\n## Evidence\n\n${line}`, { criteria: null }));
+        }
+    });
+
+    it("reads a task heading and a task field in linear time", () => {
+        for (const line of longLines("### T-1:")) {
+            expectFast(() => taskListProblems(line, { file: "tasks.md", criteria: null }));
+        }
+
+        for (const line of longLines("- Files:")) {
+            expectFast(() => taskListProblems(`### T-1: a\n\n${line}`, { file: "tasks.md", criteria: null }));
+        }
+    });
+
+    it("still reads a label whose value ends in a carriage return", () => {
+        expect(evidenceOf("## Evidence\n\n- AC-1: proof\r")).toEqual(new Map([["AC-1", "proof"]]));
+    });
+});
+
+describe("criteria", () => {
+    const specWith = (...lines: readonly string[]) =>
+        `## Acceptance criteria\n\n${lines.join("\n")}\n\n## Edge cases\n\nNone.`;
+
+    it("AC-3: lists each criterion's text, in order", () => {
+        const text = specWith(
+            "- **AC-1**: WHEN the owner exports, THE SYSTEM SHALL download a CSV.",
+            "- **AC-2**: THE SYSTEM SHALL log the export.",
+        );
+
+        expect(criteriaOf(text)).toEqual([
+            { id: "AC-1", text: "WHEN the owner exports, THE SYSTEM SHALL download a CSV.", isDropped: false },
+            { id: "AC-2", text: "THE SYSTEM SHALL log the export.", isDropped: false },
+        ]);
+    });
+
+    it("AC-3: marks a dropped criterion and strips the marker from its text", () => {
+        const text = specWith(
+            "- **AC-1** (dropped): THE SYSTEM SHALL print.",
+            "- **AC-2**: (dropped) THE SYSTEM SHALL zip.",
+            "- **AC-3**: THE SYSTEM SHALL export. (dropped)",
+        );
+
+        expect(criteriaOf(text)).toEqual([
+            { id: "AC-1", text: "THE SYSTEM SHALL print.", isDropped: true },
+            { id: "AC-2", text: "THE SYSTEM SHALL zip.", isDropped: true },
+            { id: "AC-3", text: "THE SYSTEM SHALL export.", isDropped: true },
+        ]);
+    });
+
+    it("AC-3: accepts * bullets and ignores lines that aren't criteria", () => {
+        const text = specWith("Intro text.", "* **AC-1**: THE SYSTEM SHALL export.", "- not a criterion");
+
+        expect(criteriaOf(text)).toEqual([{ id: "AC-1", text: "THE SYSTEM SHALL export.", isDropped: false }]);
+    });
+
+    it("AC-3: gives an empty list without the section or without criteria", () => {
+        expect(criteriaOf("## Edge cases\n\nNone.")).toEqual([]);
+        expect(criteriaOf("## Acceptance criteria\n\n")).toEqual([]);
+    });
+
+    it("only reads the Acceptance criteria section", () => {
+        expect(criteriaOf("## Limits\n\n- **AC-9**: THE SYSTEM SHALL.")).toEqual([]);
+    });
+});
+
+describe("evidence", () => {
+    it("AC-3: maps each criterion to its evidence text", () => {
+        const verification = [
+            "## Checks\n\n`bun run check`: passed",
+            "## Evidence\n\n- AC-1: `a.test.ts` > exports\n* AC-2:   `b.test.ts` > logs  \n",
+        ].join("\n\n");
+
+        expect(evidenceOf(verification)).toEqual(
+            new Map([
+                ["AC-1", "`a.test.ts` > exports"],
+                ["AC-2", "`b.test.ts` > logs"],
+            ]),
+        );
+    });
+
+    it("AC-3: leaves out criteria with empty evidence", () => {
+        expect(evidenceOf("## Evidence\n\n- AC-1:\n- AC-2: `x.test.ts`")).toEqual(new Map([["AC-2", "`x.test.ts`"]]));
+    });
+
+    it("AC-3: is empty without the section", () => {
+        expect(evidenceOf("## Checks\n\n- AC-1: not evidence").size).toBe(0);
+        expect(evidenceOf("## Evidence\n\n").size).toBe(0);
+    });
+});
+
+describe("reviewFindings", () => {
+    const header = "| # | Severity | Finding | Where | Status |\n| - | - | - | - | - |";
+    const review = (...rows: readonly string[]) =>
+        `## Summary\n\nGood.\n\n## Findings\n\n${header}\n${rows.join("\n")}`;
+
+    it("AC-4: returns the rows as trimmed objects, skipping header and separator", () => {
+        const rows = ["| 1 | high | No auth check | `api.ts:9` | fixed |", "|2|low|Typo|`b.ts:1`|accepted: harmless|"];
+
+        expect(reviewFindings(review(...rows))).toEqual([
+            { id: "1", severity: "high", finding: "No auth check", where: "`api.ts:9`", status: "fixed" },
+            { id: "2", severity: "low", finding: "Typo", where: "`b.ts:1`", status: "accepted: harmless" },
+        ]);
+    });
+
+    it("AC-4: keeps an escaped pipe inside its cell", () => {
+        const [finding] = reviewFindings(review("| 1 | low | `a \\| b` is unclear | `c.ts:1` | fixed |"));
+
+        expect(finding?.finding).toBe("`a \\| b` is unclear");
+    });
+
+    it("AC-4: gives an empty list for None., an empty section or no table", () => {
+        expect(reviewFindings("## Summary\n\nGood.\n\n## Findings\n\nNone.")).toEqual([]);
+        expect(reviewFindings("## Findings\n\n")).toEqual([]);
+        expect(reviewFindings("## Summary\n\nGood.")).toEqual([]);
+        expect(reviewFindings(review())).toEqual([]);
+    });
+
+    it("skips rows that don't have five columns", () => {
+        expect(reviewFindings(review("| 1 | low | Typo |"))).toEqual([]);
     });
 });

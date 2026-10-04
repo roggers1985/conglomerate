@@ -3,17 +3,24 @@
 //   bun changes.ts check <task.md>      validates one task document; exits 1 with the problems when it's invalid
 //   bun changes.ts status [projectDir]  the unfinished changes and where each one stopped
 //   bun changes.ts reminder [projectDir] SessionStart hook output; prints nothing when no change is unfinished
+//   bun changes.ts pull-request-description <change folder> [--base <branch>]
+//                                       the change's pull request description (ADR 0056); --base is the branch it
+//                                       merges into, `main` by default. Refuses, printing nothing, while a stage before
+//                                       finish isn't done or a document fails its gate
 
+import { realpath } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { mapConcurrent } from "../../../lib/concurrency.ts";
-import { readDir, readText, TEXT_BYTES_MAX, whenMissing } from "../../../lib/files.ts";
+import { readDir, readText, SymbolicLinkError, TEXT_BYTES_MAX, whenMissing } from "../../../lib/files.ts";
 import { parseFrontmatter } from "../../../lib/frontmatter.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
 import type { Parsed } from "../../../lib/parse.ts";
 import { parse } from "../../../lib/parse.ts";
 import { requiredText } from "../../../lib/schemas.ts";
+import { addedDecisionRecords } from "./decision-records.ts";
 import { resolveProjectDir } from "./project-dir.ts";
+import { renderPullRequestDescription } from "./pull-request-description.ts";
 import { AUTONOMY_LEVELS } from "./settings.ts";
 import {
     criteriaIds,
@@ -385,14 +392,42 @@ export function changesReminder(changes: readonly Change[]): {
     };
 }
 
+/**
+ * Reads one document of a change folder, or null when it doesn't exist. The only way the change's documents are read:
+ * it refuses a symbolic link (atomically, see `readText`), because a committed link could point outside the
+ * repository and its target would end up in a pull request description. Links in the folders above it are caught by
+ * `locateChange`.
+ */
+async function readChangeDocument(
+    changeDir: string,
+    file: string,
+    { signal }: { readonly signal: AbortSignal },
+): Promise<string | null> {
+    const documentPath = path.join(changeDir, file);
+
+    try {
+        return await readText(documentPath, { maxBytes: TEXT_BYTES_MAX, signal, symbolicLinks: "refuse" }).catch(
+            whenMissing(null),
+        );
+    } catch (error: unknown) {
+        if (error instanceof SymbolicLinkError) {
+            throw new Error(
+                `${CHANGES_DIR}/${path.basename(changeDir)}/${file} is a symbolic link: a change's documents must be regular files`,
+                { cause: error },
+            );
+        }
+        throw error;
+    }
+}
+
 async function readTaskDocument(
-    taskFile: string,
+    changeDir: string,
     { signal }: { readonly signal: AbortSignal },
 ): Promise<Parsed<TaskDocument>> {
-    const markdown = await readText(taskFile, { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
+    const markdown = await readChangeDocument(changeDir, "task.md", { signal });
 
     if (markdown === null) {
-        return { kind: "invalid", errors: ["has no task.md"] };
+        return { kind: "invalid", errors: [`has no task.md: ${path.join(changeDir, "task.md")} doesn't exist`] };
     }
 
     try {
@@ -409,53 +444,49 @@ async function readTaskDocument(
     }
 }
 
+/** A change's task document with the stage documents that passed the gates of its done stages. */
+type GatedChange = { readonly task: TaskDocument; readonly documents: StageDocuments };
+
 /**
- * A change's task document, with the gates of its done stages applied. `gates: "unfinished"` skips the gates of a
- * change whose every stage is done or skipped, so session start doesn't read the documents of the whole history.
+ * Reads the stage documents of a change whose task document is valid, and applies the gates of its done stages. The
+ * documents returned are the ones that passed, so a caller renders what was checked. Rejects when a document can't be
+ * read, e.g. one that is a symbolic link or a FIFO.
+ */
+async function readGatedChange(
+    changeDir: string,
+    task: TaskDocument,
+    { signal }: { readonly signal: AbortSignal },
+): Promise<Parsed<GatedChange>> {
+    const readDocument = (file: string): Promise<string | null> => readChangeDocument(changeDir, file, { signal });
+    const [intent, spec, plan, tasks, verification, spike, review, securityReview] = await Promise.all([
+        readDocument("intent.md"),
+        readDocument("spec.md"),
+        readDocument("plan.md"),
+        readDocument("tasks.md"),
+        readDocument("verification.md"),
+        readDocument("spike.md"),
+        readDocument("review.md"),
+        readDocument("security-review.md"),
+    ]);
+    const documents: StageDocuments = { intent, spec, plan, tasks, verification, spike, review, securityReview };
+    const problems = gateProblems(task, documents);
+
+    return problems.length === 0
+        ? { kind: "valid", value: { task, documents } }
+        : { kind: "invalid", errors: problems };
+}
+
+/**
+ * A change's task document with its stage documents, the gates of its done stages applied. Rejects when a document
+ * can't be read, e.g. one that is a symbolic link or a FIFO.
  */
 async function readChange(
     changeDir: string,
-    { gates, signal }: { readonly gates: "always" | "unfinished"; readonly signal: AbortSignal },
-): Promise<Parsed<TaskDocument>> {
-    const task = await readTaskDocument(path.join(changeDir, "task.md"), { signal });
+    { signal }: { readonly signal: AbortSignal },
+): Promise<Parsed<GatedChange>> {
+    const task = await readTaskDocument(changeDir, { signal });
 
-    if (task.kind === "invalid") {
-        return task;
-    }
-
-    const isFinished = resumePoint(task.value.stages) === null;
-
-    if (isFinished && gates === "unfinished") {
-        return task;
-    }
-
-    const readDocument = (file: string): Promise<string | null> =>
-        readText(path.join(changeDir, file), { maxBytes: TEXT_BYTES_MAX, signal }).catch(whenMissing(null));
-    const files = [
-        "intent.md",
-        "spec.md",
-        "plan.md",
-        "tasks.md",
-        "verification.md",
-        "spike.md",
-        "review.md",
-        "security-review.md",
-    ];
-    const [intent, spec, plan, tasks, verification, spike, review, securityReview] = await Promise.all(
-        files.map(readDocument),
-    );
-    const problems = gateProblems(task.value, {
-        intent: intent ?? null,
-        spec: spec ?? null,
-        plan: plan ?? null,
-        tasks: tasks ?? null,
-        verification: verification ?? null,
-        spike: spike ?? null,
-        review: review ?? null,
-        securityReview: securityReview ?? null,
-    });
-
-    return problems.length === 0 ? task : { kind: "invalid", errors: problems };
+    return task.kind === "invalid" ? task : readGatedChange(changeDir, task.value, { signal });
 }
 
 async function readChanges(projectDir: string, { signal }: { readonly signal: AbortSignal }): Promise<Change[]> {
@@ -466,8 +497,24 @@ async function readChanges(projectDir: string, { signal }: { readonly signal: Ab
         .map((entry) => entry.name)
         .toSorted();
 
+    // One change that can't be read is reported as invalid, so it doesn't hide the others at session start.
     const readOne = async (name: string): Promise<Change> => {
-        const task = await readChange(path.join(changesDir, name), { gates: "unfinished", signal });
+        const changeDir = path.join(changesDir, name);
+        // A finished change's documents aren't read, so session start doesn't read the documents of the whole history.
+        const read = async (): Promise<Parsed<TaskDocument>> => {
+            const task = await readTaskDocument(changeDir, { signal });
+
+            if (task.kind === "invalid" || resumePoint(task.value.stages) === null) {
+                return task;
+            }
+
+            const gated = await readGatedChange(changeDir, task.value, { signal });
+
+            return gated.kind === "valid" ? { kind: "valid", value: gated.value.task } : gated;
+        };
+        const task = await read().catch(
+            (error: unknown): Parsed<TaskDocument> => ({ kind: "invalid", errors: [failureMessage(error)] }),
+        );
 
         return task.kind === "valid"
             ? { kind: "valid", name, task: task.value }
@@ -477,32 +524,245 @@ async function readChanges(projectDir: string, { signal }: { readonly signal: Ab
     return mapConcurrent(folders, readOne, { concurrency: READS_IN_FLIGHT_MAX, signal });
 }
 
-const COMMANDS = ["check", "status", "reminder"] as const;
+/**
+ * The message of an error that ends one command or one change's read. Cancellation is not a failure, so an
+ * `AbortError` or `TimeoutError` (and anything thrown that isn't an `Error`) is rethrown unchanged.
+ */
+function failureMessage(error: unknown): string {
+    if (!(error instanceof Error)) {
+        throw error;
+    }
+
+    const isCancellation = error.name === "AbortError" || error.name === "TimeoutError";
+
+    if (isCancellation) {
+        throw error;
+    }
+
+    return error.message;
+}
+
+const COMMANDS = ["check", "status", "reminder", "pull-request-description"] as const;
 
 type Command = (typeof COMMANDS)[number];
 
 const isCommand = (value: string | undefined): value is Command => COMMANDS.some((command) => command === value);
+
+const USAGE =
+    "Usage: changes.ts check <task.md> | status [projectDir] | reminder [projectDir] | pull-request-description <change folder> [--base <branch>] (base defaults to main)";
+const BASE_DEFAULT = "main";
+
+type PullRequestDescriptionArguments =
+    | { readonly kind: "valid"; readonly folder: string; readonly base: string }
+    | { readonly kind: "invalid"; readonly error: string };
+
+const invalidArguments = (error: string): PullRequestDescriptionArguments => ({ kind: "invalid", error });
+
+/** The arguments after `pull-request-description`: the change folder, and optionally `--base <branch>`. */
+function parsePullRequestDescriptionArguments(args: readonly string[]): PullRequestDescriptionArguments {
+    const baseAt = args.indexOf("--base");
+    const hasBase = baseAt !== -1;
+    const baseValue = hasBase ? args[baseAt + 1] : BASE_DEFAULT;
+    const isBaseUsable = baseValue !== undefined && baseValue.trim() !== "" && !baseValue.startsWith("-");
+    const others = hasBase ? args.filter((_, index) => index !== baseAt && index !== baseAt + 1) : args;
+    const unknownOption = others.find((arg) => arg.startsWith("-"));
+    const [folder, extra] = others;
+
+    if (!isBaseUsable) {
+        return invalidArguments("--base needs a branch name that isn't blank or starting with -");
+    }
+    if (unknownOption !== undefined) {
+        return invalidArguments(
+            unknownOption === "--base" ? "--base is given more than once" : `unknown option ${unknownOption}`,
+        );
+    }
+    if (folder === undefined) {
+        return invalidArguments("pull-request-description needs the change folder");
+    }
+    if (extra !== undefined) {
+        return invalidArguments(`unexpected argument ${extra}`);
+    }
+
+    return { kind: "valid", folder, base: baseValue };
+}
+
+/** What `check` or `pull-request-description` prints: its output for stdout, or why it refused, every reason a line for stderr. */
+type CommandOutcome =
+    | { readonly kind: "done"; readonly output: string }
+    | { readonly kind: "refused"; readonly problems: readonly string[] };
+
+const refused = (...problems: readonly string[]): CommandOutcome => ({ kind: "refused", problems });
+
+/** Turns an error into a refusal: one `✗` line instead of a stack trace. Cancellation is passed on unchanged. */
+const refusedOnError = (error: unknown): CommandOutcome => refused(`✗ ${failureMessage(error)}`);
+
+/**
+ * The project a change folder belongs to: the folder three levels up from `<project>/docs/changes/<name>`, so the
+ * decision records listed are those of the change's own repository, not of wherever the command runs. `null` when the
+ * folder isn't in that shape.
+ */
+function projectDirOfChange(changeDir: string): string | null {
+    const changesDir = path.dirname(changeDir);
+    const docsDir = path.dirname(changesDir);
+    const isChangeFolder = path.basename(changesDir) === "changes" && path.basename(docsDir) === "docs";
+
+    return isChangeFolder ? path.dirname(docsDir) : null;
+}
+
+/** The project of a change folder that really is inside it, or why the change can't be read. */
+type ChangeLocation =
+    | { readonly kind: "inside"; readonly projectDir: string }
+    | { readonly kind: "refused"; readonly problem: string };
+
+/**
+ * Finds the project of a change folder (see `projectDirOfChange`), and checks that the folder really is in the
+ * project's `docs/changes`: a committed symbolic link at `docs`, `docs/changes` or the change folder could lead
+ * outside the repository, and the documents there would end up in a description. The project's own path is resolved
+ * too, so reaching the project itself through a link is fine.
+ */
+async function locateChange(changeDir: string, { signal }: { readonly signal: AbortSignal }): Promise<ChangeLocation> {
+    const projectDir = projectDirOfChange(changeDir);
+
+    if (projectDir === null) {
+        return {
+            kind: "refused",
+            problem: `${changeDir} is not a change folder: expected <project>/${CHANGES_DIR}/<name>`,
+        };
+    }
+
+    // realpath takes no signal: check before each call instead.
+    signal.throwIfAborted();
+    const realChangeDir = await realpath(changeDir).catch(whenMissing(null));
+
+    // A folder that doesn't exist has no documents to read; reading the change reports its missing task.md.
+    if (realChangeDir === null) {
+        return { kind: "inside", projectDir };
+    }
+
+    signal.throwIfAborted();
+    // Only the parent is compared: the folder's own name may differ in case from the one given, on a case-insensitive
+    // file system, and realpath returns the case stored on disk. A link at the folder itself leads elsewhere, so its
+    // real parent is not `docs/changes` either.
+    const expectedParent = path.join(await realpath(projectDir), CHANGES_DIR);
+
+    if (path.dirname(realChangeDir) !== expectedParent) {
+        return {
+            kind: "refused",
+            problem: `${changeDir} leads outside the project: docs, ${CHANGES_DIR} and the change folder must not be symbolic links`,
+        };
+    }
+
+    return { kind: "inside", projectDir };
+}
+
+/** `check`: validates a change's task document and the gates of its done stages. */
+async function checkTask(taskPath: string, { signal }: { readonly signal: AbortSignal }): Promise<CommandOutcome> {
+    const changeDir = path.dirname(path.resolve(taskPath));
+    const location = await locateChange(changeDir, { signal });
+
+    if (location.kind === "refused") {
+        return refused(`✗ ${location.problem}`);
+    }
+
+    const change = await readChange(changeDir, { signal });
+
+    if (change.kind === "invalid") {
+        return refused(...change.errors.map((error) => `✗ ${error}`));
+    }
+
+    return {
+        kind: "done",
+        output: `✓ valid route: ${change.value.task.stages.map((stage) => stage.name).join(" → ")}\n`,
+    };
+}
+
+/** `pull-request-description`: the change's pull request description, or why it can't be rendered yet. */
+async function buildPullRequestDescription(
+    args: readonly string[],
+    { signal }: { readonly signal: AbortSignal },
+): Promise<CommandOutcome> {
+    const parsedArguments = parsePullRequestDescriptionArguments(args);
+
+    if (parsedArguments.kind === "invalid") {
+        return refused(parsedArguments.error, USAGE);
+    }
+
+    const { folder, base } = parsedArguments;
+    const changeDir = path.resolve(folder);
+    const location = await locateChange(changeDir, { signal });
+
+    if (location.kind === "refused") {
+        return refused(`✗ ${location.problem}`);
+    }
+
+    const change = await readChange(changeDir, { signal });
+
+    if (change.kind === "invalid") {
+        return refused(...change.errors.map((error) => `✗ ${error}`));
+    }
+
+    const { task, documents } = change.value;
+    const unfinished = task.stages.filter((stage) => stage.name !== "finish" && isUnfinished(stage));
+
+    if (unfinished.length > 0) {
+        const named = unfinished.map((stage) => `${stage.name} (${stage.status})`).join(", ");
+
+        return refused(`✗ not ready for a pull request: ${named} before finish`);
+    }
+
+    const added = await addedDecisionRecords(location.projectDir, { base, signal });
+
+    if (added.kind === "unknown-base") {
+        return refused(`✗ the base branch "${added.base}" doesn't exist; pass the branch to merge into with --base`);
+    }
+
+    const rendered = renderPullRequestDescription({
+        task,
+        spec: documents.spec,
+        verification: documents.verification,
+        review: documents.review,
+        securityReview: documents.securityReview,
+        decisionRecords: added.records,
+    });
+
+    if (rendered.kind === "too-long") {
+        return refused(
+            `✗ the description is ${rendered.length} UTF-16 code units long, over GitHub's limit of ${rendered.max} characters: shorten the spec, the evidence or the findings`,
+        );
+    }
+
+    return { kind: "done", output: rendered.body };
+}
+
+const isUnfinished = (stage: StageEntry): boolean => stage.status === "pending" || stage.status === "in-progress";
 
 async function main(): Promise<void> {
     const [command, argument] = Bun.argv.slice(2);
     const signal = interruptSignal();
 
     if (!isCommand(command)) {
-        console.error(`Usage: changes.ts check <task.md> | status [projectDir] | reminder [projectDir]`);
+        console.error(USAGE);
         process.exitCode = 1;
         return;
     }
 
-    if (command === "check") {
-        const task = await readChange(path.dirname(path.resolve(argument ?? "task.md")), { gates: "always", signal });
+    // The commands about one change refuse with ✗ lines, also when a read fails, instead of a stack trace.
+    const isAboutOneChange = command === "pull-request-description" || command === "check";
 
-        if (task.kind === "invalid") {
-            console.error(task.errors.map((error) => `✗ ${error}`).join("\n"));
+    if (isAboutOneChange) {
+        const run =
+            command === "pull-request-description"
+                ? buildPullRequestDescription(Bun.argv.slice(3), { signal })
+                : checkTask(argument ?? "task.md", { signal });
+        const outcome = await run.catch(refusedOnError);
+
+        if (outcome.kind === "refused") {
+            console.error(outcome.problems.join("\n"));
             process.exitCode = 1;
             return;
         }
 
-        console.log(`✓ valid route: ${task.value.stages.map((stage) => stage.name).join(" → ")}`);
+        process.stdout.write(outcome.output);
         return;
     }
 
