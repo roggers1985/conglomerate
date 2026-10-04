@@ -48,6 +48,7 @@ The security review (`security-review.md`) and the review (`review.md`) led to c
 - `lib/files.ts`: `readText` and `readJson` refuse non-regular files and take a required `symbolicLinks` choice, and every call site passes one (security findings 1, 5 and 8; review finding 2).
 - `decision-records.ts` reads records from git blobs instead of the working tree (security finding 1).
 - `changes.ts`: the project folder comes from the change folder, change documents and folders may not be links, refusals are single `✗` lines, and `status`/`reminder` report one broken change as invalid instead of failing (security findings 2, 5 and 7).
+- `checkups.ts`, `settings.ts`: a linked checkup schedule, project checkup skill or `.claude/factory.json` is refused and reported as invalid with a readable reason, instead of being followed (review findings 2, 11, 15 and 16).
 - `stage-gates.ts`: five expressions made linear (security findings 4 and 6).
 - ADR 0060 records the decisions; CLAUDE.md and ADR 0056 follow it (review finding 3).
 

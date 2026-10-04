@@ -16,4 +16,4 @@
 - AC-6: `changes.test.ts` › "AC-6: refuses while a stage before finish is pending, naming it, and prints nothing", "AC-6: refuses while a stage before finish is in progress, naming it"; and the run on this change itself, under Checks
 - AC-7: `changes.test.ts` › "AC-7: refuses a done stage whose document fails its gate, with the gate's problem"
 - AC-8: `pr-body.test.ts` › "AC-8: renders a body of exactly the maximum length, and refuses one character more"; `changes.test.ts` › "AC-8: refuses a description over GitHub's limit with its length and the limit, and prints nothing"
-- AC-9: `pr-body.test.ts` › "AC-9: renders the same body twice for the same input"; and `decision-records.test.ts` › "AC-5: lists the records added on the branch, sorted, …", which keeps the git part's order stable
+- AC-9: `pr-body.test.ts` › "AC-9: renders the same body twice for the same input"; and `decision-records.test.ts` › "AC-5: lists the records added on the branch, sorted, with their titles, marking the Proposed ones", which keeps the git part's order stable
