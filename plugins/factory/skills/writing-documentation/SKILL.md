@@ -17,7 +17,7 @@ Where a document lives decides who it is written for.
 | `CLAUDE.md`, a change's `task.md`, and `skills/`, `conventions/`, `agents/`, `commands/` and `checkups/`, in the plugin or in a project's `.claude/` | agents first | Concise and direct. No style change required. |
 | Generated files (`CATALOG.md`, bundles, notices) | n/a | Out of scope: the generator rewrites them. |
 
-A file in none of these rows: ask who reads it first, follow that row, and propose to the owner to add it here.
+A file in none of these rows: ask who reads it first, write it as the row for that reader says, and propose to the owner that it be added here.
 
 Most documents are read by both. Text that is readable for people is also clearer for agents. Code comments and TSDoc follow `code-documentation`.
 
