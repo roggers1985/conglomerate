@@ -14,8 +14,8 @@ stages:
   - { name: plan, level: trusted, status: done }
   - { name: build, level: trusted, status: done }
   - { name: security-review, level: trusted, status: done }
-  - { name: review, level: trusted, status: in-progress }
-  - { name: finish, level: trusted, status: pending }
+  - { name: review, level: trusted, status: done }
+  - { name: finish, level: trusted, status: in-progress }
 deviations:
   - "standard instead of quick: adds a command, which is an entry point (ADR 0057)"
   - "+ security-review: adds a command, which is an entry point (ADR 0057)"
