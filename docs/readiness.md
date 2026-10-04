@@ -2,14 +2,14 @@
 
 Where the factory stands compared with the alternatives, and what's still missing before it's worth publishing. The owner reads this instead of asking again (ADR 0050).
 
-**Last updated:** 2026-09-30: triage (ADR 0051), intake with EARS criteria (ADR 0052) planning with the convention gate and coverage check (ADR 0053), build with worktrees and evidence per criterion (ADR 0054), review with a separate reviewer (ADR 0055), and docs and finish (ADR 0056) are built: the delivery stages exist in a first form, not yet used on a real change. First version from a research run the same day. The `readiness` checkup refreshes it every 60 days. Claude updates it whenever a milestone is finished, such as a factory stage.
+**Last updated:** 2026-10-04. Two real changes went through the stages end to end in this repository: the pull request description command (pull request #14, standard track with a security review) and the writing convention (pull request #16, three review rounds). The delivery stages now work in practice, not only on paper. The `readiness` checkup refreshes this document every 60 days, and Claude updates it whenever a milestone is finished, such as a factory stage.
 
 ## Verdict
 
-**Not ready yet.** The factory is ahead of every alternative on keeping an existing codebase healthy: checkups, the architecture register, model routing, autonomy levels, decision records, enforcement and tool security. But it lacks the delivery stages (spec, plan, build, review) that every alternative is built around, and the packaging a stranger needs to install and trust it.
+**Not ready yet.** The factory is ahead of every alternative on keeping an existing codebase healthy: checkups, the architecture register, model routing, autonomy levels, decision records, enforcement and tool security. Its delivery stages now work: two real changes in this repository went from triage to a merged pull request. What it still lacks is use on another codebase, and the packaging a stranger needs to install and trust it.
 
 **Two ways to get there:**
-- **Complete:** build the delivery stages in a first form (`TODO.md`, "Factory stages"). This makes the factory a full alternative.
+- **Complete:** the delivery stages exist and are used (done). Using them on another project, an existing application, is the next proof.
 - **Complementary:** publish sooner as a health and conventions pack that works *next to* Superpowers, Spec Kit or OpenSpec for delivery. This would probably already pass the owner's test that it "clearly adds something".
 
 Either way, it needs the packaging criteria below.
@@ -18,8 +18,8 @@ Either way, it needs the packaging criteria below.
 
 | # | Criterion | Status | Notes |
 | - | --------- | ------ | ----- |
-| 1 | Clearly adds something over the alternatives (the owner's test, `TODO.md`) | ✓ for health and maintenance, ✗ for delivery | See the comparison below |
-| 2 | Delivery stages in first form: spec, plan, build, review | ~ | All stages exist in a first form (ADR 0051 to 0056), with script gates, coverage of every criterion by a task, evidence per criterion and a separate reviewer. Not yet used on a real change: that first use is what moves this to ✓ |
+| 1 | Clearly adds something over the alternatives (the owner's test, `TODO.md`) | ✓ for health and maintenance, ~ for delivery | Delivery works, but has only been used in this repository. See the comparison below |
+| 2 | Delivery stages in first form: spec, plan, build, review | ✓ | All stages exist (ADR 0051 to 0056) and were used on two real changes in this repository (pull requests #14 and #16). Not yet used on another project |
 | 3 | One-command install from a public repository (`/plugin marketplace add owner/repo`), with the Bun requirement stated | ✗ | The repository is private; installs from a local clone today |
 | 4 | A README that shows what you get in five minutes, with a real example session | ✗ | The README lists the USPs, but has no walkthrough |
 | 5 | A "start here" path through the surface area (18 checkups, 12 `code-*` skills) | ✗ | `CATALOG.md` exists, but no recommended first step |
@@ -76,7 +76,7 @@ Facts from the projects' own repositories and documentation, read on 2026-09-30.
 
 ## Where it lags
 
-- **The delivery stages** beyond triage don't exist yet: the core of every alternative. Triage (Stage 0) is built, with fixed tracks, recorded deviations and scripts that check every route.
+- **The delivery stages are young:** used on two changes, both in this repository, which is small and has no users, database or UI. How they hold up in an existing application is still unknown.
 - **Reach:** Claude Code only; a local install that needs Bun. The leaders run on 14 to 40 hosts and install with one command.
 - **Packaging:** no releases, changelog, walkthrough or community channel.
 - **An opinion, not a methodology:** the conventions are one person's taste (TigerStyle-inspired, TypeScript-first). That's a strength for some users and a narrow audience for others.
