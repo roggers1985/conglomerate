@@ -44,7 +44,10 @@ Unmerged checkup branches (their reports don't count yet):
    - to follow the protocol in `${CLAUDE_PLUGIN_ROOT}/checkups/protocol.md`;
    - today's date, so the branch and report are named consistently;
    - the unmerged checkup branches listed above, copied exactly, never retyped or counted by hand;
-   - whether the repository has a remote, and whether `gh` is logged in (for the protocol's hand-over step).
+   - whether the repository has a remote, and whether `gh` is logged in (for the protocol's hand-over step);
+   - that in a worktree Claude Code blocks heredocs and chained shell commands: edit files with the Edit and Write tools, and run one command at a time.
+
+   When a subagent is interrupted (a usage limit, an error), resume that same agent with `SendMessage` (it keeps its context and its uncommitted work) instead of starting a new one. To inspect its worktree, use `git -C <worktree> …`; never `cd` into it, which moves your session into the worktree.
 7. **After each subagent**, remove its worktree once its work is committed on its checkup branch: `git worktree remove <path>`, then delete the worktree's own branch (`worktree-<name>`) with `git branch -d`. Keep the checkup branch. If the removal refuses because of uncommitted changes, leave the worktree, and name its path in your reply.
 8. **Merging:** follow the session's autonomy level (ADR 0044). At `guided`, leave every PR to the owner. At `trusted`, merge a checkup PR yourself when its checks pass and it has nothing under "Needs a human". At `autonomous`, merge when its checks pass, and turn its "Needs a human" items into tracked tasks.
 9. When all are done, reply with one line per checkup: branch or PR link, and the single most important finding.

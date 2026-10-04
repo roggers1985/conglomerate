@@ -68,6 +68,7 @@ A test run prints nothing but the test runner's report (ADR 0059). Everything a 
 
 - **Console output, warnings and errors** (`console.log/info/warn/error/debug`) are captured with a spy and asserted: "this test expects exactly this warning". Code that deliberately prints is tested by asserting what it printed. Output that nobody asserted fails the test.
 - **Subprocesses** always have both stdout and stderr captured (`pipe`) and asserted. Never `inherit` them, and never leave them to print.
+- **A subprocess gets an explicit, minimal environment** (e.g. `HOME` in a temporary folder, `PATH`, `TMPDIR`), never the inherited one, and the test asserts on the part of its output it controls. A test passed on macOS and failed on CI because the child inherited CI variables, and the assertion counted lines across all of its output.
 - **Unhandled rejections and uncaught errors** fail the test during which they happen. Never ignore, filter or log them.
 - **Nothing leaks.** A test cleans up what it created: temporary files and folders are removed, timers cleared, servers and listeners closed, subscriptions and child processes stopped, environment variables and globals (including spies) restored, and the network mocked (see above). Do the cleanup in `afterEach` or `finally`, so it also runs when the test fails.
 - Fix the cause instead of silencing it: a warning from your own code is a bug to fix; a warning from a dependency is a bug to fix or to assert with a comment on why it is expected.
