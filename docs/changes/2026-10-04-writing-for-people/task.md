@@ -14,7 +14,7 @@ stages:
   - { name: plan, level: trusted, status: done }
   - { name: build, level: trusted, status: done }
   - { name: review, level: trusted, status: done }
-  - { name: finish, level: trusted, status: in-progress }
+  - { name: finish, level: trusted, status: done }
 deviations: []
 ---
 
