@@ -26,8 +26,8 @@ What is different when this is done, in the words of the owner and the users. Sa
 
 ## Affected
 
-Who and what this change touches: users, systems, units and data. A unit is a part of the architecture
-(`docs/architecture/`).
+Who and what this change touches: users, systems, units and data. A unit is a part of the architecture, as the
+register describes it (`docs/architecture/`).
 
 ## Constraints
 
@@ -59,8 +59,8 @@ code and the docs. For something entirely new, write "Nothing exists yet."
 ## Edge cases
 
 The unusual cases, each with the behaviour expected, or the criterion above that covers it. Find them
-systematically, checking each of: empty, one, many, at and past every limit, invalid input, cancellation, concurrent use and missing
-permissions (`code-testing`).
+systematically, checking each of: empty, one, many, at and past every limit, invalid input, cancellation, concurrent
+use and missing permissions (`code-testing`).
 
 ## Limits
 
@@ -71,7 +71,7 @@ The bounds of every input, collection and wait this change introduces, and what 
 
 - Authentication: who must be logged in. For example "only logged-in users", or "Public, because …".
 - Authorisation: who may do what. For example "only the job's owner may export it".
-- Untrusted input: what comes from outside. It is parsed with a schema where it enters the system.
+- Untrusted input: what comes from outside, and confirm that it's parsed with a schema where it enters the system.
 - Sensitive data: the personal or secret data this touches, and who may see it. Or "none".
 
 ## Out of scope

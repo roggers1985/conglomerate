@@ -45,39 +45,39 @@ function criteriaNamed(template: string, { prefix }: { readonly prefix: RegExp }
 }
 
 describe("the stage skills' templates", () => {
-    it("the intake skill's intent template passes the intent gate", async () => {
+    it("AC-5: the intake skill's intent template passes the intent gate", async () => {
         const [intent = ""] = await templates("factory-intake", { count: 2 });
 
         expect(intentProblems(intent)).toEqual([]);
     });
 
-    it("the intake skill's spec template passes the spec gate", async () => {
+    it("AC-5: the intake skill's spec template passes the spec gate", async () => {
         const [, spec = ""] = await templates("factory-intake", { count: 2 });
 
         expect(specProblems(spec, { needsProblem: false })).toEqual([]);
     });
 
-    it("the planning skill's plan template passes the plan gate", async () => {
+    it("AC-5: the planning skill's plan template passes the plan gate", async () => {
         const [plan = ""] = await templates("factory-planning", { count: 2 });
 
         expect(planProblems(plan, { hasTasksSection: false })).toEqual([]);
     });
 
-    it("the planning skill's tasks template passes the task list gate", async () => {
+    it("AC-5: the planning skill's tasks template passes the task list gate", async () => {
         const [, tasks = ""] = await templates("factory-planning", { count: 2 });
         const criteria = criteriaNamed(tasks, { prefix: /^\s*[-*] Covers:/ });
 
         expect(taskListProblems(tasks, { file: "tasks.md", criteria })).toEqual([]);
     });
 
-    it("the build skill's verification template passes the verification gate", async () => {
+    it("AC-5: the build skill's verification template passes the verification gate", async () => {
         const [verification = ""] = await templates("factory-build", { count: 1 });
         const criteria = criteriaNamed(verification, { prefix: /^\s*[-*] AC-\d+:/ });
 
         expect(verificationProblems(verification, { criteria })).toEqual([]);
     });
 
-    it("the review skill's review template passes the review gate", async () => {
+    it("AC-5: the review skill's review template passes the review gate", async () => {
         const [review = ""] = await templates("factory-review", { count: 1 });
 
         expect(reviewProblems(review, { file: "review.md" })).toEqual([]);

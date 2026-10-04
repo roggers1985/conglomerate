@@ -37,8 +37,9 @@ export. It's streamed, so memory stays flat." Say where batching applies. Write 
 
 ## Conventions and decisions
 
-Whether the plan follows the conventions and ADRs: write "Follows the conventions and ADRs", or list each deviation
-with its reason. Name the ADRs that apply. A new decision this plan makes gets its own ADR, written during the build.
+The convention gate: does the plan follow the conventions and ADRs? Write "Follows the conventions and ADRs", or list
+each deviation with its reason. Name the ADRs that apply, and every new decision this plan makes. Each new decision
+gets its own ADR, written during the build.
 ```
 
 On the **standard** track, the task list goes into the plan as a `## Tasks` section. On the **full** track, it gets its own stage and file.

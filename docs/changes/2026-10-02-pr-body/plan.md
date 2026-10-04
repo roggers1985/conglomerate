@@ -7,7 +7,7 @@ The description is built in two parts:
 - a **renderer**: a pure function (no I/O, same input gives the same output) that turns the change's parsed documents into the description;
 - a thin **command**: it collects the inputs, refuses a change that isn't ready, and prints the result.
 
-Both live in unit `factory`, with no new dependencies (`plugins/factory/scripts/`).
+Both live in unit `factory`, in `plugins/factory/scripts/`. They need no new dependencies.
 
 The work comes in five steps:
 
@@ -16,7 +16,7 @@ The work comes in five steps:
    - the evidence per criterion;
    - the review findings, as rows.
 
-   The gates keep their own checks. The helpers only expose what the gates already parse, so the formats are read in one place.
+   The gates keep their own checks. The helpers expose what the gates already parse, so the formats are read in one place.
 2. **`decision-records.ts`** finds the decision records added on the branch, each with whether its status is Proposed.
    - It checks the base branch first (`git rev-parse --verify --quiet`).
    - It then asks git for the added records (`git diff --name-only --diff-filter=A <base>...HEAD -- docs/decisions`).
@@ -31,7 +31,7 @@ The work comes in five steps:
 
 ## Files and data
 
-The work touches four scripts with their tests, one skill and two documents.
+The work touches four scripts with their tests, one skill, `TODO.md`, and `GLOSSARY.md` if needed.
 
 | File | What changes |
 |---|---|
@@ -61,7 +61,7 @@ The limits come from the spec:
 
 ## Costs
 
-Negligible, so no batching is needed.
+Negligible. No batching needed.
 
 | What | How much |
 |---|---|

@@ -30,7 +30,7 @@ Outdated instructions are worse than none: agents follow them. This checkup keep
 7. **Glossaries** (`GLOSSARY.md` and similar): entries that no longer match the code, and concepts used in the docs or ADRs that have no entry yet.
 8. **Task lists** (`TODO.md` and similar): items that are already done according to the code or git history, and items that no longer make sense.
 9. **Code comments that state facts**: comments with numbers, dates or behaviour ("as of <date>", "N of M", "we do X because Y") that the code no longer matches.
-10. **Documentation for people that is hard to read** (`docs/**`, `README.md`: the audience by location, as the `writing-documentation` skill defines it). Look for:
+10. **Documentation for people that is hard to read:** the locations the `writing-documentation` skill's table marks as people first, such as `docs/`, `README.md` and `GLOSSARY.md`. Look for:
     - long sentences that carry several ideas;
     - the conclusion at the end of a paragraph instead of the start;
     - references (ADRs, files, links) in the middle of a sentence;
@@ -39,7 +39,7 @@ Outdated instructions are worse than none: agents follow them. This checkup keep
 
     Report each with a concrete suggestion: the rewritten sentence or the new structure. "Hard to read" alone is not a finding. A rewrite keeps every number, name, path and condition; one that drops a fact is wrong.
 
-    Skip documents for agents first (`task.md` under `docs/`), accepted ADRs (never rewritten, see the protocol) and historical documents (see point 5).
+    Skip accepted ADRs (never rewritten, see the protocol) and historical documents (see point 5).
 
 ## Fixes you may make yourself
 

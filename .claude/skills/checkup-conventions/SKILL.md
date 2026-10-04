@@ -11,7 +11,7 @@ metadata:
 
 Follow the protocol in `plugins/factory/checkups/protocol.md` (branch, hard rules, report, commit). This file only defines the scope.
 
-The owner's conventions live in `plugins/factory/conventions/core.md` and the `plugins/factory/skills/code-*` skills, and the reasons for them in `docs/decisions/`. The other checkups look inward: `code-quality` checks code against the conventions, `new-features` finds lint rules that enforce them, and `retro` turns recurring findings into new ones. This checkup looks outward, at where the conventions come from and what has changed or appeared since (ADR 0039).
+The owner's conventions live in `plugins/factory/conventions/core.md`, the `plugins/factory/skills/code-*` skills and the `writing-documentation` skill, and the reasons for them in `docs/decisions/`. The other checkups look inward: `code-quality` checks code against the conventions, `new-features` finds lint rules that enforce them, and `retro` turns recurring findings into new ones. This checkup looks outward, at where the conventions come from and what has changed or appeared since (ADR 0039).
 
 **This checkup proposes changes; it never makes them.** Conventions are the owner's decision, and every change needs an ADR.
 

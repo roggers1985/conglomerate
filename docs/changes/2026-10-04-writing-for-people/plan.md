@@ -47,7 +47,11 @@ This plan follows the conventions and ADRs. The ones that matter most here:
 
 One new decision, recorded in ADR 0061: the writing convention, and the audience of a document by its location.
 
-**Deviation:** the tasks go to the `writing` task agent instead of a `code` agent, because the work is writing for people.
+**Deviations:**
+
+- The tasks go to the `writing` task agent instead of a `code` agent, because the work is writing for people.
+- T-5 was written by the coordinator instead of a fresh `writing` agent, while T-2 still ran, although it says `Parallel: no`. It touched other files than T-2 and depends only on T-1, so it could have been marked parallel. The ADR was committed after T-2 was merged and matches the final state (review finding 13).
+- The review's findings were fixed by the coordinator instead of a fresh subagent per fix. They were small edits to text and test names, in files the coordinator had already read. The reviewer checks the fixes as usual.
 
 ## Tasks
 

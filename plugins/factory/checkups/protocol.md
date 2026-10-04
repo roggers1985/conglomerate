@@ -44,7 +44,7 @@ Terms used below:
 ## 4. Finish
 
 1. **Write the report** to `docs/checkups/<name>/<today>.md` using the template below. Create the folder if this is the first run.
-   - The owner reads the report: it follows the `writing-documentation` skill.
+   - The report is written for the owner, as the template below says.
    - The report's date is what marks this checkup as done; there is nothing else to update.
    - **A run with no findings still gets a report.** Write "No findings." in the summary, leave the findings table with a single row `| - | - | No findings | <what you checked> | - |`, and write "None." under the other sections.
 2. **Commit** the report together with any fixes.
@@ -59,14 +59,14 @@ Terms used below:
 
 ## Report template
 
-The report is written for the owner. It should tell them what matters in a minute of reading.
+The report is written for the owner, so it follows the `writing-documentation` skill. It should tell them what matters in a minute of reading.
 
 - **The summary first, in plain words.** Open with the overall state and the most important finding. The owner should know what matters without reading further.
-- **The most important first.** Sort the findings by severity, highest first. Do the same under "Needs a human".
+- **The most important first.** Sort the findings by severity, highest first. Under "Needs a human", put the most urgent decision first.
 - **Findings readable at a glance.** One finding per row, in one short sentence: what is wrong and why it matters. Paths, line numbers and links go in the Evidence column.
 - **References at the end of a point,** never in the middle of a sentence.
 
-Keep the headings and the findings table's columns exactly as they are. The checkup runner, the retro checkup and other tooling read them.
+Keep the headings and the findings table's columns exactly as they are. The retro checkup and the next run of the same checkup read them.
 
 ```markdown
 # Checkup: <name> (<today>)

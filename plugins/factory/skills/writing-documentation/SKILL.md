@@ -13,9 +13,11 @@ Where a document lives decides who it is written for.
 
 | Location | Written for | What that means |
 |---|---|---|
-| `docs/`, `README.md` | people first | Follow this skill. It stays usable for agents. |
-| `skills/`, `conventions/`, `agents/`, `task.md` | agents first | Concise and direct. No style change required. |
+| `docs/` (except `task.md`), `README.md`, `GLOSSARY.md`, `TODO.md` | people first | Follow this skill. It stays usable for agents. |
+| `CLAUDE.md`, a change's `task.md`, and the plugin's `skills/`, `conventions/`, `agents/`, `commands/` and `checkups/` | agents first | Concise and direct. No style change required. |
 | Generated files (`CATALOG.md`, bundles, notices) | n/a | Out of scope: the generator rewrites them. |
+
+A file in none of these rows: ask who reads it first, and propose adding it here.
 
 Most documents are read by both. Text that is readable for people is also clearer for agents. Code comments and TSDoc follow `code-documentation`.
 
@@ -27,7 +29,7 @@ Most documents are read by both. Text that is readable for people is also cleare
 - **One idea per paragraph.**
 - **Plain words.** Explain a term where it first appears, in a few words.
 - **Lists and tables for structure.** Steps, options and comparisons read better as a list or table than as long prose.
-- **References at the end of a point.** ADRs, files and links go after the statement they support, not in the middle of a sentence.
+- **References at the end of a point.** ADRs, files and links go after the statement they support, not in the middle of a sentence. A path that names the subject itself isn't a reference: keep it next to what it names.
 - **No loss of precision.** Readable is not vaguer. Keep every number, name, path and condition. Specs and ADRs stay exact.
 
 There are no numeric limits, such as words per sentence: a count invites counting instead of writing well ("lead by logic, not by numbers", ADR 0038).
@@ -45,7 +47,7 @@ Better:
 > - a **renderer**: a pure function (no I/O, same input gives the same output) that turns the change's parsed documents into the description;
 > - a **command**: it collects the inputs, refuses a change that isn't ready, and prints the result.
 >
-> Both live in unit `factory`, with no new dependencies (`plugins/factory/scripts/`).
+> Both live in unit `factory`, in `plugins/factory/scripts/`. They need no new dependencies.
 
 **The conclusion at the end, a reference in the middle.**
 
