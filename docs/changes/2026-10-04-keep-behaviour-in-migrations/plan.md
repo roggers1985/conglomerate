@@ -177,113 +177,20 @@ New decisions:
 **Checked against existing rules (AC-11, AC-13).**
 
 - **AC-11 conflicts with no rule.** `code-testing` already asks for one behaviour per test, named after it, with arrange, act and assert. AC-11 widens this to every level and adds domain words and readable failures. ADR 0054's `AC-<n>:` prefix stays in front of the domain words. End-to-end tests are the one place where "arrange, act, assert" needs a gloss: one flow is one behaviour.
-- **AC-13 conflicts with the summary of a doc comment, read literally.** "Comments in production code … never repeat what the code does" would forbid the TSDoc summary, "what it does, in one sentence" (`code-documentation`, ADR 0016). The narrowest wording that keeps both: the rule applies to comments in a function's body and on internal code. A doc comment on an export describes the contract for a caller who doesn't read the body (what it does, its parameters, what it throws), which isn't repeating the code. Its why goes in `@remarks`. ADR 0016 doesn't change, and ADR 0063 says so. `core.md` and `code-readability`'s naming rules don't conflict.
+- **AC-13 and documentation are two things (the owner's framing).** A doc comment on an export is *documentation*: it describes the contract for a caller who doesn't read the body (what it does, its parameters, what it throws), and `code-documentation` and ADR 0016 govern it. A *comment* is anything else in production code, such as a note in a function body or on internal code. AC-13 applies to comments only: they say why (a constraint, an ADR, a rejected alternative) and never repeat what the code does. The summary line of a doc comment is therefore not a comment in this sense, ADR 0016 doesn't change, and the why of an export goes in `@remarks`. `core.md` and `code-readability`'s naming rules don't conflict.
 
-**Open for the owner:**
+**Decided by the owner (2026-10-10):**
 
-- [NEEDS CLARIFICATION: The `Tests` field extends the task format of ADR 0053, which the spec doesn't name. It lets the test agent work from the task alone, and says when the test agent step is skipped. Recommendation: add it, as an optional field the gate ignores, and record it in ADR 0063. The other option is a sentence in each task's title or Verify line, which the build would have to find by reading.]
-- [NEEDS CLARIFICATION: At `autonomous`, the split makes a change hit `subagentsPerChange` (10 by default) after about four tasks with tests. Recommendation: leave the default and the rule unchanged in this change, which the spec keeps to ADR 0058's limits. Note the effect in ADR 0063's consequences, and add a `TODO.md` item to revisit the default after the first change built at `autonomous`. The other option is to count a task's agents as one subagent, which changes `autonomous.md`.]
+- **The `Tests` field** is added to the task format of ADR 0053, as an optional field the gate ignores, and recorded in ADR 0063. The owner said to do what is best; this was the recommendation.
+- **The subagent limit at `autonomous`:** the default and the rule stay unchanged. ADR 0063's consequences note the effect, and a `TODO.md` item revisits the default after the first change built at `autonomous` (T-10).
+- **AC-13's scope:** comments are anything on top of documentation, as above. The spec's AC-13 is clarified to say so.
 
 **Deviations:**
 
 - T-1 and T-3 are writing tasks and go to the `writing` task agent. T-2 is code and goes to the `code` agent.
 - T-5, T-6, T-8 and T-10 go to the `writing` agent. In T-7 and T-9, a `code` test agent writes the template test, and the `writing` agent changes the skill text (see "How this change is built").
-- This route is on the full track, which keeps tasks in `tasks.md`. Part 1 was planned on the standard track, so its tasks are in this plan, and Part 2's tasks follow them here. At the tasks stage, the whole list (T-1 to T-4 done, T-5 onwards pending) moves to `tasks.md`, because the route check reads the task list from there on the full track, and it must cover AC-1 to AC-14.
+- This route is on the full track, which keeps tasks in `tasks.md`. Part 1 was planned on the standard track, so its tasks are in this plan, and Part 2's tasks follow them here. At the tasks stage the whole list (T-1 to T-4 done, T-5 onwards pending) moved to `tasks.md`, because the route check reads the task list from there on the full track, and it must cover AC-1 to AC-14.
 
 ## Tasks
 
-### T-1: Write the convention in code-testing and core.md
-
-- Files: `plugins/factory/skills/code-testing/SKILL.md`, `plugins/factory/conventions/core.md`
-- Covers: AC-1, AC-2
-- Verify: `bun run check`
-- Depends on: none
-- Parallel: yes
-- Status: done
-
-### T-2: Add the migration plan's gate to the route check
-
-- Files: `plugins/factory/scripts/stage-gates.ts`, `plugins/factory/scripts/stage-gates.test.ts`, `plugins/factory/scripts/changes.ts`, `plugins/factory/scripts/changes.test.ts`
-- Covers: AC-5
-- Verify: `bun test plugins/factory/scripts/stage-gates.test.ts plugins/factory/scripts/changes.test.ts`, `bun run doctest` and `bun run check`
-- Depends on: none
-- Parallel: yes
-- Status: done
-
-### T-3: Teach triage, planning, build and review about migrations
-
-- Files: `plugins/factory/skills/factory-triage/SKILL.md`, `plugins/factory/skills/factory-planning/SKILL.md`, `plugins/factory/skills/factory-build/SKILL.md`, `plugins/factory/skills/factory-review/SKILL.md`, `scripts/skill-templates.test.ts`
-- Covers: AC-3, AC-4, AC-6, AC-7
-- Verify: `bun test scripts/skill-templates.test.ts` and `bun run check`
-- Depends on: T-2
-- Parallel: no
-- Status: done
-
-### T-4: Record the decision
-
-- Files: `docs/decisions/0062-keep-behaviour-in-migrations.md`, `GLOSSARY.md`, `TODO.md`
-- Covers: AC-8
-- Verify: `bun run check`
-- Depends on: T-1, T-3
-- Parallel: no
-- Status: done
-
-### T-5: Make tests read as a specification in code-testing
-
-- Files: `plugins/factory/skills/code-testing/SKILL.md`
-- Covers: AC-11
-- Tests: none: skill text only
-- Verify: `grep -n "^## Tests that read as a specification" plugins/factory/skills/code-testing/SKILL.md` finds the section, the two moved bullets are no longer under "Unit and integration tests", and `bun run check` passes
-- Depends on: none
-- Parallel: yes
-- Status: pending
-
-### T-6: Make comments say why in code-readability and code-documentation
-
-- Files: `plugins/factory/skills/code-readability/SKILL.md`, `plugins/factory/skills/code-documentation/SKILL.md`
-- Covers: AC-13
-- Tests: none: skill text only
-- Verify: `grep -n "^## Comments" plugins/factory/skills/code-readability/SKILL.md` finds the section, `code-documentation` names the three kinds of why and how they fit an export's doc comment, and `bun run check` passes on the change's branch after the merge and `bun run generate` (the description changes the catalog)
-- Depends on: none
-- Parallel: yes
-- Status: pending
-
-### T-7: Build each task with a test agent, a code agent and an arbiter
-
-- Files: `plugins/factory/skills/factory-build/SKILL.md`, `scripts/skill-templates.test.ts`
-- Covers: AC-9, AC-10
-- Tests: the build skill's verification template, through `scripts/skill-templates.test.ts` › "AC-10: the verification template records the arbiter's rulings"
-- Verify: the test agent's run of `bun test scripts/skill-templates.test.ts` fails on the new test only; after the skill text, it passes with the test file unchanged; `bun run check` passes
-- Depends on: none
-- Parallel: yes
-- Status: pending
-
-### T-8: Plan a test agent's input, and the behaviour test first
-
-- Files: `plugins/factory/skills/factory-planning/SKILL.md`
-- Covers: AC-6, AC-9
-- Tests: none: skill text only; the existing template test keeps the tasks template passing its gate
-- Verify: `bun test scripts/skill-templates.test.ts` passes, the tasks template shows a `Tests` line in each task, the tasks section has the migration rule, and `bun run check` passes
-- Depends on: none
-- Parallel: yes
-- Status: pending
-
-### T-9: Break the code in the review to see each criterion's test fail
-
-- Files: `plugins/factory/skills/factory-review/SKILL.md`, `scripts/skill-templates.test.ts`
-- Covers: AC-9, AC-12
-- Tests: the review skill's review template, through `scripts/skill-templates.test.ts` › "AC-12: the review template records the mutation checks"
-- Verify: the test agent's run of `bun test scripts/skill-templates.test.ts` fails on the new test only; after the skill text, it passes with the test file unchanged; `bun run check` passes
-- Depends on: T-7
-- Parallel: no
-- Status: pending
-
-### T-10: Record the decision for tests written apart from the code
-
-- Files: `docs/decisions/0063-tests-written-apart-from-the-code.md`, `docs/decisions/0054-build-verify-and-spike.md`, `docs/decisions/0055-review-and-security-review.md`, `GLOSSARY.md`, `docs/readiness.md`, `TODO.md`
-- Covers: AC-14
-- Tests: none: documentation only
-- Verify: ADR 0063 exists and names ADR 0054 and 0055 as amended, both have the Status line, `grep -n "^\*\*Test agent\|^\*\*Arbiter\|^\*\*Mutation check" GLOSSARY.md` finds three entries, and `bun run check` passes
-- Depends on: T-5, T-6, T-7, T-8, T-9
-- Parallel: no
-- Status: pending
+The task list is in `tasks.md` (full track).

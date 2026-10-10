@@ -11,9 +11,9 @@ classification:
   architectureDebt: []
 stages:
   - { name: spec, level: guided, status: done }
-  - { name: plan, level: guided, status: in-progress }
-  - { name: tasks, level: guided, status: pending }
-  - { name: build, level: guided, status: pending }
+  - { name: plan, level: guided, status: done }
+  - { name: tasks, level: guided, status: done }
+  - { name: build, level: guided, status: in-progress }
   - { name: review, level: guided, status: pending }
   - { name: docs, level: guided, status: pending }
   - { name: finish, level: guided, status: pending }
