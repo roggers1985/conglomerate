@@ -75,10 +75,10 @@ Small tasks, each a few minutes of work for one agent, in the order they're buil
 - **Covers** names the spec's criteria (`AC-<n>`). A task that covers none (setup, a refactor it needs) writes `none` with the reason.
 - **Every active criterion is covered by at least one task.** No task covers a criterion the spec doesn't have or has dropped.
 - **Depends on** only names earlier tasks. **Parallel: yes** marks a task that can be built at the same time as the others marked so, because it touches different files and depends on nothing unfinished.
-- **Tests** (optional) says what the task's test agent tests: the interface, such as a function, a command or an endpoint, never internals. A task with no testable behaviour, such as a rename or a text change, writes `none: <why>`, and skips the test agent. The gate ignores this field.
+- **Tests** says what the task's test agent tests: the interface, such as a function, a command or an endpoint, never internals. The test agent reads neither the plan nor the code, so this line is its only source for the interface. Every task on the standard and full tracks has one. It is optional only in that the gate doesn't check it, because older task lists lack it. A task with no testable behaviour, such as a rename or a text change, writes `none: <why>`, and skips the test agent.
 - **Verify** is a command or a concrete check, never "it works".
 - Tests are part of each task: the test agent writes them from the spec and the task, and the code agent makes them pass (`factory-build`, `code-testing`).
-- **When the route has a migration plan,** T-1 writes the behaviour test the migration plan names and runs it on the old code. Every task that changes the code under test depends on T-1, so none of them starts before that run.
+- **When the route has a migration plan,** T-1 writes the behaviour test the migration plan names and runs it on the old code. Every task that changes the code under test depends on T-1, so none of them starts before that run. A task that changes the code under test without an intended difference writes `Tests: the behaviour test of T-1`: it has no new test to write, so it skips the test agent. A task that adds the new version to a side-by-side suite, or asserts an intended difference, names its tests as usual (`factory-build`, "Special cases").
 
 ## The migration-plan stage
 
