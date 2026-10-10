@@ -14,13 +14,14 @@ stages:
   - { name: plan, level: guided, status: done }
   - { name: tasks, level: guided, status: done }
   - { name: build, level: guided, status: done }
-  - { name: review, level: guided, status: in-progress }
-  - { name: docs, level: guided, status: pending }
+  - { name: review, level: guided, status: done }
+  - { name: docs, level: guided, status: done }
   - { name: finish, level: guided, status: pending }
 deviations:
   - "re-triage 2026-10-10: standard to full. The owner added test authorship apart from the code, readable tests, a break-the-code check in the review and comments that say why (AC-9 to AC-14): new concepts across the build, review and testing skills, so large"
   - "intent dropped: the owner stated the problem and chose the approach"
   - "build and review were done for AC-1 to AC-8 (review round 1 fixed in 9ff1860); they run again for the new criteria and task list"
+  - "review closed after round 3 (the default limit) with findings 23 to 27 checked by the coordinator, not by a fourth reviewer; the owner chose this on 2026-10-10"
 ---
 
 
