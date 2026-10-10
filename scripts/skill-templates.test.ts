@@ -77,6 +77,28 @@ describe("the stage skills' templates", () => {
         expect(migrationPlanProblems(migrationPlan)).toEqual([]);
     });
 
+    it("AC-4: the migration plan template's Behaviour test section names its interface, form, files, recorded outputs and framework level", async () => {
+        const [, , migrationPlan = ""] = await templates("factory-planning", { count: 3 });
+        const section = migrationPlan.split(/^## /m).find((part) => part.startsWith("Behaviour test")) ?? "";
+        const bullets = section.split("\n").filter((line) => /^[-*] /.test(line));
+        const bulletAbout = (pattern: RegExp) => bullets.filter((bullet) => pattern.test(bullet));
+
+        expect(section, "the template should have a `## Behaviour test` section").not.toBe("");
+        expect(bulletAbout(/\binterface\b/i), "a bullet should name the interface the test uses").toHaveLength(1);
+        expect(bulletAbout(/\bform\b/i), "a bullet should name the test's form").toHaveLength(1);
+        expect(bulletAbout(/\bside by side\b/i), "the form bullet should offer the side by side form").toHaveLength(1);
+        expect(bulletAbout(/\bin place\b/i), "the form bullet should offer the in place form").toHaveLength(1);
+        expect(bulletAbout(/\bevery file\b/i), "a bullet should name every file the test consists of").toHaveLength(1);
+        expect(bulletAbout(/\brecorded outputs\b/i), "a bullet should name the recorded outputs").not.toHaveLength(0);
+        expect(bulletAbout(/\bgolden master\b/i), "a bullet should say where recorded outputs come from").toHaveLength(
+            1,
+        );
+        expect(
+            bulletAbout(/\bframework\b/i),
+            "a bullet should name the level when the framework is migrated",
+        ).toHaveLength(1);
+    });
+
     it("AC-5: the build skill's verification template passes the verification gate", async () => {
         const [verification = ""] = await templates("factory-build", { count: 1 });
         const criteria = criteriaNamed(verification, { prefix: /^\s*[-*] AC-\d+:/ });
