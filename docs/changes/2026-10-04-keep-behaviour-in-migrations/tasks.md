@@ -94,4 +94,4 @@
 - Verify: ADR 0063 exists and names ADR 0054 and 0055 as amended, both have the Status line, `grep -n "^\*\*Test agent\|^\*\*Arbiter\|^\*\*Mutation check" GLOSSARY.md` finds three entries, and `bun run check` passes
 - Depends on: T-5, T-6, T-7, T-8, T-9
 - Parallel: no
-- Status: in-progress
+- Status: done
