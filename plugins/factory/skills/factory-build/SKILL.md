@@ -52,7 +52,7 @@ A task is built by two agents in turn. A **test agent** writes its tests from th
 6. **Take the result in:**
    - check that the code agent left the tests alone, fixtures and helpers included. A difference fails the code agent's attempt:
      - the test agent's files are the ones `git diff --name-only change/<name>...change/<name>--T-<n>--tests` lists (three dots: the diff from where the task branched, so files that other tasks merged since don't count), and `git diff change/<name>--T-<n>--tests change/<name>--T-<n> -- <those files>` must be empty;
-     - the code agent's files are the ones `git diff --name-only change/<name>--T-<n>--tests change/<name>--T-<n>` lists, and none of them may be a test, a fixture or a test helper;
+     - the code agent's files are the ones `git diff --name-only change/<name>--T-<n>--tests...change/<name>--T-<n>` lists (three dots again, so a corrected test that the code agent merged in after a ruling doesn't count as its work), and none of them may be a test, a fixture or a test helper;
    - merge `change/<name>--T-<n>` into `change/<name>`. It holds the test commits followed by the code commits, so the history shows the tests came first;
    - regenerate the project's generated files there (its own generate command, e.g. `bun run generate`), and commit what changed;
    - run the project's **full** check suite there. When it fails, the task isn't done: give it back to a code agent with the failure;
