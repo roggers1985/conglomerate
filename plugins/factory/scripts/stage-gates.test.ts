@@ -380,6 +380,19 @@ describe("migrationPlanProblems", () => {
     it("AC-5: reports every section of an empty document", () => {
         expect(migrationPlanProblems("")).toHaveLength(MIGRATION_PLAN_SECTIONS.length);
     });
+
+    it("AC-4: names the five sections of the template", () => {
+        expect(MIGRATION_PLAN_SECTIONS).toEqual(["Steps", "Old and new", "Behaviour test", "Verification", "Rollback"]);
+    });
+
+    it("AC-5: refuses an open [NEEDS CLARIFICATION] marker", () => {
+        const unclear = document(
+            MIGRATION_PLAN_SECTIONS,
+            new Map([["Rollback", "[NEEDS CLARIFICATION: can the copy be undone?]"]]),
+        );
+
+        expect(migrationPlanProblems(unclear)).toEqual(["migration-plan.md still has an open [NEEDS CLARIFICATION]"]);
+    });
 });
 
 describe("reviewProblems", () => {
