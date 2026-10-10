@@ -13,6 +13,7 @@ The build turns the task list (`tasks.md`, or the Tasks section of `plan.md`) in
 
 - Work on the change's branch: `git switch change/<name>`. On the quick track, create it first from the default branch (`git switch -c change/<YYYY-MM-DD>-<short-name>`).
 - Set the build stage to `in-progress` in `task.md`, and commit.
+- On the standard and full tracks, you create `verification.md` next to `task.md` at the first run the build records (a red run, or a migration's run on the old code), with the `## Checks` section of the template under "The verify stage". Add each later run to it as the build goes, and commit it with the task's status.
 
 **When the route has a migration plan,** the first task's test agent writes the behaviour test the plan names and runs it on the old code, before any task changes the code under test (`code-testing`, "Migrations that keep behaviour"). A test that never passed on the old code proves nothing. In place, the test is committed before the swap. `verification.md` records that run under Checks: the command, the commit it ran on, and the result.
 
@@ -30,10 +31,10 @@ A task is built by two agents in turn. A **test agent** writes its tests from th
      - `factory:tasks:code` for ordinary work;
      - `factory:tasks:code-complex` for concurrency, security-sensitive code or a hard bug;
    - **the test agent:** `factory:tasks:code`, or `code-complex` when the code agent is. Never `code-small`: writing tests from a spec involves the conventions.
-3. **Dispatch the test agent in its own worktree** (Agent tool, `isolation: "worktree"`, ADR 0042). Tell it:
+3. **Dispatch the test agent in its own worktree** (Agent tool, `isolation: "worktree"`, ADR 0042). Its only source for the interface it tests is the task's `Tests` line, so check that the task has one first. When it lacks one (an older task list), add it to the task from the plan, and commit. Tell the test agent:
    - to create its branch from the change's branch, not from what the worktree started on: `git switch -c change/<name>--T-<n>--tests change/<name>`;
    - to read `CLAUDE.md`, the change's `spec.md` and its task (with its `Tests` field, which names the interface to test) from disk, and the conventions. Nothing else: not `plan.md`, not the implementation. For a migration, also the migration plan's Behaviour test section. It may read the signature and doc comment of an existing export it tests, never its body;
-   - to write the tests for the criteria the task covers, naming each criterion in the test's name (e.g. `it("AC-1: downloads the jobs as CSV")`), run them, and commit them failing;
+   - to write the tests for the criteria the task covers, naming each criterion in the test's name (e.g. `it("AC-1: downloads the jobs as CSV")`), run them, and commit them failing, with any fixture or helper they read;
    - to install dependencies from the lockfile, and that in a worktree Claude Code blocks heredocs and chained shell commands: edit files with the Edit and Write tools, and run one command at a time.
 4. **Check the red run** on the test branch. The tests must fail because the behaviour is missing: an assertion, or an import of an export the task adds.
    - A broken test (a syntax error, a wrong path to an existing module) is a failed attempt.
@@ -42,14 +43,16 @@ A task is built by two agents in turn. A **test agent** writes its tests from th
 5. **Dispatch the code agent in a second worktree.** Tell it:
    - to create its branch from the test agent's branch: `git switch -c change/<name>--T-<n> change/<name>--T-<n>--tests`;
    - to read `CLAUDE.md`, the change's `spec.md`, `plan.md` and its task from disk, and to install dependencies from the lockfile;
-   - to make the tests pass, and **never to edit them**. When it finds a test wrong, it stops without editing it, and replies with the test, the failing output and its reason (see "When the code agent disputes a test");
+   - to make the tests pass, and **never to edit them**. The fixtures and helpers the tests read are part of the tests. When it finds a test wrong, it stops without editing it, and replies with the test, the failing output and its reason (see "When the code agent disputes a test");
    - to follow the conventions, and to stay inside the task's files. Anything else it notices goes in its reply, not in the code;
    - to run the task's **Verify** command and the project's **fast checks** (type check, lint, and the tests near the change), and to commit only when they pass. The full suite runs after the merge (step 6), so it doesn't run once per task;
    - **verify before claiming done:** reply with the commands it ran and their results, not with "it works";
    - **not to regenerate generated files** (the project's generate command): you do that after the merge, so task branches don't conflict on them;
    - that in a worktree Claude Code blocks heredocs and chained shell commands: edit files with the Edit and Write tools, and run one command at a time.
 6. **Take the result in:**
-   - check that the code agent left the tests alone: `git diff change/<name>--T-<n>--tests change/<name>--T-<n> -- <test files>` must be empty. A difference fails the code agent's attempt;
+   - check that the code agent left the tests alone, fixtures and helpers included. A difference fails the code agent's attempt:
+     - the test agent's files are the ones `git diff --name-only change/<name> change/<name>--T-<n>--tests` lists, and `git diff change/<name>--T-<n>--tests change/<name>--T-<n> -- <those files>` must be empty;
+     - the code agent's files are the ones `git diff --name-only change/<name>--T-<n>--tests change/<name>--T-<n>` lists, and none of them may be a test, a fixture or a test helper;
    - merge `change/<name>--T-<n>` into `change/<name>`. It holds the test commits followed by the code commits, so the history shows the tests came first;
    - regenerate the project's generated files there (its own generate command, e.g. `bun run generate`), and commit what changed;
    - run the project's **full** check suite there. When it fails, the task isn't done: give it back to a code agent with the failure;
@@ -66,10 +69,17 @@ A task is built by two agents in turn. A **test agent** writes its tests from th
 There is at most one arbitration per task. A second dispute goes to the owner, at every autonomy level. Record each ruling under `## Rulings` in `verification.md`.
 
 **Special cases:**
-- **On the quick track** one agent writes the tests and the code, test-first, as in step 5 but on a branch from `change/<name>`. The review checks the tests.
-- **A task whose `Tests` field says `none: <why>`** (a rename, text) skips the test agent and its red run. One agent builds it, as on the quick track.
-- **A migration's first task** (T-1) is a test agent's task with no code agent. The test agent writes the behaviour test and sees it *pass* on the old code: the one case where its tests aren't red. Later tasks change the code under test, and their code agents make the new code pass it.
-- **At the swap,** changing the assertions for the spec's intended differences is a test change, so the swap task's test agent makes it, within "What 'unchanged' means" in `code-testing`.
+- **On the quick track** one agent writes the tests and the code. The review checks the tests. Dispatch it in its own worktree, and tell it:
+  - to create its branch from the change's branch: `git switch -c change/<name>--T-<n> change/<name>`;
+  - to read `CLAUDE.md` and the conventions, and the task and its criteria as you give them (the quick track has no change folder);
+  - to write the tests first, naming each criterion in the test's name as in step 3, to run them and see them fail, and only then to make them pass;
+  - the rest of step 5: follow the conventions and stay inside the task's files, run the **Verify** command and the fast checks before committing, reply with the commands and their results, don't regenerate, and the worktree rules.
+
+  Step 6 then merges its branch, without the check on the test files.
+- **A task whose `Tests` field says `none: <why>`** (a rename, text) has no tests to write. It skips the test agent and its red run. One agent builds it with the code agent's prompt of step 5, on a branch from `change/<name>`.
+- **A migration's first task** (T-1) is a test agent's task with no code agent. The test agent writes the behaviour test and sees it *pass* on the old code: the one case where its tests aren't red. Step 6 merges its test branch, `change/<name>--T-1--tests`.
+- **A migration task whose `Tests` field says `the behaviour test of T-1`** changes the code under test without an intended difference. The behaviour test already passes on the old code, so there is nothing new to write: it skips the test agent and its red run. Its code agent branches from `change/<name>` (`git switch -c change/<name>--T-<n> change/<name>`) and makes the new code pass the behaviour test. In step 6, `git diff change/<name> change/<name>--T-<n> -- <the behaviour test's files>` must be empty: the files the migration plan's Behaviour test section names, recorded outputs included.
+- **A migration task that changes the behaviour test** gets a test agent as usual: adding the new version to a side-by-side suite, or, at the swap, changing the assertions for the spec's intended differences. Its test agent stays within "What 'unchanged' means" in `code-testing`.
 
 **Parallel tasks:**
 - tasks marked `Parallel: yes`, whose dependencies are done, may run at the same time, **at most `parallelTasks` at once** (3 by default). It counts tasks: within a task the agents run one after another;
@@ -81,7 +91,7 @@ There is at most one arbitration per task. A second dispute goes to the owner, a
 After the last task, verify the whole change on `change/<name>`:
 
 1. Run every check command of the project. Where the change has a user-facing part, also run the app and try the flows the spec describes (the `run` skill).
-2. Write `verification.md` next to `task.md`:
+2. Complete `verification.md` next to `task.md`, which the build started at its first recorded run (or write it now, when no run was recorded):
 
 ```markdown
 # Verification: <title>
