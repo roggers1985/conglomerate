@@ -108,4 +108,28 @@ describe("the stage skills' templates", () => {
 
         expect(reviewProblems(review, { file: "review.md" })).toEqual([]);
     });
+
+    it("AC-12: the review template records the mutation checks", async () => {
+        const [review = ""] = await templates("factory-review", { count: 1 });
+        const lines = review.split("\n");
+        const headings = lines.filter((line) => /^## /.test(line));
+        const columnsOfTableAfter = (heading: string): string[] => {
+            const headerRow = lines.slice(lines.indexOf(heading) + 1).find((line) => line.startsWith("|")) ?? "";
+
+            return headerRow
+                .split("|")
+                .slice(1, -1)
+                .map((cell) => cell.trim());
+        };
+
+        expect(headings, "the template should have a `## Findings` section").toContain("## Findings");
+        expect(headings, "the template should have a `## Mutation checks` section").toContain("## Mutation checks");
+        expect(
+            headings.indexOf("## Mutation checks"),
+            "`## Mutation checks` should come after `## Findings`",
+        ).toBeGreaterThan(headings.indexOf("## Findings"));
+        expect(columnsOfTableAfter("## Mutation checks")).toEqual(["Criterion", "Test", "What was broken", "Result"]);
+        expect(columnsOfTableAfter("## Findings")).toEqual(["#", "Severity", "Finding", "Where", "Status"]);
+        expect(reviewProblems(review, { file: "review.md" })).toEqual([]);
+    });
 });
