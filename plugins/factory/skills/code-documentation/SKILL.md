@@ -10,7 +10,7 @@ Exported code is documented well enough to use without reading its body, and eve
 ## What to document
 
 - **Every export** gets a full doc comment.
-- **Internal code** only gets a comment when the *why* isn't obvious: a constraint, an ADR, or a rejected alternative. It never repeats what the code does (see "Comments" in `code-readability`). A `/** */` summary is documentation, not such a comment, on an internal declaration as much as on an export: it says what the declaration is or returns, and the same three kinds of why go in `@remarks`. Only an export needs the full doc comment with an example.
+- **Internal code** only gets a comment when the *why* isn't obvious: a constraint, an ADR, or a rejected alternative. It never repeats what the code does (see "Comments" in `code-readability`). A short `/** */` summary is documentation, not such a comment, on an internal declaration as much as on an export: it says what the declaration is or returns, and the same three kinds of why go in `@remarks`. Only an export needs the full doc comment with an example.
 - **Don't repeat names or types.** Write what the types can't express: units, ranges, meaning, invariants (`assert`), side effects, cancellation, and when it throws.
 
 ## TypeScript: TSDoc

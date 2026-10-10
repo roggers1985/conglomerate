@@ -51,7 +51,7 @@ A task is built by two agents in turn. A **test agent** writes its tests from th
    - that in a worktree Claude Code blocks heredocs and chained shell commands: edit files with the Edit and Write tools, and run one command at a time.
 6. **Take the result in:**
    - check that the code agent left the tests alone, fixtures and helpers included. A difference fails the code agent's attempt:
-     - the test agent's files are the ones `git diff --name-only change/<name> change/<name>--T-<n>--tests` lists, and `git diff change/<name>--T-<n>--tests change/<name>--T-<n> -- <those files>` must be empty;
+     - the test agent's files are the ones `git diff --name-only change/<name>...change/<name>--T-<n>--tests` lists (three dots: the diff from where the task branched, so files that other tasks merged since don't count), and `git diff change/<name>--T-<n>--tests change/<name>--T-<n> -- <those files>` must be empty;
      - the code agent's files are the ones `git diff --name-only change/<name>--T-<n>--tests change/<name>--T-<n>` lists, and none of them may be a test, a fixture or a test helper;
    - merge `change/<name>--T-<n>` into `change/<name>`. It holds the test commits followed by the code commits, so the history shows the tests came first;
    - regenerate the project's generated files there (its own generate command, e.g. `bun run generate`), and commit what changed;
@@ -73,12 +73,15 @@ There is at most one arbitration per task. A second dispute goes to the owner, a
   - to create its branch from the change's branch: `git switch -c change/<name>--T-<n> change/<name>`;
   - to read `CLAUDE.md` and the conventions, and the task and its criteria as you give them (the quick track has no change folder);
   - to write the tests first, naming each criterion in the test's name as in step 3, to run them and see them fail, and only then to make them pass;
+  - for a migration, to write the behaviour test first instead, run it on the old code and see it *pass*, and commit it before changing the code under test. Only then does it make the change. Its reply names that run: the command, the commit and the result (see "Before the first task");
   - the rest of step 5: follow the conventions and stay inside the task's files, run the **Verify** command and the fast checks before committing, reply with the commands and their results, don't regenerate, and the worktree rules.
 
   Step 6 then merges its branch, without the check on the test files.
-- **A task whose `Tests` field says `none: <why>`** (a rename, text) has no tests to write. It skips the test agent and its red run. One agent builds it with the code agent's prompt of step 5, on a branch from `change/<name>`.
+- **A task whose `Tests` field says `none: <why>`** (a rename, text) has no tests to write. It skips the test agent and its red run. One agent builds it with the code agent's prompt of step 5, on a branch from `change/<name>`, with one difference: it may change tests only mechanically (a rename, a moved path), never their cases or expectations. Step 6 merges its branch without the check on the test files, since there is no `--tests` branch.
 - **A migration's first task** (T-1) is a test agent's task with no code agent. The test agent writes the behaviour test and sees it *pass* on the old code: the one case where its tests aren't red. Step 6 merges its test branch, `change/<name>--T-1--tests`.
-- **A migration task whose `Tests` field says `the behaviour test of T-1`** changes the code under test without an intended difference. The behaviour test already passes on the old code, so there is nothing new to write: it skips the test agent and its red run. Its code agent branches from `change/<name>` (`git switch -c change/<name>--T-<n> change/<name>`) and makes the new code pass the behaviour test. In step 6, `git diff change/<name> change/<name>--T-<n> -- <the behaviour test's files>` must be empty: the files the migration plan's Behaviour test section names, recorded outputs included.
+- **A migration task whose `Tests` field says `the behaviour test of T-1`** changes the code under test without an intended difference. The behaviour test already passes on the old code, so there is nothing new to write: it skips the test agent and its red run. Its code agent branches from `change/<name>` (`git switch -c change/<name>--T-<n> change/<name>`) and makes the new code pass the behaviour test. It adds no tests, fixtures or helpers. In step 6:
+  - `git diff change/<name>...change/<name>--T-<n> -- <the behaviour test's files>` must be empty: the files the migration plan's Behaviour test section names, recorded outputs included;
+  - none of the files `git diff --name-only change/<name>...change/<name>--T-<n>` lists may be a test, a fixture or a test helper, as for any code agent.
 - **A migration task that changes the behaviour test** gets a test agent as usual: adding the new version to a side-by-side suite, or, at the swap, changing the assertions for the spec's intended differences. Its test agent stays within "What 'unchanged' means" in `code-testing`.
 
 **Parallel tasks:**
