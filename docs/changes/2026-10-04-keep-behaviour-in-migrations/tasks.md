@@ -54,7 +54,7 @@
 - Verify: `grep -n "^## Comments" plugins/factory/skills/code-readability/SKILL.md` finds the section, `code-documentation` names the three kinds of why and how they fit an export's doc comment, and `bun run check` passes on the change's branch after the merge and `bun run generate` (the description changes the catalog)
 - Depends on: none
 - Parallel: yes
-- Status: pending
+- Status: done
 
 ### T-7: Build each task with a test agent, a code agent and an arbiter
 
@@ -74,7 +74,7 @@
 - Verify: `bun test scripts/skill-templates.test.ts` passes, the tasks template shows a `Tests` line in each task, the tasks section has the migration rule, and `bun run check` passes
 - Depends on: none
 - Parallel: yes
-- Status: pending
+- Status: in-progress
 
 ### T-9: Break the code in the review to see each criterion's test fail
 
