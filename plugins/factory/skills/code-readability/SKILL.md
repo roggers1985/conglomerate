@@ -1,6 +1,6 @@
 ---
 name: code-readability
-description: The owner's readability and optionality conventions, with examples. Covers one named condition per if, guard clauses, readable pipelines, handling null/undefined at the boundaries, empty collections instead of null, when optional chaining is allowed, variable scope, and naming (units, qualifiers last, no abbreviations). Use when writing or refactoring conditionals, data pipelines, code that deals with missing values, or when naming things.
+description: The owner's readability and optionality conventions, with examples. Covers one named condition per if, guard clauses, readable pipelines, handling null/undefined at the boundaries, empty collections instead of null, when optional chaining is allowed, variable scope, naming (units, qualifiers last, no abbreviations), and comments that say why, never what. Use when writing or refactoring conditionals, data pipelines, code that deals with missing values, when naming things, or when writing comments.
 ---
 
 # Readability and optionality
@@ -157,3 +157,25 @@ Declare a variable as close to its first use as possible, and keep few variables
 - **Units in names:** a number with a unit says it: `timeoutMs`, `sizeBytes`, `intervalDays`. A missing unit is a classic bug (seconds passed where milliseconds were meant).
 - **Qualifiers last,** so related names line up and sort together: `latencyMsMax`, `latencyMsMin` rather than `maxLatency`, and `PACKAGES_MAX`, `JSON_BYTES_MAX` for constants (TigerStyle).
 - **No abbreviations,** except terms that are more familiar abbreviated: `id`, `url`, `html`, `json`, `api`. `configuration` may stay `config`; `msg`, `cnt` and `idx` become `message`, `count` and `index`.
+
+## Comments
+
+Names say what the code does. A comment says why, and only where the why isn't obvious. There are three kinds of why:
+
+- **a constraint:** a limit, a quirk of an API, an order that matters;
+- **an ADR:** the decision that shaped this code;
+- **a rejected alternative:** the obvious approach, and why it doesn't work here.
+
+A comment never repeats what the code does. When the what needs explaining, a better name or a named function explains it instead.
+
+```ts
+// Avoid: the comment repeats the code
+// Sort the versions
+const sorted = versions.toSorted(compareVersions);
+
+// Prefer: the comment says why the obvious alternative isn't used
+// Not localeCompare: it puts "10.0.0" before "9.0.0".
+const sorted = versions.toSorted(compareVersions);
+```
+
+This applies to comments in production code: in a function body, or on internal code. The doc comment on an export is documentation, and `code-documentation` governs it.
