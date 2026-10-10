@@ -18,6 +18,42 @@ Every feature ships with tests, even when not explicitly asked. Tests are extens
 
 Most tests are unit and component tests; end-to-end tests are fewer and focus on flows. A bug found at a higher level also gets a test at the lowest level that can reproduce it.
 
+## Tests that read as a specification
+
+A test suite is the most precise description of what the code does, so write each test to be read that way, at every level. Someone who reads only the test names should learn the behaviour; someone who reads one failure should know which behaviour broke.
+
+- **The name states the behaviour in domain words**: what happens, in the words of the people who use it, not the names of functions or variables. `it("rejects a name that is not kebab-case")`, not `it("validateName returns false")`. When a test proves an acceptance criterion, its id comes first (ADR 0054): `it("AC-1: downloads the jobs as CSV")`.
+- **One behaviour per test.** A test that checks two behaviours hides the second when the first fails, and its name can't state both.
+- **Arrange, act and assert are visible**, with a blank line between the parts. The arrange part states only what matters to this behaviour (see "Test data").
+- **A failure says which behaviour broke.** The name does most of this. Where the value alone doesn't explain the failure, add an assertion message where the runner supports one, e.g. in Vitest `expect(row, "the export keeps the job's title").toContain("Nurse")`.
+- **In an end-to-end test, one flow is one behaviour.** Its steps may alternate act and assert, as long as the test follows one flow and its name states it.
+
+Avoid:
+
+```ts
+it("works", () => {
+  const result = parseJobs(csv);
+  expect(result.length).toBe(2);
+  expect(parseJobs("")).toEqual([]);
+});
+```
+
+Prefer:
+
+```ts
+it("reads one job per line of the CSV", () => {
+  const csv = "title\nNurse\nTeacher";
+
+  const jobs = parseJobs(csv);
+
+  expect(jobs.map((job) => job.title)).toEqual(["Nurse", "Teacher"]);
+});
+
+it("reads no jobs from an empty file", () => {
+  expect(parseJobs("")).toEqual([]);
+});
+```
+
 ## Finding edge cases systematically
 
 "Every edge case" needs a method, otherwise it stays a feeling. For each input:
@@ -38,8 +74,6 @@ Most tests are unit and component tests; end-to-end tests are fewer and focus on
 
 ## Unit and integration tests
 
-- One behaviour per test, named after it: `it("rejects a name that is not kebab-case")`.
-- Arrange, act, assert, with a blank line between the parts.
 - **Mock only at the edges**: the network (e.g. MSW), the clock (fake timers), randomness (a seed), the file system (a temporary directory). Never mock the project's own modules; a test that mocks its collaborators tests the mock.
 - **Test data**: small builder functions with sensible defaults (`buildJob({ title: "…" })`), so each test only states what matters to it.
 - **Clean output**: no console output, subprocess output, unhandled errors or leaked resources that the test did not expect and assert (see "Clean test output").
