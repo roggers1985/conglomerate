@@ -34,6 +34,7 @@ To consider:
 
 - [ ] A script that checks the evidence in `verification.md`: each named test exists and names its criterion (today the gate checks that evidence is named, and the review agent checks that it holds, ADR 0054, 0055)
 - [ ] Let an acceptance criterion carry an indented list. The spec gate reads each criterion as one line, so a criterion with a sub-list is refused. That works against the writing convention, which prefers lists for structure (ADR 0061). Seen in the spec of the keep-behaviour-in-migrations change
+- [ ] Qualify the criterion id in new test names with the change's short name (for example `it("migrations AC-5: …")`). Ids like "AC-5" now repeat across changes, so the id alone no longer says which spec a test belongs to. Amends ADR 0054's naming rule; leave existing tests as they are, since renaming them would break their changes' evidence (review of the keep-behaviour-in-migrations change, finding 11)
 - [ ] A skill for writing skills in the owner's style (Superpowers' `writing-skills`)
 - [ ] A systematic debugging skill (Superpowers)
 - [ ] Evals for the plugin's skills with `claude plugin eval`: do they trigger, and do they help?
