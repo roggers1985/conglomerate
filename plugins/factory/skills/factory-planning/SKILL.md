@@ -55,6 +55,7 @@ Small tasks, each a few minutes of work for one agent, in the order they're buil
 
 - Files: `src/export/request.ts`, `src/export/request.test.ts`
 - Covers: AC-1, AC-4
+- Tests: `parseExportRequest` in `src/export/request.ts`
 - Verify: `bun test src/export/request.test.ts`
 - Depends on: none
 - Parallel: no
@@ -64,6 +65,7 @@ Small tasks, each a few minutes of work for one agent, in the order they're buil
 
 - Files: `src/export/csv.ts`, `src/export/csv.test.ts`
 - Covers: AC-1, AC-2
+- Tests: the endpoint `GET /jobs/export.csv`
 - Verify: `bun test src/export/csv.test.ts`
 - Depends on: T-1
 - Parallel: no
@@ -73,8 +75,10 @@ Small tasks, each a few minutes of work for one agent, in the order they're buil
 - **Covers** names the spec's criteria (`AC-<n>`). A task that covers none (setup, a refactor it needs) writes `none` with the reason.
 - **Every active criterion is covered by at least one task.** No task covers a criterion the spec doesn't have or has dropped.
 - **Depends on** only names earlier tasks. **Parallel: yes** marks a task that can be built at the same time as the others marked so, because it touches different files and depends on nothing unfinished.
+- **Tests** (optional) says what the task's test agent tests: the interface, such as a function, a command or an endpoint, never internals. A task with no testable behaviour, such as a rename or a text change, writes `none: <why>`, and skips the test agent. The gate ignores this field.
 - **Verify** is a command or a concrete check, never "it works".
-- Tests are part of each task: the task that adds behaviour adds its test (test-first, `code-testing`).
+- Tests are part of each task: the test agent writes them from the spec and the task, and the code agent makes them pass (`factory-build`, `code-testing`).
+- **When the route has a migration plan,** T-1 writes the behaviour test the migration plan names and runs it on the old code. Every task that changes the code under test depends on T-1, so none of them starts before that run.
 
 ## The migration-plan stage
 
