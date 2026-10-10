@@ -1,6 +1,6 @@
 ---
 name: factory-review
-description: The factory's review and security-review stages. A fresh review agent, not the one that built, checks a change against its spec (every acceptance criterion and its test), its plan, the conventions and the ADRs, and records findings by severity; findings are fixed or accepted with a reason before the stage is done. The security review does the same with a security focus. Use when a route's review or security-review stage starts, or when the owner asks to review a change.
+description: The factory's review and security-review stages. A fresh review agent, not the one that built, checks a change against its spec (every acceptance criterion and its test, which it breaks the code on purpose to see fail), its plan, the conventions and the ADRs, and records findings by severity; findings are fixed or accepted with a reason before the stage is done. The security review does the same with a security focus. Use when a route's review or security-review stage starts, or when the owner asks to review a change.
 metadata:
   task: review
 ---
@@ -9,7 +9,7 @@ metadata:
 
 The review checks the built change on `change/<name>` before it's finished (ADR 0055). **The reviewer is never the builder:** dispatch a fresh `factory:tasks:review` subagent (Opus, high effort), so it looks with a clean context. The main session coordinates and fixes; the reviewer only reports.
 
-**The reviewer works in its own worktree** (Agent tool, `isolation: "worktree"`, ADR 0042), so it can't switch branches or change files in the coordinator's checkout. Tell it to switch to the change's branch there (`git switch change/<name>`), install dependencies from the lockfile, run what it needs, and change nothing: it reports, and its worktree is removed afterwards. Tell it that in a worktree Claude Code blocks heredocs and chained shell commands, so it runs one command at a time.
+**The reviewer works in its own worktree** (Agent tool, `isolation: "worktree"`, ADR 0042), so it can't switch branches or change files in the coordinator's checkout. Tell it to switch to the change's branch there (`git switch change/<name>`), install dependencies from the lockfile, and run what it needs. It may change code only for the mutation check (below): it **commits nothing and leaves the worktree clean**. It reports, and its worktree is removed afterwards. Tell it that in a worktree Claude Code blocks heredocs and chained shell commands, so it runs one command at a time.
 
 When the reviewer is interrupted (a usage limit, an error), resume that same agent with `SendMessage` instead of starting a new one. To inspect its worktree, use `git -C <worktree> …`; never `cd` into it, which moves your session into the worktree.
 
@@ -21,11 +21,11 @@ When the reviewer is interrupted (a usage limit, an error), resume that same age
 
 ## What it checks
 
-1. **The spec, criterion by criterion:** the behaviour of every active `AC-<n>` is there, and the evidence in `verification.md` holds. The named test exists, names its criterion, tests what it claims, and passes (run it). A criterion the change doesn't meet is a **high** finding.
+1. **The spec, criterion by criterion:** the behaviour of every active `AC-<n>` is there, and the evidence in `verification.md` holds. The named test exists, names its criterion, tests what it claims, and passes (run it). A criterion the change doesn't meet is a **high** finding. Then break the code to see that test fail: the mutation check, below.
 2. **Nothing beyond the spec:** behaviour the spec doesn't ask for, including anything under "Out of scope", is a finding.
 3. **The plan:** the change follows it. Deviations are named and justified; an unjustified one is a finding.
 4. **The conventions and ADRs,** in substance: the plan's convention gate said the change follows them, and this is where that's checked. Readability, bounds and fail fast, parsing at the boundary, cancellation, API design, documentation with tested examples, the testing conventions.
-5. **The tests:** they test behaviour, not implementation; they cover the edge cases and limits of the spec; nothing is skipped or focused.
+5. **The tests:** they test behaviour, not implementation; they cover the edge cases and limits of the spec; nothing is skipped or focused. On the quick track one agent wrote both the tests and the code, so check that the code didn't shape the tests: they follow the spec's words, not the code's structure. An expectation that only restates the implementation is a finding.
 6. **Bugs and risks** the tests don't catch: races, unchecked errors, time zones, off-by-one.
 7. **The behaviour test, when the route has a migration plan:**
    - it ran on the old code: `verification.md` records the command, the commit and the result. On the quick track there is no change folder: the record is in the build's reply and the pull request's description;
@@ -41,6 +41,24 @@ When the reviewer is interrupted (a usage limit, an error), resume that same age
 - **high:** a criterion isn't met, a bug, a security hole, data loss, or a broken convention with real consequences;
 - **medium:** a convention not followed, a missing test for an edge case, an unjustified deviation;
 - **low:** naming, wording, small readability points.
+
+## The mutation check
+
+A passing test proves little until it has been seen to fail. So for each criterion whose evidence is a test, the reviewer breaks the code on purpose:
+
+1. Make the smallest change in the production code that breaks what the criterion states, such as inverting a condition, removing a guard, moving a limit by one or skipping an error path.
+2. Run the criterion's test, and see it fail.
+3. Restore the code before the next break.
+
+Every error path and limit of the criterion gets its own break. A criterion that only changes skill or document text may be skipped, with the reason recorded.
+
+This happens in the reviewer's own worktree, which is thrown away after the review. The reviewer commits nothing and restores every break, so the worktree ends clean (`git -C <worktree> status` shows nothing).
+
+Record each break in the review's `## Mutation checks` table: the criterion, the test, what was broken, and the result. The result is `failed`, `stayed green: finding <n>`, or `skipped: <why>`.
+
+**A test that stays green is a finding** in the findings table:
+- **high** when the break hits what the criterion states: the criterion then has no evidence that holds;
+- **medium** when it hits an edge case or limit around the criterion, like a missing edge-case test.
 
 ## The security-review stage
 
@@ -71,15 +89,24 @@ Two or three sentences. Start with the verdict: does the change do what the spec
 | - | -------- | ------- | ----- | ------ |
 | 1 | high | AC-3 isn't met. A failed export leaves the button disabled. | `src/export/button.tsx:42` | fixed |
 | 2 | low | The name `data` doesn't say what it holds. | `src/export/csv.ts:10` | accepted: it's the term the API uses |
+| 3 | medium | The test of AC-5 stays green when the row limit moves by one. | `src/export/csv.test.ts:30` | fixed |
+
+## Mutation checks
+
+| Criterion | Test | What was broken | Result |
+| --------- | ---- | --------------- | ------ |
+| AC-3 | `button.test.tsx` › "AC-3: enables the button again after a failed export" | Removed the `finally` that enables the button. | failed |
+| AC-5 | `csv.test.ts` › "AC-5: refuses more than 10,000 rows" | Moved the limit from 10,000 to 10,001. | stayed green: finding 3 |
 ```
 
-With no findings, write "None." under Findings.
+With no findings, write "None." under Findings. With no criterion that has a test, write "None." under Mutation checks.
 
 ## Closing the findings
 
 The reviewer writes every finding as `open`. Then, in the main session:
 
-- **Fix** a finding as a task, the way the build does (`factory-build`: a fresh subagent, test-first, in a worktree). Then ask the reviewer to check the fix, and set the finding to `fixed`.
+- **Fix** a finding as a task, the way the build does (`factory-build`: the test agent first, then the code agent, each in its own worktree). Then ask the reviewer to check the fix, and set the finding to `fixed`.
+- **A test that stayed green** is fixed by the test agent, which strengthens the test. The proof is that the stronger test fails on the break recorded under Mutation checks and passes on the code. A code agent follows only when the stronger test fails on the code too.
 - **Accept** a finding instead of fixing it only with a reason, as `accepted: <reason>`. At `guided`, only the owner accepts. At `trusted` and `autonomous`, you may accept medium and low findings, and list them for the owner.
 - **A high finding** is fixed, or accepted by the owner (`accepted by owner: <reason>`), at every autonomy level.
 
