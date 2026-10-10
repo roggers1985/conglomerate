@@ -11,7 +11,7 @@
 - The new gate refuses nothing that exists: no change folder has a `migration-plan.md`.
 - This change has no migration plan of its own, so the behaviour-test rules (AC-6, AC-7) are checked by reading the skills, not by a run.
 
-- Second part of the build (AC-9 to AC-14), on `change/2026-10-04-keep-behaviour-in-migrations`, after each merge and `bun run generate`: `bun run check` passed every time. Final run: typecheck, lint, 496 tests, 101 doctest examples and validate, all passed.
+- Second part of the build (AC-9 to AC-14), on `change/2026-10-04-keep-behaviour-in-migrations`, after each merge and `bun run generate`: `bun run check` passed every time. Final run: typecheck, lint, 497 tests, 101 doctest examples and validate, all passed.
 - Red runs of the new split (T-7 and T-9, the only tasks with testable behaviour; T-5, T-6, T-8 and T-10 were `Tests: none`, skill or document text):
   - T-7: `bun test scripts/skill-templates.test.ts` on `change/…--T-7--tests` at commit `0b4e2d9`: 7 pass, 1 fail, "the template should have a `## Rulings` section". Re-run by the coordinator, same result. After the code agent's commit `a49274a`: 8 pass; `git diff` of the test file between the two branches was empty.
   - T-9: same command on `change/…--T-9--tests` at commit `db7d661`: 8 pass, 1 fail, "the template should have a `## Mutation checks` section". Re-run by the coordinator, same result. After the code agent's commit `c65ab24`: 9 pass; `git diff` of the test file between the two branches was empty.
