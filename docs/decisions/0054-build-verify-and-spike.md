@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted. Extended by [ADR-0058](0058-project-settings.md): parallel tasks and attempts are project settings. Extended by [ADR-0055](0055-review-and-security-review.md): the review checks that the evidence holds.
+Accepted. Extended by [ADR-0058](0058-project-settings.md): parallel tasks and attempts are project settings. Extended by [ADR-0055](0055-review-and-security-review.md): the review checks that the evidence holds. Amended by [ADR-0063](0063-tests-written-apart-from-the-code.md): a test agent writes a task's tests and a code agent makes them pass, with an arbiter for a disputed test.
 
 Extends [ADR-0053](0053-planning-plan-tasks-and-the-convention-gate.md) and [ADR-0042](0042-checkups-in-worktrees.md) (worktrees for tasks).
 

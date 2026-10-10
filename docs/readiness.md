@@ -54,7 +54,7 @@ Facts from the projects' own repositories and documentation, read on 2026-09-30.
 | --------- | ------- | ----------- | -------- | -------- | ---- | ---- | -------- | ------------- |
 | Coding conventions | ✓ deep, enforced | ~ | ~ | ✗ | ~ | ✓ | ~ | ~ |
 | Spec, plan and task stages | ✓ triage, intake, planning | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Review | ✓ separate reviewer, severity rules | ✓ | ~ | ~ | ✓ | ~ | ✓ | ✓ |
+| Review | ✓ separate reviewer, severity rules, mutation check | ✓ | ~ | ~ | ✓ | ~ | ✓ | ✓ |
 | Recurring maintenance checks | ✓ 18, scheduled, as PRs | ✗ | ✗ | ✗ | ✗ | ✗ | ~ advice | ~ |
 | Architecture assessment | ✓ checkup and register | ✗ | ✗ | ✗ | ~ | ✗ | ✗ | ✗ |
 | Model routing and cost | ✓ | ✗ | ✗ | ✗ | ✗ | ~ | ~ | ~ |
