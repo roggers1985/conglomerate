@@ -1,6 +1,6 @@
 ---
 name: factory-build
-description: The factory's build, verify and spike stages. Builds a change task by task, each in a fresh subagent and its own git worktree, test-first, then verifies the whole change and records evidence for every acceptance criterion in verification.md. A spike answers a question with throwaway code and records its findings. Use when a route's build, verify or spike stage starts, or to resume a build.
+description: The factory's build, verify and spike stages. Builds a change task by task, with a test agent that writes the tests from the spec and commits them failing, a different code agent that makes them pass, and an arbiter that rules on a disputed test, each in a fresh subagent and its own git worktree, then verifies the whole change and records evidence for every acceptance criterion in verification.md. A spike answers a question with throwaway code and records its findings. Use when a route's build, verify or spike stage starts, or to resume a build.
 metadata:
   task: code
 ---
