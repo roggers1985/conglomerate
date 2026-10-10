@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted. Extended by [ADR-0057](0057-secure-by-default.md): the security review is added by rule for entry points, authentication, untrusted input and sensitive data. Extended by [ADR-0052](0052-intake-intent-and-spec.md): the intent and spec stages, with a gate.
+Accepted. Extended by [ADR-0057](0057-secure-by-default.md): the security review is added by rule for entry points, authentication, untrusted input and sensitive data. Extended by [ADR-0052](0052-intake-intent-and-spec.md): the intent and spec stages, with a gate. Extended by [ADR-0062](0062-keep-behaviour-in-migrations.md): the migration-plan stage also covers code migrations that keep behaviour.
 
 Extends [ADR-0044](0044-autonomy-levels.md) (autonomy per stage) and [ADR-0045](0045-architecture-checkup-and-register.md) (architecture debt in triage).
 

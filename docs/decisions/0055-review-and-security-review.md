@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted. Extended by [ADR-0058](0058-project-settings.md): review rounds are a project setting. Extended by [ADR-0057](0057-secure-by-default.md): every review checks authentication and authorisation on every entry point. Extended by [ADR-0056](0056-docs-and-finish.md): the docs and finish stages. Amended by [ADR-0063](0063-tests-written-apart-from-the-code.md): the review breaks the code to see each criterion's test fail (the mutation check).
+Accepted. Extended by [ADR-0058](0058-project-settings.md): review rounds are a project setting. Extended by [ADR-0057](0057-secure-by-default.md): every review checks authentication and authorisation on every entry point. Extended by [ADR-0056](0056-docs-and-finish.md): the docs and finish stages. Amended by [ADR-0063](0063-tests-written-apart-from-the-code.md): the review breaks the code to see each criterion's test fail (the mutation check). Extended by [ADR-0062](0062-keep-behaviour-in-migrations.md): the review checks that a migration's behaviour test passed on the old code and stayed unchanged.
 
 Extends [ADR-0054](0054-build-verify-and-spike.md).
 

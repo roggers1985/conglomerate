@@ -178,4 +178,4 @@ const sorted = versions.toSorted(compareVersions);
 const sorted = versions.toSorted(compareVersions);
 ```
 
-This applies to comments in production code: in a function body, or on internal code. The doc comment on an export is documentation, and `code-documentation` governs it.
+This applies to comments in production code: in a function body, or on internal code. A `/** */` summary of what a declaration is or returns is documentation, on an internal declaration as much as on an export, and `code-documentation` governs it.

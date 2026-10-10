@@ -62,7 +62,7 @@ These conventions apply to all work in this session. They come from the factory 
 
 ## Documentation
 
-- Every export has a full doc comment (TSDoc in TypeScript), including at least one example for functions and classes. Examples run as tests. Internal code only gets a comment when the *why* isn't obvious.
+- Every export has a full doc comment (TSDoc in TypeScript), including at least one example for functions and classes. Examples run as tests. Beyond a short `/** */` summary of what a declaration is or returns, internal code only gets a comment when the *why* isn't obvious.
 - Documentation for people follows the `writing-documentation` skill: what and why first, short and plain, and just as precise.
 
 ## Tests

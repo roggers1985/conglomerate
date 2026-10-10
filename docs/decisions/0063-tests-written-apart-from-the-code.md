@@ -50,13 +50,13 @@ A second dispute in the same task goes to the owner, at every autonomy level, so
 
 **The roles use the existing task agents.** The test agent is `factory:tasks:code`, or `code-complex` when the code agent is; never `code-small`, because writing tests from a spec involves the conventions. The arbiter is `factory:tasks:review`, because judging a test against a spec is review work. There are no new agent types, and `models.json` doesn't change.
 
-**Three cases keep one agent:**
+**Four cases keep one agent, or none for the tests:**
 
 - **The quick track.** One agent writes the tests and the code, test-first, as before. The review makes up for the missing second agent: it checks that the tests follow the spec's words, not the code's structure, and it runs the mutation check.
 - **A task with no testable behaviour,** such as a rename or a text change. Its `Tests` field says `none: <why>`, and it skips the test agent.
-- **A migration's first task** is a test agent's task with no code agent. It writes the behaviour test and sees it *pass* on the old code: the one case where the tests aren't red (ADR 0062).
+- **A migration's first task** is a test agent's task with no code agent. It writes the behaviour test and sees it *pass* on the old code: the one case where the tests aren't red (ADR 0062). A later migration task that changes the code under test without an intended difference has `Tests: the behaviour test of T-1`: it skips the test agent, and the behaviour test's files must stay unchanged in the merge diff.
 
-**Each task says what its test agent tests,** in a new optional field `Tests` in the task format of ADR 0053. It names the interface, such as a function, a command or an endpoint, never internals; or it says `none: <why>`. The test agent doesn't read the plan, so the task has to name the interface. The gate ignores the field. When the route has a migration plan, T-1 writes the behaviour test, and every task that changes the code under test depends on it (`factory-planning`).
+**Each task says what its test agent tests,** in a new field `Tests` in the task format of ADR 0053. Every task on the standard and full tracks has one; it is optional only in that the gate doesn't check it, because older task lists lack it, and the coordinator adds a missing line before dispatching the test agent. It names the interface, such as a function, a command or an endpoint, never internals; or it says `none: <why>`. The test agent doesn't read the plan, so the task has to name the interface. The gate ignores the field. When the route has a migration plan, T-1 writes the behaviour test, and every task that changes the code under test depends on it (`factory-planning`).
 
 **Tests read as a specification,** at every level (`code-testing`, "Tests that read as a specification"):
 
@@ -74,7 +74,7 @@ A second dispute in the same task goes to the owner, at every autonomy level, so
 
 Every error path and limit of the criterion gets its own break. A criterion that only changes skill or document text may be skipped, with the reason recorded. The reviewer works in its own worktree, which is thrown away after the review: it commits nothing and leaves the worktree clean. `review.md` records each break in a `## Mutation checks` table. A test that stays green is a finding: **high** when the break hits what the criterion states, **medium** when it hits an edge case or limit around it. The test agent fixes it by strengthening the test.
 
-**Comments say why, never what** (`code-readability`, "Comments", and `code-documentation`). A *comment* here is everything in production code beyond the documentation of an export: a note in a function body, or on internal code. It appears only where the why isn't obvious, and gives one of three kinds of why: a constraint, an ADR, or a rejected alternative. It never repeats what the code does; a better name does that. The doc comment on an export is documentation, not such a comment: its summary says what the export does, and ADR 0016 is unchanged. The why of an export goes in its `@remarks`.
+**Comments say why, never what** (`code-readability`, "Comments", and `code-documentation`). A *comment* here is everything in production code beyond the documentation of a declaration: a note in a function body, or on internal code. A short `/** */` summary of what a declaration is or returns is documentation, on an internal declaration as much as on an export (the owner's decision in review round 2). It appears only where the why isn't obvious, and gives one of three kinds of why: a constraint, an ADR, or a rejected alternative. It never repeats what the code does; a better name does that. Such a summary is documentation, not such a comment, and ADR 0016 is unchanged. The why of a declaration goes in its `@remarks`. `core.md`'s sentence on internal code says the same.
 
 ## Consequences
 
