@@ -451,14 +451,8 @@ export const VERIFICATION_SECTIONS = ["Checks", "Evidence"] as const;
 /** The sections `spike.md` must have. */
 export const SPIKE_SECTIONS = ["Question", "Findings", "Recommendation"] as const;
 
-/** The sections `migration-plan.md` must have: the steps, the two sides, the behaviour test, the checks and the way back. */
-export const MIGRATION_PLAN_SECTIONS = [
-    "Steps",
-    "Old and new side by side",
-    "Behaviour test",
-    "Verification",
-    "Rollback",
-] as const;
+/** The sections `migration-plan.md` must have: steps, coexistence, behaviour test, verification and rollback. */
+export const MIGRATION_PLAN_SECTIONS = ["Steps", "Old and new", "Behaviour test", "Verification", "Rollback"] as const;
 
 const EVIDENCE = /^\s*[-*] (AC-\d+):(.*)$/s;
 
@@ -546,8 +540,9 @@ export function spikeProblems(markdown: string): string[] {
 }
 
 /**
- * Checks `migration-plan.md` before the migration-plan stage may be done: the steps, how the old and new run side by
- * side, the test that shows the behaviour stayed the same, the verification and the rollback.
+ * Checks `migration-plan.md` before the migration-plan stage may be done: the steps, how the old and new coexist, the
+ * test that shows the behaviour stayed the same, the verification and the rollback. Nothing may be left marked
+ * `[NEEDS CLARIFICATION]`: a step that can't be rolled back needs the owner's explicit approval first.
  *
  * @param markdown - The contents of `migration-plan.md`.
  * @returns Every problem found; empty when the gate passes.
@@ -561,7 +556,10 @@ export function spikeProblems(markdown: string): string[] {
  * ```
  */
 export function migrationPlanProblems(markdown: string): string[] {
-    return sectionProblems(markdown, MIGRATION_PLAN_SECTIONS, { file: "migration-plan.md" });
+    return [
+        ...sectionProblems(markdown, MIGRATION_PLAN_SECTIONS, { file: "migration-plan.md" }),
+        ...clarificationProblems(markdown, { file: "migration-plan.md" }),
+    ];
 }
 
 /** The sections a review document (`review.md`, `security-review.md`) must have. */

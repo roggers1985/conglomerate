@@ -71,7 +71,17 @@ A migration that isn't meant to change what the code does (a library swap, a fra
 - **Every intended difference** is listed in the spec and asserted by the test. Any other difference is a bug. When the differences outnumber what stays the same, it isn't a migration that keeps behaviour.
 - **A migration in several steps** runs the same test after every step.
 
-The factory's migration plan names the behaviour test: the interface, the form and, when needed, where the recorded outputs come from (`factory-planning`).
+### What "unchanged" means
+
+The behaviour test passes on the new code *unchanged*. That means:
+
+- **The test cases and their expectations stay the same.** Nothing is added, removed, reworded or loosened, in the test files or in the files they read, such as recorded outputs (a golden master).
+- **Only these edits are allowed:** adding or removing a version in the side-by-side list, and changing the assertions for the intended differences the spec lists.
+- **Re-recording a golden master from the new code is a change to the test.** It makes the test pass whatever the new code does.
+
+Everything else that differs between the old and the new commit makes the proof void.
+
+The factory's migration plan names the behaviour test: the interface, the form, every file the test consists of and, when needed, where the recorded outputs come from (`factory-planning`).
 
 ### Two forms
 
@@ -90,9 +100,9 @@ describe.each([
 });
 ```
 
-When the old code goes, its entry goes; the suite stays.
+Adding the new version, and later removing the old one, are the only edits to the suite. When the old code goes, its entry goes; the cases stay.
 
-**In place** (a library swap, where the old code can't stay): commit the test before the swap. The swap leaves the test file unchanged, so the diff shows it.
+**In place** (a library swap, where the old code can't stay): commit the test before the swap. The swap leaves the test unchanged (see above), apart from the assertions for the intended differences the spec lists, so the diff shows it.
 
 ### When the old code can't run in a test
 

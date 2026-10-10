@@ -29,10 +29,11 @@ Before this decision:
 
 - **It is written before the migration, and seen to pass on the old code.** Old code without tests is the main case.
 - **It tests an interface that stays the same:** a public function, an endpoint or a command. Never internals, because they are what the migration changes.
-- **It takes one of two forms.** *Side by side*, with old and new behind the same interface (for example a strangler fig), one suite runs against both versions. *In place*, as in a library swap, the test is committed before the swap, and the swap leaves the test file unchanged.
+- **It takes one of two forms.** *Side by side*, with old and new behind the same interface (for example a strangler fig), one suite runs against both versions. *In place*, as in a library swap, the test is committed before the swap, and the swap leaves the test unchanged.
 - **Every intended difference is listed in the spec and asserted by the test.** Any other difference is a bug. When the differences outnumber what stays the same, it isn't a migration that keeps behaviour, and the convention doesn't apply.
 - **When the old code can't run in a test,** for example because it calls an external service, is too slow or needs production data, its real outputs are recorded once and the new code is compared with them. This recording is a *golden master*, kept in the repository like other test data.
 - **A migration in several steps** runs the same test after every step.
+- **"Unchanged" has one definition,** in `code-testing`: the test cases and their expectations stay the same, in every file the test consists of, recorded outputs included. Only two edits are allowed: adding or removing a version in the side-by-side list, and the assertions for the intended differences the spec lists. Re-recording a golden master from the new code is a change to the test.
 - **Running both versions in production and comparing them** (for example GitHub's Scientist) is an option for high-risk migrations, chosen in the migration plan. It isn't a rule.
 
 **The stages enforce it:**
@@ -40,10 +41,10 @@ Before this decision:
 | Stage | What it does |
 |---|---|
 | Triage | Adds the migration-plan stage for a task that moves code to another solution without meaning to change its behaviour, as it already did for schema and data changes. |
-| Migration plan | Has a template with five sections: Steps, Old and new side by side, Behaviour test, Verification and Rollback. The Behaviour test section names the interface the test covers, its form (side by side or in place), and where the recorded outputs come from when the old code can't run. For a schema or data migration without such code, it says how the data is checked instead, such as row counts and checksums before and after. |
-| Route check | Refuses a done migration plan that misses one of the five sections, or has one empty (`migrationPlanProblems` in `plugins/factory/scripts/stage-gates.ts`, run by `changes.js check`). |
-| Build | The first task writes the behaviour test the plan names and runs it on the old code, before any task changes the code under test. `verification.md` records that run under Checks: the command, the commit it ran on, and the result. |
-| Review | Checks that `verification.md` records the run on the old code, and diffs the test file from the commit that added it to the end of the change. A behaviour test changed without a reason listed in the spec is a **high** finding. |
+| Migration plan | Has a template with five sections: Steps, Old and new, Behaviour test, Verification and Rollback. The Behaviour test section names the interface the test covers, its form (side by side or in place), every file the test consists of, and where the recorded outputs come from when the old code can't run. For a schema or data migration without such code, it says how the data is checked instead, such as row counts and checksums before and after. |
+| Route check | Refuses a done migration plan that misses one of the five sections, or has one empty, or an open `[NEEDS CLARIFICATION]` (`migrationPlanProblems` in `plugins/factory/scripts/stage-gates.ts`, run by `changes.js check`). |
+| Build | The first task writes the behaviour test the plan names and runs it on the old code, before any task changes the code under test. `verification.md` records that run under Checks: the command, the commit it ran on, and the result. On the quick track, which has no change folder, the reply and the pull request record it. A data check, for a schema or data migration, runs before and after each step, and both results are recorded. |
+| Review | Checks that `verification.md` records the run on the old code, and diffs every file of the test from the commit that added it to the end of the change, against the definition of "unchanged" in `code-testing`. A behaviour test changed in any other way is a **high** finding. The diff doesn't apply to a data check. |
 
 ## Consequences
 

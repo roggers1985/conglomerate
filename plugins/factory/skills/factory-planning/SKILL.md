@@ -90,10 +90,10 @@ When the route has one, write `migration-plan.md` before the plan. It covers two
 The steps in order, each safe to release on its own. For each: what changes, and what the system looks like after
 it.
 
-## Old and new side by side
+## Old and new
 
 How the old and new code coexist during the migration. For example: both behind the same interface, with a flag
-that chooses. Or: the old code is replaced in place in one step.
+that chooses. Or: nothing runs side by side, the old code is replaced in place in one step.
 
 ## Behaviour test
 
@@ -102,7 +102,9 @@ unchanged. Name:
 
 - the interface it tests: a public function, an endpoint or a command, never internals;
 - its form: side by side (one suite runs against both versions), or in place (committed before the swap);
-- where the recorded outputs come from when the old code can't run in a test (a golden master).
+- every file the test consists of, recorded outputs included, so the review can diff them all;
+- where the recorded outputs come from when the old code can't run in a test (a golden master);
+- the level the test runs at when the test framework itself is migrated: one that doesn't depend on the framework, such as an end-to-end test or running the command.
 
 For a schema or data migration without such code, say how the data is checked instead. For example: row counts and
 checksums before and after. Never leave this section empty.

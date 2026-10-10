@@ -16,6 +16,9 @@ The build turns the task list (`tasks.md`, or the Tasks section of `plan.md`) in
 
 **When the route has a migration plan,** the first task writes the behaviour test the plan names and runs it on the old code, before any task changes the code under test (`code-testing`, "Migrations that keep behaviour"). A test that never passed on the old code proves nothing. In place, the test is committed before the swap. `verification.md` records that run under Checks: the command, the commit it ran on, and the result.
 
+- **When the plan names a data check** instead of a test (a schema or data migration), the check runs before and after each step, and `verification.md` records both results.
+- **On the quick track** there is no migration plan and no `verification.md`. The build still writes the behaviour test first and runs it on the old code. Record that run (the command, the commit and the result) in your reply and in the pull request's description, with the evidence. The review checks it there.
+
 ## Each task
 
 1. **Pick the next task:** the first `pending` one whose dependencies are all `done`. Set it to `in-progress` in the task list.

@@ -39,7 +39,7 @@ No data or schema changes. `migration-plan.md` is read like the other change doc
 
 **Where the gate lives: in `stage-gates.ts`, or in a module of its own?** In `stage-gates.ts`, next to the spike's gate, which it copies. A module of its own would hold three lines. This is also the simplest option.
 
-**The section names.** The current bullet list becomes five headings: Steps, Old and new side by side, Behaviour test, Verification and Rollback. Headings are what the other gates check, so the gate stays one call to `sectionProblems`.
+**The section names.** The current bullet list becomes five headings: Steps, Old and new, Behaviour test, Verification and Rollback. Headings are what the other gates check, so the gate stays one call to `sectionProblems`.
 
 **Checking that the behaviour test stayed unchanged: a script or the review?** The review, as the spec decided. A script would have to know which test is the behaviour test and which commit is the swap. The review reads both from the migration plan and the diff.
 

@@ -271,7 +271,7 @@ export function gateProblems(task: Pick<TaskDocument, "stages">, documents: Stag
                   taskListProblems(tasks, { file: "tasks.md", criteria }),
               )
             : []),
-        ...investigationProblems(isDone, documents),
+        ...sectionedDocumentProblems(isDone, documents),
         ...(isDone("security-review")
             ? documentProblems(documents.securityReview, "security-review", (review) =>
                   reviewProblems(review, { file: "security-review.md" }),
@@ -290,7 +290,7 @@ export function gateProblems(task: Pick<TaskDocument, "stages">, documents: Stag
 }
 
 /** The gates of the stages that write one document with required sections: the spike and the migration plan. */
-function investigationProblems(isDone: (name: Stage) => boolean, documents: StageDocuments): string[] {
+function sectionedDocumentProblems(isDone: (name: Stage) => boolean, documents: StageDocuments): string[] {
     return [
         ...(isDone("spike") ? documentProblems(documents.spike, "spike", spikeProblems) : []),
         ...(isDone("migration-plan")
