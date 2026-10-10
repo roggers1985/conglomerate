@@ -44,7 +44,7 @@
 - Verify: `grep -n "^## Tests that read as a specification" plugins/factory/skills/code-testing/SKILL.md` finds the section, the two moved bullets are no longer under "Unit and integration tests", and `bun run check` passes
 - Depends on: none
 - Parallel: yes
-- Status: pending
+- Status: done
 
 ### T-6: Make comments say why in code-readability and code-documentation
 
