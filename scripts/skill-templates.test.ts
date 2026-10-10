@@ -84,6 +84,25 @@ describe("the stage skills' templates", () => {
         expect(verificationProblems(verification, { criteria })).toEqual([]);
     });
 
+    it("AC-10: the verification template records the arbiter's rulings", async () => {
+        const [verification = ""] = await templates("factory-build", { count: 1 });
+        const headings = verification.split("\n").filter((line) => /^## /.test(line));
+        const criteria = criteriaNamed(verification, { prefix: /^\s*[-*] AC-\d+:/ });
+
+        expect(headings, "the template should have a `## Rulings` section").toContain("## Rulings");
+        expect(headings.indexOf("## Rulings"), "`## Rulings` should come after `## Evidence`").toBeGreaterThan(
+            headings.indexOf("## Evidence"),
+        );
+        expect(
+            headings.indexOf("## Evidence"),
+            "the template should have an `## Evidence` section",
+        ).toBeGreaterThanOrEqual(0);
+        expect(verification, "the section should say what to write when no task needed arbitration").toMatch(
+            /## Rulings[\s\S]*None\./,
+        );
+        expect(verificationProblems(verification, { criteria })).toEqual([]);
+    });
+
     it("AC-5: the review skill's review template passes the review gate", async () => {
         const [review = ""] = await templates("factory-review", { count: 1 });
 
