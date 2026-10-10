@@ -64,7 +64,7 @@
 - Verify: the test agent's run of `bun test scripts/skill-templates.test.ts` fails on the new test only; after the skill text, it passes with the test file unchanged; `bun run check` passes
 - Depends on: none
 - Parallel: yes
-- Status: pending
+- Status: done
 
 ### T-8: Plan a test agent's input, and the behaviour test first
 
@@ -74,7 +74,7 @@
 - Verify: `bun test scripts/skill-templates.test.ts` passes, the tasks template shows a `Tests` line in each task, the tasks section has the migration rule, and `bun run check` passes
 - Depends on: none
 - Parallel: yes
-- Status: in-progress
+- Status: done
 
 ### T-9: Break the code in the review to see each criterion's test fail
 
@@ -84,7 +84,7 @@
 - Verify: the test agent's run of `bun test scripts/skill-templates.test.ts` fails on the new test only; after the skill text, it passes with the test file unchanged; `bun run check` passes
 - Depends on: T-7
 - Parallel: no
-- Status: pending
+- Status: in-progress
 
 ### T-10: Record the decision for tests written apart from the code
 
