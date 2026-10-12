@@ -4,9 +4,9 @@ Date: 2026-10-12
 
 ## Status
 
-Proposed
+Accepted
 
-Would extend [ADR-0052](0052-intake-intent-and-spec.md), [ADR-0054](0054-build-verify-and-spike.md) and [ADR-0055](0055-review-and-security-review.md), and generalise the pattern of [ADR-0057](0057-secure-by-default.md). It would not be built until the first real change has run through the stages (the `TODO.md` item on ADR 0056).
+Extends [ADR-0052](0052-intake-intent-and-spec.md), [ADR-0054](0054-build-verify-and-spike.md) and [ADR-0055](0055-review-and-security-review.md), and generalises the pattern of [ADR-0057](0057-secure-by-default.md). It is not built until the first real change has run through the stages (the `TODO.md` item on ADR 0056).
 
 ## Context
 
@@ -50,8 +50,8 @@ So a question that was asked can be forgotten, and a question that was never ask
 - More text per change. The limit of five defaults and the retro's pruning are there to keep that in check.
 - It touches intake, planning, build, review, the gates and the templates, so building it is a large change in its own right. It goes through the full track.
 
-## Open points for the owner
+## Settled with the owner (2026-10-12)
 
-- **Which questions are the defaults?** A first proposal: *load and limits*, *rollback*, *assumptions about data and users*, *who notices a failure*, *what is deliberately left out*. This needs the owner's list.
-- **When to build.** Recommended: after the first real change shows which questions actually get missed, so the defaults come from evidence.
-- **Should the quick track have it?** Recommended: no. The quick track has no spec (ADR 0052), and one question line in the commit message is enough there.
+- **The first default questions** are *load and limits*, *rollback*, *assumptions about data and users*, *who notices a failure* and *what is deliberately left out*. Building the mechanism may revise them with what the first real change shows.
+- **When to build:** after the first real change, so the defaults come from evidence.
+- **The quick track** doesn't get the section. It has no spec (ADR 0052).
