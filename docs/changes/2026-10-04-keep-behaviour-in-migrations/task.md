@@ -16,7 +16,7 @@ stages:
   - { name: build, level: guided, status: done }
   - { name: review, level: guided, status: done }
   - { name: docs, level: guided, status: done }
-  - { name: finish, level: guided, status: pending }
+  - { name: finish, level: guided, status: in-progress }
 deviations:
   - "re-triage 2026-10-10: standard to full. The owner added test authorship apart from the code, readable tests, a break-the-code check in the review and comments that say why (AC-9 to AC-14): new concepts across the build, review and testing skills, so large"
   - "intent dropped: the owner stated the problem and chose the approach"
