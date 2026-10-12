@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted. Extended by [ADR-0054](0054-build-verify-and-spike.md): the build, verify and spike stages.
+Accepted. Extended by [ADR-0054](0054-build-verify-and-spike.md): the build, verify and spike stages. Extended by [ADR-0062](0062-keep-behaviour-in-migrations.md): the migration plan gets a template and a gate. Extended by [ADR-0063](0063-tests-written-apart-from-the-code.md): the task's `Tests` field.
 
 Extends [ADR-0052](0052-intake-intent-and-spec.md).
 

@@ -1,6 +1,6 @@
 ---
 name: code-testing
-description: The owner's testing conventions. Covers what to test at which level (unit, integration, component, end-to-end), finding edge cases systematically, Testing Library, Playwright, test data, mocking and flakiness. Use when writing, reviewing or fixing unit, integration, component or end-to-end tests, or when deciding which tests a change needs.
+description: The owner's testing conventions. Covers what to test at which level (unit, integration, component, end-to-end), finding edge cases systematically, Testing Library, Playwright, test data, mocking, flakiness, and behaviour tests that keep a migration honest. Use when writing, reviewing or fixing unit, integration, component or end-to-end tests, when deciding which tests a change needs, or before a migration meant to keep behaviour (a library swap, a framework upgrade, a rewrite, a part replaced step by step).
 ---
 
 # Testing conventions
@@ -17,6 +17,42 @@ Every feature ships with tests, even when not explicitly asked. Tests are extens
 | **End-to-end** | Every key user flow's happy path, plus its **critical failure paths** | Playwright |
 
 Most tests are unit and component tests; end-to-end tests are fewer and focus on flows. A bug found at a higher level also gets a test at the lowest level that can reproduce it.
+
+## Tests that read as a specification
+
+A test suite is the most precise description of what the code does, so write each test to be read that way, at every level. Someone who reads only the test names should learn the behaviour; someone who reads one failure should know which behaviour broke.
+
+- **The name states the behaviour in domain words**: what happens, in the words of the people who use it, not the names of functions or variables. `it("rejects a name that is not kebab-case")`, not `it("validateName returns false")`. When a test proves an acceptance criterion, its id comes first (ADR 0054): `it("AC-1: downloads the jobs as CSV")`.
+- **One behaviour per test.** A test that checks two behaviours hides the second when the first fails, and its name can't state both.
+- **Arrange, act and assert are visible**, with a blank line between the parts. The arrange part states only what matters to this behaviour (see "Test data").
+- **A failure says which behaviour broke.** The name does most of this. Where the value alone doesn't explain the failure, add an assertion message. Bun and Vitest take it as the second argument of `expect`: `expect(row, "the export keeps the job's title").toContain("Nurse")`.
+- **In an end-to-end test, one flow is one behaviour.** Its steps may alternate act and assert, as long as the test follows one flow and its name states it.
+
+Avoid:
+
+```ts
+it("works", () => {
+  const result = parseJobs(csv);
+  expect(result.length).toBe(2);
+  expect(parseJobs("")).toEqual([]);
+});
+```
+
+Prefer:
+
+```ts
+it("reads one job per line of the CSV", () => {
+  const csv = "title\nNurse\nTeacher";
+
+  const jobs = parseJobs(csv);
+
+  expect(jobs.map((job) => job.title)).toEqual(["Nurse", "Teacher"]);
+});
+
+it("reads no jobs from an empty file", () => {
+  expect(parseJobs("")).toEqual([]);
+});
+```
 
 ## Finding edge cases systematically
 
@@ -38,8 +74,6 @@ Most tests are unit and component tests; end-to-end tests are fewer and focus on
 
 ## Unit and integration tests
 
-- One behaviour per test, named after it: `it("rejects a name that is not kebab-case")`.
-- Arrange, act, assert, with a blank line between the parts.
 - **Mock only at the edges**: the network (e.g. MSW), the clock (fake timers), randomness (a seed), the file system (a temporary directory). Never mock the project's own modules; a test that mocks its collaborators tests the mock.
 - **Test data**: small builder functions with sensible defaults (`buildJob({ title: "…" })`), so each test only states what matters to it.
 - **Clean output**: no console output, subprocess output, unhandled errors or leaked resources that the test did not expect and assert (see "Clean test output").
@@ -61,6 +95,58 @@ Most tests are unit and component tests; end-to-end tests are fewer and focus on
 - Assert with Playwright's web-first assertions (`await expect(locator).toBeVisible()`), never on a value you read first (`expect(await locator.isVisible()).toBe(true)`): the former waits and retries, the latter checks once.
 - Run against a production build, with isolated test data per test, so tests can run in parallel.
 - Visual comparison screenshots only where the visual result *is* the feature, e.g. a chart or a generated image.
+
+## Migrations that keep behaviour
+
+A migration that isn't meant to change what the code does (a library swap, a framework upgrade, a rewrite, a part replaced step by step) needs proof that it didn't. A test written after the migration can't give it: it only proves the new code does what the new code does. The proof is a *behaviour test* that passed on the old code, and then passes on the new code unchanged. This is a characterization test (Michael Feathers): it records what the code does now, not what someone thinks it should do.
+
+- **Write it before the migration, and see it pass on the old code.** Old code without tests is the main case, not the exception. A behaviour test that never ran on the old code proves nothing.
+- **Test at an interface that stays the same**: a public function, an endpoint, a command. Never internals: they are what the migration changes.
+- **Every intended difference** is listed in the spec and asserted by the test. Any other difference is a bug. When the differences outnumber what stays the same, it isn't a migration that keeps behaviour.
+- **A migration in several steps** runs the same test after every step.
+
+### What "unchanged" means
+
+The behaviour test passes on the new code *unchanged*. That means:
+
+- **The test cases and their expectations stay the same.** Nothing is added, removed, reworded or loosened, in the test files or in the files they read, such as recorded outputs (a golden master).
+- **Only these edits are allowed:** adding or removing a version in the side-by-side list, and changing the assertions for the intended differences the spec lists.
+- **Re-recording a golden master from the new code is a change to the test.** It makes the test pass whatever the new code does.
+
+Everything else that differs between the old and the new commit makes the proof void.
+
+The factory's migration plan names the behaviour test: the interface, the form, every file the test consists of and, when needed, where the recorded outputs come from (`factory-planning`).
+
+### Two forms
+
+**Side by side** (old and new behind the same interface, e.g. a strangler fig, where the new code takes over piece by piece): one suite runs against both.
+
+```ts
+describe.each([
+  ["old", formatInvoiceOld],
+  ["new", formatInvoiceNew],
+])("formatInvoice (%s)", (_name, formatInvoice) => {
+  it("rounds each line to cents before adding them up", () => {
+    const invoice = buildInvoice({ lines: [{ amount: 0.004 }, { amount: 0.004 }] });
+
+    expect(formatInvoice(invoice).total).toBe("€0.00");
+  });
+});
+```
+
+Adding the new version, and later removing the old one, are the only edits to the suite. When the old code goes, its entry goes; the cases stay.
+
+**In place** (a library swap, where the old code can't stay): commit the test before the swap. The swap leaves the test unchanged (see above), apart from the assertions for the intended differences the spec lists, so the diff shows it.
+
+### When the old code can't run in a test
+
+When the old code depends on an external service, is too slow, or needs production data: record its real outputs once and compare the new code with them (a *golden master*). Keep the recording in the repository, small and reviewed, like any other test data.
+
+When the test framework itself is migrated, the test can't stay unchanged inside it. Move the behaviour test up to a level that doesn't depend on the framework: an end-to-end test, or running the command and checking its output.
+
+### Comparing in production
+
+Running both versions in production and comparing their results (e.g. GitHub's Scientist) is an option for high-risk migrations, chosen in the migration plan. It isn't a rule.
 
 ## Clean test output
 

@@ -2,7 +2,7 @@
 
 Where the factory stands compared with the alternatives, and what's still missing before it's worth publishing. The owner reads this instead of asking again (ADR 0050).
 
-**Last updated:** 2026-10-04. Two real changes went through the stages end to end in this repository: the pull request description command (pull request #14, standard track with a security review) and the writing convention (pull request #16, three review rounds). The delivery stages now work in practice, not only on paper. The `readiness` checkup refreshes this document every 60 days, and Claude updates it whenever a milestone is finished, such as a factory stage.
+**Last updated:** 2026-10-10: tests are now written by a different agent than the code, with an arbiter for disputes, and the review proves tests can fail (ADR 0062, 0063). Earlier, on 2026-10-04: two real changes went through the stages end to end in this repository: the pull request description command (pull request #14, standard track with a security review) and the writing convention (pull request #16, three review rounds). The delivery stages now work in practice, not only on paper. The `readiness` checkup refreshes this document every 60 days, and Claude updates it whenever a milestone is finished, such as a factory stage.
 
 ## Verdict
 
@@ -54,7 +54,7 @@ Facts from the projects' own repositories and documentation, read on 2026-09-30.
 | --------- | ------- | ----------- | -------- | -------- | ---- | ---- | -------- | ------------- |
 | Coding conventions | ✓ deep, enforced | ~ | ~ | ✗ | ~ | ✓ | ~ | ~ |
 | Spec, plan and task stages | ✓ triage, intake, planning | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Review | ✓ separate reviewer, severity rules | ✓ | ~ | ~ | ✓ | ~ | ✓ | ✓ |
+| Review | ✓ separate reviewer, severity rules, mutation check | ✓ | ~ | ~ | ✓ | ~ | ✓ | ✓ |
 | Recurring maintenance checks | ✓ 18, scheduled, as PRs | ✗ | ✗ | ✗ | ✗ | ✗ | ~ advice | ~ |
 | Architecture assessment | ✓ checkup and register | ✗ | ✗ | ✗ | ~ | ✗ | ✗ | ✗ |
 | Model routing and cost | ✓ | ✗ | ✗ | ✗ | ✗ | ~ | ~ | ~ |

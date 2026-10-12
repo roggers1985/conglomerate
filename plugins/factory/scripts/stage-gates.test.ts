@@ -5,6 +5,8 @@ import {
     evidence as evidenceOf,
     INTENT_SECTIONS,
     intentProblems,
+    MIGRATION_PLAN_SECTIONS,
+    migrationPlanProblems,
     PLAN_SECTIONS,
     planProblems,
     reviewFindings,
@@ -355,6 +357,41 @@ describe("spikeProblems", () => {
             'spike.md has no "## Findings" section',
             'spike.md has no "## Recommendation" section',
         ]);
+    });
+});
+
+describe("migrationPlanProblems", () => {
+    it("AC-5: passes a migration plan with every section filled in", () => {
+        expect(migrationPlanProblems(document(MIGRATION_PLAN_SECTIONS))).toEqual([]);
+    });
+
+    it.each([...MIGRATION_PLAN_SECTIONS])("AC-5: reports a missing %s section", (missing) => {
+        const others = MIGRATION_PLAN_SECTIONS.filter((section) => section !== missing);
+
+        expect(migrationPlanProblems(document(others))).toEqual([`migration-plan.md has no "## ${missing}" section`]);
+    });
+
+    it.each([...MIGRATION_PLAN_SECTIONS])("AC-5: reports an empty %s section", (empty) => {
+        const plan = document(MIGRATION_PLAN_SECTIONS, new Map([[empty, "  "]]));
+
+        expect(migrationPlanProblems(plan)).toEqual([`migration-plan.md's "${empty}" section is empty`]);
+    });
+
+    it("AC-5: reports every section of an empty document", () => {
+        expect(migrationPlanProblems("")).toHaveLength(MIGRATION_PLAN_SECTIONS.length);
+    });
+
+    it("AC-4: names the five sections of the template", () => {
+        expect(MIGRATION_PLAN_SECTIONS).toEqual(["Steps", "Old and new", "Behaviour test", "Verification", "Rollback"]);
+    });
+
+    it("AC-5: refuses an open [NEEDS CLARIFICATION] marker", () => {
+        const unclear = document(
+            MIGRATION_PLAN_SECTIONS,
+            new Map([["Rollback", "[NEEDS CLARIFICATION: can the copy be undone?]"]]),
+        );
+
+        expect(migrationPlanProblems(unclear)).toEqual(["migration-plan.md still has an open [NEEDS CLARIFICATION]"]);
     });
 });
 

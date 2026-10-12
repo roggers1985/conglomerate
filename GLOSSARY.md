@@ -38,7 +38,7 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **MCP server (Model Context Protocol).** A small program that gives an agent extra tools or data, e.g. access to a database or an issue tracker, through a standard protocol.
 
-**Git worktree.** A second working folder for the same Git repository, on another branch, so two tasks can work side by side without touching each other's files. *Here:* every checkup runs in its own worktree under `.claude/worktrees/` (ADR 0042); planned for the build stage too.
+**Git worktree.** A second working folder for the same Git repository, on another branch, so two tasks can work side by side without touching each other's files. *Here:* every checkup, every build task and every reviewer runs in its own worktree under `.claude/worktrees/` (ADR 0042, 0054, 0055).
 
 ## The factory
 
@@ -50,9 +50,13 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Plan, tasks and convention gate.** *Here:* the planning stages (ADR 0053). `plan.md` says how to build the spec, and its "Conventions and decisions" section is the *convention gate*. Tasks (`T-1`, `T-2`, …) each name their files, the criteria they cover and how to verify them; a script checks that every criterion is covered.
 
-**Build, verify and spike.** *Here:* the stages that build a change (ADR 0054). Each task runs in a fresh subagent and its own worktree, test-first, on the change's branch `change/<name>`. The build ends with `verification.md`: the checks that ran, and evidence (a test that names it) for every acceptance criterion. A *spike* answers a question with throwaway code.
+**Build, verify and spike.** *Here:* the stages that build a change (ADR 0054). Each task with testable behaviour is built by two subagents in turn, each in its own worktree: a *test agent* writes the tests and commits them failing, then a *code agent* makes them pass without touching them (ADR 0063). On the quick track one subagent writes the tests and the code, test-first; a task without testable behaviour is built by one subagent without a test agent. So is a migration task that keeps the behaviour the same, because the behaviour test it must pass already exists. Everything ends up on the change's branch `change/<name>`. The build ends with `verification.md`: the checks that ran, evidence (a test that names it) for every acceptance criterion, and the arbiter's rulings. A *spike* answers a question with throwaway code.
 
-**Review and security review.** *Here:* the stages that check a built change (ADR 0055). A fresh review agent, never the builder, checks every criterion and its test, the plan, the conventions and the ADRs, and records findings by severity in `review.md`. No finding may stay open; only the owner can accept a high one.
+**Test agent.** *Here:* the subagent that writes a task's tests before the code is written, from the spec, the task and the conventions only. It never sees the implementation, so its tests come from the spec's words, not from the code's reading of them. It commits the tests failing. A separate *code agent* then makes them pass, and may not edit them, nor the fixtures and helpers they read. In a migration, the first task's test agent writes the behaviour test and sees it pass on the old code. It is a role given in the prompt to an existing task agent (`code` or `code-complex`), not a new agent type (`factory-build`, ADR 0063).
+
+**Arbiter.** *Here:* a fresh review subagent that settles a dispute when the code agent thinks a test is wrong. It sees the spec, the test, the failing output and the code agent's reason, but not the code, so the code can't sway it. It rules that the code is wrong, the test is wrong, or the spec is unclear. An unclear spec goes to the owner. There is at most one arbitration per task, after which the owner decides (`factory-build`, ADR 0063).
+
+**Review and security review.** *Here:* the stages that check a built change (ADR 0055). A fresh review agent, never the builder, checks every criterion and its test, the plan, the conventions and the ADRs, and records findings by severity in `review.md`. It also breaks the code on purpose to see each criterion's test fail: the *mutation check* (ADR 0063). No finding may stay open; only the owner can accept a high one.
 
 **Finish.** *Here:* the last stage of a route (ADR 0056): the docs are brought up to date, and the change's branch ends as a pull request (the owner merges, except at `autonomous`), or is discarded on the owner's word, with worktrees and branches cleaned up.
 
@@ -84,7 +88,7 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Hotspot and change coupling.** From git history: a *hotspot* is a file that changes often and is complex; *change coupling* means files that keep changing in the same commits. Both point to where an architecture hurts.
 
-**Strangler fig.** Replacing part of a system step by step, with the old and new side by side behind a stable interface, until the old part can be removed. The alternative to a big-bang rewrite.
+**Strangler fig.** Replacing part of a system step by step, with the old and new side by side behind a stable interface, until the old part can be removed. The alternative to a big-bang rewrite. *Here:* a behaviour test runs against both sides (ADR 0062).
 
 **Readiness.** *Here:* `docs/readiness.md`, which compares the factory with alternatives such as Superpowers, Spec Kit and OpenSpec, and tracks the criteria for publishing it. The `readiness` checkup keeps it current (ADR 0050).
 
@@ -166,7 +170,13 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Property-based test.** Instead of listing example inputs, stating a property that must always hold ("sorting twice gives the same result") and letting a tool generate hundreds of inputs to try to break it.
 
-**Mutation testing.** Making small deliberate changes (mutations) to the code and checking that some test fails. It measures whether tests actually catch bugs, which coverage can't.
+**Mutation testing.** Making small deliberate changes (mutations) to the code and checking that some test fails. It measures whether tests actually catch bugs, which coverage can't. Usually done by a tool that generates many mutations across the code.
+
+**Mutation check.** *Here:* the review's manual, targeted form of mutation testing. For each acceptance criterion whose evidence is a test, the reviewer makes the smallest change to the code that breaks what the criterion states, such as inverting a condition or moving a limit by one, runs that test, sees it fail, and restores the code. A test that stays green is a finding. Unlike mutation testing, no tool is involved: the reviewer picks a few breaks per criterion, one for every error path and limit, and records them in `review.md` (`factory-review`, ADR 0063).
+
+**Behaviour test (characterization test).** A test that records what existing code does now, not what someone thinks it should do. Written before a change, it shows afterwards whether the behaviour stayed the same. The term "characterization test" is Michael Feathers'. *Here:* a migration meant to keep behaviour (a library swap, a framework upgrade, a rewrite, a part replaced step by step) first gets one. It passes on the old code, then on the new code unchanged. The migration plan names it, the first build task writes it and runs it on the old code, and the review checks it wasn't changed (`code-testing`, ADR 0062).
+
+**Golden master.** The real outputs of existing code, recorded once and kept as the expected result. New code is compared with them. Used when the old code can't run in a test, for example because it calls an external service, is too slow or needs production data. *Here:* the form a behaviour test takes in that case. The recording lives in the repository like other test data, and the migration plan says where it comes from (`code-testing`, ADR 0062).
 
 **Coverage.** Which lines of code the tests ran. It shows what isn't tested, but not whether what is tested is tested well.
 

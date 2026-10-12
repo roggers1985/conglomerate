@@ -3,6 +3,7 @@ import path from "node:path";
 import { readText, TEXT_BYTES_MAX } from "../lib/files.ts";
 import {
     intentProblems,
+    migrationPlanProblems,
     planProblems,
     reviewProblems,
     specProblems,
@@ -58,16 +59,44 @@ describe("the stage skills' templates", () => {
     });
 
     it("AC-5: the planning skill's plan template passes the plan gate", async () => {
-        const [plan = ""] = await templates("factory-planning", { count: 2 });
+        const [plan = ""] = await templates("factory-planning", { count: 3 });
 
         expect(planProblems(plan, { hasTasksSection: false })).toEqual([]);
     });
 
     it("AC-5: the planning skill's tasks template passes the task list gate", async () => {
-        const [, tasks = ""] = await templates("factory-planning", { count: 2 });
+        const [, tasks = ""] = await templates("factory-planning", { count: 3 });
         const criteria = criteriaNamed(tasks, { prefix: /^\s*[-*] Covers:/ });
 
         expect(taskListProblems(tasks, { file: "tasks.md", criteria })).toEqual([]);
+    });
+
+    it("AC-4: the planning skill's migration plan template passes the migration plan gate", async () => {
+        const [, , migrationPlan = ""] = await templates("factory-planning", { count: 3 });
+
+        expect(migrationPlanProblems(migrationPlan)).toEqual([]);
+    });
+
+    it("AC-4: the migration plan template's Behaviour test section names its interface, form, files, recorded outputs and framework level", async () => {
+        const [, , migrationPlan = ""] = await templates("factory-planning", { count: 3 });
+        const section = migrationPlan.split(/^## /m).find((part) => part.startsWith("Behaviour test")) ?? "";
+        const bullets = section.split("\n").filter((line) => /^[-*] /.test(line));
+        const bulletAbout = (pattern: RegExp) => bullets.filter((bullet) => pattern.test(bullet));
+
+        expect(section, "the template should have a `## Behaviour test` section").not.toBe("");
+        expect(bulletAbout(/\binterface\b/i), "a bullet should name the interface the test uses").toHaveLength(1);
+        expect(bulletAbout(/\bform\b/i), "a bullet should name the test's form").toHaveLength(1);
+        expect(bulletAbout(/\bside by side\b/i), "the form bullet should offer the side by side form").toHaveLength(1);
+        expect(bulletAbout(/\bin place\b/i), "the form bullet should offer the in place form").toHaveLength(1);
+        expect(bulletAbout(/\bevery file\b/i), "a bullet should name every file the test consists of").toHaveLength(1);
+        expect(bulletAbout(/\brecorded outputs\b/i), "a bullet should name the recorded outputs").not.toHaveLength(0);
+        expect(bulletAbout(/\bgolden master\b/i), "a bullet should say where recorded outputs come from").toHaveLength(
+            1,
+        );
+        expect(
+            bulletAbout(/\bframework\b/i),
+            "a bullet should name the level when the framework is migrated",
+        ).toHaveLength(1);
     });
 
     it("AC-5: the build skill's verification template passes the verification gate", async () => {
@@ -77,9 +106,52 @@ describe("the stage skills' templates", () => {
         expect(verificationProblems(verification, { criteria })).toEqual([]);
     });
 
+    it("AC-10: the verification template records the arbiter's rulings", async () => {
+        const [verification = ""] = await templates("factory-build", { count: 1 });
+        const headings = verification.split("\n").filter((line) => /^## /.test(line));
+        const criteria = criteriaNamed(verification, { prefix: /^\s*[-*] AC-\d+:/ });
+
+        expect(headings, "the template should have a `## Rulings` section").toContain("## Rulings");
+        expect(headings.indexOf("## Rulings"), "`## Rulings` should come after `## Evidence`").toBeGreaterThan(
+            headings.indexOf("## Evidence"),
+        );
+        expect(
+            headings.indexOf("## Evidence"),
+            "the template should have an `## Evidence` section",
+        ).toBeGreaterThanOrEqual(0);
+        expect(verification, "the section should say what to write when no task needed arbitration").toMatch(
+            /## Rulings[\s\S]*None\./,
+        );
+        expect(verificationProblems(verification, { criteria })).toEqual([]);
+    });
+
     it("AC-5: the review skill's review template passes the review gate", async () => {
         const [review = ""] = await templates("factory-review", { count: 1 });
 
+        expect(reviewProblems(review, { file: "review.md" })).toEqual([]);
+    });
+
+    it("AC-12: the review template records the mutation checks", async () => {
+        const [review = ""] = await templates("factory-review", { count: 1 });
+        const lines = review.split("\n");
+        const headings = lines.filter((line) => /^## /.test(line));
+        const columnsOfTableAfter = (heading: string): string[] => {
+            const headerRow = lines.slice(lines.indexOf(heading) + 1).find((line) => line.startsWith("|")) ?? "";
+
+            return headerRow
+                .split("|")
+                .slice(1, -1)
+                .map((cell) => cell.trim());
+        };
+
+        expect(headings, "the template should have a `## Findings` section").toContain("## Findings");
+        expect(headings, "the template should have a `## Mutation checks` section").toContain("## Mutation checks");
+        expect(
+            headings.indexOf("## Mutation checks"),
+            "`## Mutation checks` should come after `## Findings`",
+        ).toBeGreaterThan(headings.indexOf("## Findings"));
+        expect(columnsOfTableAfter("## Mutation checks")).toEqual(["Criterion", "Test", "What was broken", "Result"]);
+        expect(columnsOfTableAfter("## Findings")).toEqual(["#", "Severity", "Finding", "Where", "Status"]);
         expect(reviewProblems(review, { file: "review.md" })).toEqual([]);
     });
 });

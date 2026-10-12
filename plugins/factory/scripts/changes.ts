@@ -25,6 +25,7 @@ import { AUTONOMY_LEVELS } from "./settings.ts";
 import {
     criteriaIds,
     intentProblems,
+    migrationPlanProblems,
     planProblems,
     reviewProblems,
     sectionText,
@@ -213,6 +214,7 @@ export type StageDocuments = {
     readonly tasks: string | null;
     readonly verification: string | null;
     readonly spike: string | null;
+    readonly migrationPlan: string | null;
     readonly review: string | null;
     readonly securityReview: string | null;
 };
@@ -234,7 +236,7 @@ export type StageDocuments = {
  * ] as const;
  *
  * const none = {
- *     intent: null, spec: null, plan: null, tasks: null, verification: null, spike: null, review: null, securityReview: null,
+ *     intent: null, spec: null, plan: null, tasks: null, verification: null, spike: null, migrationPlan: null, review: null, securityReview: null,
  * };
  *
  * expect(gateProblems({ stages }, none)).toEqual([
@@ -269,7 +271,7 @@ export function gateProblems(task: Pick<TaskDocument, "stages">, documents: Stag
                   taskListProblems(tasks, { file: "tasks.md", criteria }),
               )
             : []),
-        ...(isDone("spike") ? documentProblems(documents.spike, "spike", spikeProblems) : []),
+        ...sectionedDocumentProblems(isDone, documents),
         ...(isDone("security-review")
             ? documentProblems(documents.securityReview, "security-review", (review) =>
                   reviewProblems(review, { file: "security-review.md" }),
@@ -284,6 +286,16 @@ export function gateProblems(task: Pick<TaskDocument, "stages">, documents: Stag
             : fileProblems(documents.verification, { file: "verification.md", stage: verifiedBy }, (verification) =>
                   verificationProblems(verification, { criteria }),
               )),
+    ];
+}
+
+/** The gates of the stages that write one document with required sections: the spike and the migration plan. */
+function sectionedDocumentProblems(isDone: (name: Stage) => boolean, documents: StageDocuments): string[] {
+    return [
+        ...(isDone("spike") ? documentProblems(documents.spike, "spike", spikeProblems) : []),
+        ...(isDone("migration-plan")
+            ? documentProblems(documents.migrationPlan, "migration-plan", migrationPlanProblems)
+            : []),
     ];
 }
 
@@ -458,17 +470,28 @@ async function readGatedChange(
     { signal }: { readonly signal: AbortSignal },
 ): Promise<Parsed<GatedChange>> {
     const readDocument = (file: string): Promise<string | null> => readChangeDocument(changeDir, file, { signal });
-    const [intent, spec, plan, tasks, verification, spike, review, securityReview] = await Promise.all([
+    const [intent, spec, plan, tasks, verification, spike, migrationPlan, review, securityReview] = await Promise.all([
         readDocument("intent.md"),
         readDocument("spec.md"),
         readDocument("plan.md"),
         readDocument("tasks.md"),
         readDocument("verification.md"),
         readDocument("spike.md"),
+        readDocument("migration-plan.md"),
         readDocument("review.md"),
         readDocument("security-review.md"),
     ]);
-    const documents: StageDocuments = { intent, spec, plan, tasks, verification, spike, review, securityReview };
+    const documents: StageDocuments = {
+        intent,
+        spec,
+        plan,
+        tasks,
+        verification,
+        spike,
+        migrationPlan,
+        review,
+        securityReview,
+    };
     const problems = gateProblems(task, documents);
 
     return problems.length === 0

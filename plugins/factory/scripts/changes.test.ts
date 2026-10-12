@@ -37,6 +37,7 @@ const noDocuments: StageDocuments = {
     tasks: null,
     verification: null,
     spike: null,
+    migrationPlan: null,
     review: null,
     securityReview: null,
 };
@@ -261,6 +262,7 @@ describe("gateProblems", () => {
                 tasks: null,
                 verification: null,
                 spike: null,
+                migrationPlan: null,
                 review: null,
                 securityReview: null,
             }),
@@ -281,6 +283,7 @@ describe("gateProblems", () => {
                 tasks,
                 verification: null,
                 spike: null,
+                migrationPlan: null,
                 review: null,
                 securityReview: null,
             }),
@@ -308,10 +311,34 @@ describe("gateProblems", () => {
                 tasks: null,
                 verification,
                 spike: null,
+                migrationPlan: null,
                 review: null,
                 securityReview: null,
             }),
         ).toEqual(["spike is done, but spike.md is missing", "verification.md has no evidence for AC-1"]);
+    });
+
+    it("AC-5: requires migration-plan.md, with its sections, once the migration-plan stage is done", () => {
+        const route = {
+            stages: (["spec", "migration-plan", "plan", "build", "review", "finish"] as const).map((name) =>
+                stage(name, { status: name === "migration-plan" ? "done" : "skipped" }),
+            ),
+        };
+
+        expect(gateProblems(route, noDocuments)).toEqual(["migration-plan is done, but migration-plan.md is missing"]);
+        expect(gateProblems(route, { ...noDocuments, migrationPlan: "## Steps\n\nMove it." })).toContain(
+            'migration-plan.md has no "## Rollback" section',
+        );
+    });
+
+    it("AC-5: ignores migration-plan.md while the migration-plan stage isn't done", () => {
+        const route = {
+            stages: (["spec", "migration-plan", "plan", "build", "review", "finish"] as const).map((name) =>
+                stage(name, { status: "pending" }),
+            ),
+        };
+
+        expect(gateProblems(route, { ...noDocuments, migrationPlan: "" })).toEqual([]);
     });
 
     it("requires the review documents once the review stages are done", () => {
@@ -453,6 +480,20 @@ describe("changes CLI", () => {
         expect(status.stdout).toBe("No unfinished changes in `docs/changes/`.\n");
         expect(check.exitCode).toBe(1);
         expect(check.stderr).toContain("✗ spec is done, but spec.md is missing");
+    });
+
+    it("AC-5: refuses a done migration-plan stage whose migration-plan.md misses a section", async () => {
+        projectDir = await mkdtemp(path.join(tmpdir(), "changes-"));
+        const stages = (["migration-plan", "plan", "build", "review", "finish"] as const).map((name) =>
+            stage(name, { status: name === "migration-plan" ? "done" : "pending" }),
+        );
+        await writeTask("migrating", asMarkdown(task({ stages })));
+        await Bun.write(path.join(projectDir, "docs/changes/migrating/migration-plan.md"), "## Steps\n\nMove it.\n");
+
+        const result = await run("check", path.join(projectDir, "docs/changes/migrating/task.md"));
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain('✗ migration-plan.md has no "## Rollback" section');
     });
 
     it("prints nothing at session start in a project without changes", async () => {

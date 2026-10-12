@@ -55,6 +55,7 @@ Small tasks, each a few minutes of work for one agent, in the order they're buil
 
 - Files: `src/export/request.ts`, `src/export/request.test.ts`
 - Covers: AC-1, AC-4
+- Tests: `parseExportRequest` in `src/export/request.ts`
 - Verify: `bun test src/export/request.test.ts`
 - Depends on: none
 - Parallel: no
@@ -64,6 +65,7 @@ Small tasks, each a few minutes of work for one agent, in the order they're buil
 
 - Files: `src/export/csv.ts`, `src/export/csv.test.ts`
 - Covers: AC-1, AC-2
+- Tests: the endpoint `GET /jobs/export.csv`
 - Verify: `bun test src/export/csv.test.ts`
 - Depends on: T-1
 - Parallel: no
@@ -73,16 +75,53 @@ Small tasks, each a few minutes of work for one agent, in the order they're buil
 - **Covers** names the spec's criteria (`AC-<n>`). A task that covers none (setup, a refactor it needs) writes `none` with the reason.
 - **Every active criterion is covered by at least one task.** No task covers a criterion the spec doesn't have or has dropped.
 - **Depends on** only names earlier tasks. **Parallel: yes** marks a task that can be built at the same time as the others marked so, because it touches different files and depends on nothing unfinished.
+- **Tests** says what the task's test agent tests: the interface, such as a function, a command or an endpoint, never internals. The test agent reads neither the plan nor the code, so this line is its only source for the interface. Every task on the standard and full tracks has one. It is optional only in that the gate doesn't check it, because older task lists lack it. A task with no testable behaviour, such as a rename or a text change, writes `none: <why>`, and skips the test agent.
 - **Verify** is a command or a concrete check, never "it works".
-- Tests are part of each task: the task that adds behaviour adds its test (test-first, `code-testing`).
+- Tests are part of each task: the test agent writes them from the spec and the task, and the code agent makes them pass (`factory-build`, `code-testing`).
+- **When the route has a migration plan,** T-1 writes the behaviour test the migration plan names and runs it on the old code. Every task that changes the code under test depends on T-1, so none of them starts before that run. A task that changes the code under test without an intended difference writes `Tests: the behaviour test of T-1`: it has no new test to write, so it skips the test agent. A task that adds the new version to a side-by-side suite, or asserts an intended difference, names its tests as usual (`factory-build`, "Special cases").
 
 ## The migration-plan stage
 
-When the route has one, write `migration-plan.md` before the plan. It says how data or schemas change without losing anything, following `code-sql`:
-- the steps, each safe to release on its own;
-- how old and new code coexist during the migration;
-- how to verify each step;
-- how to roll back, or why a step can't be rolled back (the owner approves those explicitly).
+When the route has one, write `migration-plan.md` before the plan. It covers two kinds of migration:
+- **code that moves to another solution without changing its behaviour** (a library swap, a framework upgrade, a rewrite, a part replaced step by step). Its behaviour test follows `code-testing`, "Migrations that keep behaviour";
+- **schema and data changes**, without losing anything, following `code-sql`.
+
+```markdown
+# Migration plan: <title>
+
+## Steps
+
+The steps in order, each safe to release on its own. For each: what changes, and what the system looks like after
+it.
+
+## Old and new
+
+How the old and new code coexist during the migration. For example: both behind the same interface, with a flag
+that chooses. Or: nothing runs side by side, the old code is replaced in place in one step.
+
+## Behaviour test
+
+The test that shows the behaviour stayed the same. It passes on the old code first, then on the new code
+unchanged. Name:
+
+- the interface it tests: a public function, an endpoint or a command, never internals;
+- its form: side by side (one suite runs against both versions), or in place (committed before the swap);
+- every file the test consists of, recorded outputs included, so the review can diff them all;
+- where the recorded outputs come from when the old code can't run in a test (a golden master);
+- the level the test runs at when the test framework itself is migrated: one that doesn't depend on the framework, such as an end-to-end test or running the command.
+
+For a schema or data migration without such code, say how the data is checked instead. For example: row counts and
+checksums before and after. Never leave this section empty.
+
+## Verification
+
+How to verify each step: the command or check, and what result shows the step worked.
+
+## Rollback
+
+How to roll back each step. Where a step can't be rolled back, say why. The owner approves each such step
+explicitly.
+```
 
 ## The gate
 
@@ -94,7 +133,8 @@ When the route has one, write `migration-plan.md` before the plan. It says how d
    - a `[NEEDS CLARIFICATION]` is still open;
    - a task lacks its files, criteria, verification or status;
    - a task depends on a later one;
-   - a criterion is left uncovered, or a task covers one the spec doesn't have.
+   - a criterion is left uncovered, or a task covers one the spec doesn't have;
+   - a done migration plan misses one of its five sections, or has one empty.
 5. Fix what it reports, then commit.
 
 When planning shows the change is bigger or riskier than triage thought, stop and re-triage (see `factory-triage`).

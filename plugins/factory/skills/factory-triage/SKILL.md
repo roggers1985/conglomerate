@@ -18,7 +18,7 @@ Look at the task and, briefly, at the code it touches. Decide each of these, wit
 | **Type** | feature, bug, refactor, chore, docs, spike |
 | **Size** | small (a few files in one module), medium (several modules, one unit), large (several units, or new concepts) |
 | **Risk** | low; moderate; high (data, money, security, authentication, a public API, production) |
-| **Reversible** | yes; no (migrations, deletions, public API changes, anything published) |
+| **Reversible** | yes; no (schema and data migrations, deletions, public API changes, anything published) |
 | **Uncertainty** | low (the solution is clear); high (it isn't: needs a spike) |
 | **Architecture debt** | the open entries in `docs/architecture/` (ADR 0045) that the task touches, if any |
 
@@ -40,7 +40,7 @@ A route is a list of stages from a fixed set, in a fixed order: intent, spec, sp
 
 - **+ spike** when uncertainty is high;
 - **+ architecture** when the task touches open architecture debt: assess whether to fix it first (ADR 0045);
-- **+ migration-plan** for schema or data changes;
+- **+ migration-plan** for schema or data changes, and for a task that moves code to another solution without meaning to change its behaviour (a library swap, a framework upgrade, a rewrite, a part replaced step by step: `code-testing`, "Migrations that keep behaviour"). On the quick track there is no change folder, so there is no `migration-plan.md`: the build still writes the behaviour test first, and its run on the old code is recorded in the reply and the pull request (`factory-build`);
 - **+ security-review**, **always** (not a judgement call, ADR 0057) when the change adds or changes an entry point (an endpoint, a server action, a webhook, a command, a job), authentication or authorisation, the handling of untrusted input, or sensitive data;
 - **+ verify** on the standard or full track when the result can only be checked by running it;
 - **intent and spec combined** (drop intent) when the owner has already stated the problem clearly;
