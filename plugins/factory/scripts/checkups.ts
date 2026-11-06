@@ -45,11 +45,28 @@ const CheckupName = z.string().max(NAME_LENGTH_MAX).regex(KEBAB_CASE, "must be k
 
 const IntervalDays = z.number().int().min(1).max(INTERVAL_DAYS_MAX);
 
+const DUE_DATES_MAX = 12; // one a month is already more than any checkup needs
+
+// The most days each month can have in a year that doesn't repeat: February stops at 28, so 02-29 is refused.
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
+
+function isMonthDay(value: string): boolean {
+    const [month, day] = value.split("-").map(Number);
+    const daysInMonth = DAYS_IN_MONTH[(month ?? 0) - 1];
+
+    return /^\d\d-\d\d$/.test(value) && daysInMonth !== undefined && (day ?? 0) >= 1 && (day ?? 0) <= daysInMonth;
+}
+
+// A month and day, `MM-DD`.
+const DueDate = z.string().refine(isMonthDay, "must be a real MM-DD date");
+
 // Without `intervalDays` or `priority`, the checkup's skill supplies the default (ADR 0049).
 const ScheduleEntrySchema = z.strictObject({
     name: CheckupName,
     intervalDays: IntervalDays.optional(),
     priority: z.enum(PRIORITIES).optional(),
+    /** Dates (`MM-DD`) on which the checkup is due again, whatever its interval, e.g. the day new figures take effect. */
+    dueDates: z.array(DueDate).max(DUE_DATES_MAX).optional(),
 });
 
 // A skill's frontmatter is Claude Code's format, so extra keys are allowed (ADR 0020).
@@ -93,6 +110,8 @@ export type CheckupConfig = {
     readonly name: string;
     readonly intervalDays: number;
     readonly priority: Priority;
+    /** Dates (`MM-DD`) on which it is due again once it last ran before them; empty when it has none. */
+    readonly dueDates: readonly string[];
     /** `true` when the schedule sets the interval itself, instead of using the skill's default. */
     readonly hasOwnInterval: boolean;
     /** `true` when the schedule sets the priority itself, instead of using the skill's default. */
@@ -232,7 +251,14 @@ export function parseCheckupDefaults(frontmatter: unknown): Parsed<CheckupDefaul
  *
  * expect(resolveCheckup({ name: "security", intervalDays: 14 }, { defaults })).toEqual({
  *     kind: "valid",
- *     value: { name: "security", intervalDays: 14, priority: "urgent", hasOwnInterval: true, hasOwnPriority: false },
+ *     value: {
+ *         name: "security",
+ *         intervalDays: 14,
+ *         priority: "urgent",
+ *         dueDates: [],
+ *         hasOwnInterval: true,
+ *         hasOwnPriority: false,
+ *     },
  * });
  * expect(resolveCheckup({ name: "legal" }, { defaults: null }).kind).toBe("invalid");
  * ```
@@ -259,6 +285,7 @@ export function resolveCheckup(
             name: entry.name,
             intervalDays,
             priority,
+            dueDates: entry.dueDates ?? [],
             hasOwnInterval: entry.intervalDays !== undefined,
             hasOwnPriority: entry.priority !== undefined,
         },
@@ -288,21 +315,25 @@ export function latestReportDate(fileNames: readonly string[]): string | null {
  *
  * @param schedule.lastRun - The date of its newest report as `YYYY-MM-DD`, or `null` when it never ran.
  * @param schedule.intervalDays - How often it should run.
+ * @param schedule.dueDates - `MM-DD` dates on which it is due again, whatever the interval.
  * @param options.today - Today's date as `YYYY-MM-DD`.
- * @returns `true` when it never ran, or when at least `intervalDays` have passed since `lastRun`.
+ * @returns `true` when it never ran, when at least `intervalDays` have passed since `lastRun`, or when one of
+ * `dueDates` has come (on or before `today`) since `lastRun`.
  * @throws Error (an `assert` invariant) when `today` is not a valid date.
  *
  * @example
  * ```ts
  * const today = "2026-09-29";
  *
- * expect(isDue({ lastRun: null, intervalDays: 30 }, { today })).toBe(true);
- * expect(isDue({ lastRun: "2026-08-30", intervalDays: 30 }, { today })).toBe(true);
- * expect(isDue({ lastRun: "2026-08-31", intervalDays: 30 }, { today })).toBe(false);
+ * expect(isDue({ lastRun: null, intervalDays: 30, dueDates: [] }, { today })).toBe(true);
+ * expect(isDue({ lastRun: "2026-08-30", intervalDays: 30, dueDates: [] }, { today })).toBe(true);
+ * expect(isDue({ lastRun: "2026-08-31", intervalDays: 30, dueDates: [] }, { today })).toBe(false);
+ * expect(isDue({ lastRun: "2026-08-31", intervalDays: 365, dueDates: ["09-01"] }, { today })).toBe(true);
+ * expect(isDue({ lastRun: "2026-09-01", intervalDays: 365, dueDates: ["09-01"] }, { today })).toBe(false);
  * ```
  */
 export function isDue(
-    { lastRun, intervalDays }: Pick<CheckupStatus, "lastRun" | "intervalDays">,
+    { lastRun, intervalDays, dueDates }: Pick<CheckupStatus, "lastRun" | "intervalDays" | "dueDates">,
     { today }: { readonly today: string },
 ): boolean {
     assert(!Number.isNaN(Date.parse(today)), `today must be a YYYY-MM-DD date, got "${today}"`);
@@ -311,7 +342,25 @@ export function isDue(
         return true;
     }
 
-    return Date.parse(today) - Date.parse(lastRun) >= intervalDays * DAY_MS;
+    if (Date.parse(today) - Date.parse(lastRun) >= intervalDays * DAY_MS) {
+        return true;
+    }
+
+    return dueDates.some((dueDate) => dueDateBetween(dueDate, { after: lastRun, through: today }));
+}
+
+/** Whether `dueDate` (`MM-DD`) fell after `after` and on or before `through`, in this or the previous year. */
+function dueDateBetween(
+    dueDate: string,
+    { after, through }: { readonly after: string; readonly through: string },
+): boolean {
+    const year = Number(through.slice(0, 4));
+
+    return [year, year - 1].some((candidateYear) => {
+        const candidate = `${candidateYear}-${dueDate}`;
+
+        return candidate > after && candidate <= through;
+    });
 }
 
 /**
@@ -360,7 +409,7 @@ export function skillSource(
  *
  * @example
  * ```ts
- * const legal = { name: "legal", intervalDays: 30, priority: "urgent" };
+ * const legal = { name: "legal", intervalDays: 30, priority: "urgent", dueDates: [] };
  * const status = checkupStatus(legal, { reportFileNames: ["2026-09-27.md"], skill: "project", today: "2026-09-29" });
  *
  * expect(status).toEqual({ ...legal, lastRun: "2026-09-27", due: false, skill: "project" });
@@ -376,7 +425,12 @@ export function checkupStatus(
 ): CheckupStatus {
     const lastRun = latestReportDate(reportFileNames);
 
-    return { ...checkup, lastRun, due: isDue({ lastRun, intervalDays: checkup.intervalDays }, { today }), skill };
+    return {
+        ...checkup,
+        lastRun,
+        due: isDue({ lastRun, intervalDays: checkup.intervalDays, dueDates: checkup.dueDates }, { today }),
+        skill,
+    };
 }
 
 /**

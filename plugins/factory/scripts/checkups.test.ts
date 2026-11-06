@@ -19,10 +19,11 @@ import {
 
 const legal = { name: "legal", intervalDays: 30, priority: "urgent" } as const;
 const seo = { name: "seo", intervalDays: 60, priority: "normal" } as const;
-const own = { hasOwnInterval: true, hasOwnPriority: true } as const;
+const own = { hasOwnInterval: true, hasOwnPriority: true, dueDates: [] } as const;
 
 const status = (overrides: Partial<CheckupStatus>): CheckupStatus => ({
     ...seo,
+    dueDates: [],
     hasOwnInterval: false,
     hasOwnPriority: false,
     lastRun: null,
@@ -51,6 +52,28 @@ describe("parseSchedule", () => {
         expect(
             failedPaths(parseSchedule({ checkups: [{ name: "Legal", intervalDays: 1.5, priority: "sometimes" }, 42] })),
         ).toEqual(["checkups[0].name", "checkups[0].intervalDays", "checkups[0].priority", "checkups[1]"]);
+    });
+
+    it("accepts due dates as MM-DD", () => {
+        const entry = { ...legal, dueDates: ["11-01", "01-03"] };
+
+        expect(parseSchedule({ checkups: [entry] })).toEqual({
+            kind: "valid",
+            value: { checkups: [entry], declined: [] },
+        });
+    });
+
+    it("rejects due dates that are not real MM-DD dates", () => {
+        expect(
+            failedPaths(
+                parseSchedule({ checkups: [{ ...legal, dueDates: ["2026-11-01", "13-01", "02-30", "02-29"] }] }),
+            ),
+        ).toEqual([
+            "checkups[0].dueDates[0]",
+            "checkups[0].dueDates[1]",
+            "checkups[0].dueDates[2]",
+            "checkups[0].dueDates[3]",
+        ]);
     });
 
     it("rejects unknown fields, which are usually typos", () => {
@@ -145,14 +168,28 @@ describe("resolveCheckup", () => {
     it("uses the skill's defaults for what the schedule leaves out", () => {
         expect(resolveCheckup({ name: "security" }, { defaults })).toEqual({
             kind: "valid",
-            value: { name: "security", ...defaults, hasOwnInterval: false, hasOwnPriority: false },
+            value: { name: "security", ...defaults, dueDates: [], hasOwnInterval: false, hasOwnPriority: false },
         });
     });
 
     it("lets the schedule's own values win, and marks them", () => {
         expect(resolveCheckup({ name: "security", intervalDays: 7, priority: "quiet" }, { defaults })).toEqual({
             kind: "valid",
-            value: { name: "security", intervalDays: 7, priority: "quiet", hasOwnInterval: true, hasOwnPriority: true },
+            value: {
+                name: "security",
+                intervalDays: 7,
+                priority: "quiet",
+                dueDates: [],
+                hasOwnInterval: true,
+                hasOwnPriority: true,
+            },
+        });
+    });
+
+    it("passes the schedule's due dates on", () => {
+        expect(resolveCheckup({ name: "security", dueDates: ["11-01"] }, { defaults })).toEqual({
+            kind: "valid",
+            value: { name: "security", ...defaults, dueDates: ["11-01"], hasOwnInterval: false, hasOwnPriority: false },
         });
     });
 
@@ -187,19 +224,41 @@ describe("latestReportDate", () => {
 
 describe("isDue", () => {
     it("is due when the checkup never ran", () => {
-        expect(isDue({ lastRun: null, intervalDays: 30 }, { today: "2026-09-29" })).toBe(true);
+        expect(isDue({ lastRun: null, intervalDays: 30, dueDates: [] }, { today: "2026-09-29" })).toBe(true);
     });
 
     it("is due once the interval has passed", () => {
-        expect(isDue({ lastRun: "2026-08-30", intervalDays: 30 }, { today: "2026-09-29" })).toBe(true);
+        expect(isDue({ lastRun: "2026-08-30", intervalDays: 30, dueDates: [] }, { today: "2026-09-29" })).toBe(true);
     });
 
     it("is not due before the interval has passed", () => {
-        expect(isDue({ lastRun: "2026-08-31", intervalDays: 30 }, { today: "2026-09-29" })).toBe(false);
+        expect(isDue({ lastRun: "2026-08-31", intervalDays: 30, dueDates: [] }, { today: "2026-09-29" })).toBe(false);
+    });
+
+    it("is due once a due date has come since the last run, whatever the interval", () => {
+        const checkup = { lastRun: "2026-10-31", intervalDays: 365, dueDates: ["11-01"] };
+
+        expect(isDue(checkup, { today: "2026-11-01" })).toBe(true);
+        expect(isDue(checkup, { today: "2026-10-31" })).toBe(false);
+    });
+
+    it("is not due for a due date that came before the last run", () => {
+        const checkup = { lastRun: "2026-11-03", intervalDays: 365, dueDates: ["11-01"] };
+
+        expect(isDue(checkup, { today: "2026-11-06" })).toBe(false);
+    });
+
+    it("finds a due date of the previous year across New Year", () => {
+        const checkup = { lastRun: "2026-12-02", intervalDays: 365, dueDates: ["12-01", "01-03"] };
+
+        expect(isDue(checkup, { today: "2027-01-02" })).toBe(false);
+        expect(isDue(checkup, { today: "2027-01-03" })).toBe(true);
     });
 
     it("refuses a malformed date", () => {
-        expect(() => isDue({ lastRun: null, intervalDays: 30 }, { today: "yesterday" })).toThrow(/YYYY-MM-DD/);
+        expect(() => isDue({ lastRun: null, intervalDays: 30, dueDates: [] }, { today: "yesterday" })).toThrow(
+            /YYYY-MM-DD/,
+        );
     });
 });
 
