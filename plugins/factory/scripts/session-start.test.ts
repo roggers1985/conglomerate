@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { z } from "zod";
+import { readJson } from "../../../lib/files.ts";
+import { parse } from "../../../lib/parse.ts";
 import { readRoutes, renderRoutingContext } from "./models.ts";
 import {
     buildSessionStartOutput,
@@ -183,5 +186,65 @@ describe("buildSessionStartOutput", () => {
 
     it("AC-7: refuses empty text, so a missing part is never delivered as an empty one", () => {
         expect(() => buildSessionStartOutput("  \n")).toThrow();
+    });
+});
+
+const HOOKS_PATH = path.resolve(import.meta.dir, "..", "hooks", "hooks.json");
+const HOOKS_BYTES_MAX = 64 * 1024;
+const SESSION_START_SCRIPT = `"\${CLAUDE_PLUGIN_ROOT}/dist/session-start.js"`;
+const REMINDER_COMMANDS = [
+    `bun "\${CLAUDE_PLUGIN_ROOT}/dist/checkups.js" reminder`,
+    `bun "\${CLAUDE_PLUGIN_ROOT}/dist/toolbox.js" reminder`,
+    `bun "\${CLAUDE_PLUGIN_ROOT}/dist/changes.js" reminder`,
+] as const;
+
+const HooksSchema = z.object({
+    hooks: z.record(
+        z.string(),
+        z.array(z.object({ hooks: z.array(z.object({ type: z.string(), command: z.string() })) })),
+    ),
+});
+
+describe("hooks.json session-start commands", () => {
+    const readSessionStartCommands = async (): Promise<readonly (readonly string[])[]> => {
+        const json = await readJson(HOOKS_PATH, {
+            maxBytes: HOOKS_BYTES_MAX,
+            signal: signal(),
+            symbolicLinks: "follow",
+        });
+        const parsed = parse(HooksSchema, json);
+
+        if (parsed.kind === "invalid") {
+            throw new Error(`hooks.json is invalid: ${parsed.errors.join("; ")}`);
+        }
+
+        const groups = parsed.value.hooks["SessionStart"] ?? [];
+
+        return groups.map((group) => group.hooks.map((hook) => hook.command));
+    };
+
+    it("AC-1: runs one session-start command per part, each with the part as its first argument", async () => {
+        const groups = await readSessionStartCommands();
+        const sessionStartCommands = groups.flat().filter((command) => command.includes("session-start.js"));
+
+        expect(sessionStartCommands).toEqual(SESSION_START_PARTS.map((part) => `bun ${SESSION_START_SCRIPT} ${part}`));
+    });
+
+    it("AC-1: keeps the three session-start commands in the same hook group, before the reminders", async () => {
+        const groups = await readSessionStartCommands();
+
+        expect(groups).toEqual([
+            [...SESSION_START_PARTS.map((part) => `bun ${SESSION_START_SCRIPT} ${part}`), ...REMINDER_COMMANDS],
+        ]);
+    });
+
+    it("AC-3: orders the parts conventions, autonomy, routing in the hook configuration", async () => {
+        const groups = await readSessionStartCommands();
+        const parts = groups
+            .flat()
+            .filter((command) => command.includes("session-start.js"))
+            .map((command) => command.split(" ").at(-1));
+
+        expect(parts).toEqual(["conventions", "autonomy", "routing"]);
     });
 });
