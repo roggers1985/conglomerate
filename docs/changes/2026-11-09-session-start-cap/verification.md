@@ -6,6 +6,7 @@
 - T-1 merged (`35080da`), bundles regenerated: `bun run check` passed (532 tests, 104 doctests, validate). The test file got a lint fix from a test agent in `388e6a8` after the code agent's commit; it changes how the spawned environment is built, not what is asserted.
 - T-2 red run: `bun test plugins/factory/scripts/session-start.test.ts` on `cb8d8a4`: 3 tests failed on assertions (hooks.json has one session-start command without a part argument), 32 passed
 - T-2 merged (`ff53f10` via merge), bundles regenerated with no change: `bun run check` passed (535 tests, 104 doctests, validate)
+- T-3 merged (`0c81e1d`, ADR 0066 and back-links); T-4: `bun run generate` produced no further change and `bun run check` passed (535 tests, 104 doctests, validate)
 
 ## Rulings
 

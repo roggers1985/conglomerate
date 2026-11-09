@@ -73,7 +73,7 @@ Two things the build cannot settle and verify must: that Claude Code really deli
 - Verify: `bun run validate`, and each of ADR 0008, 0014 and 0044 links to ADR 0066 in its status line
 - Depends on: none
 - Parallel: yes
-- Status: in-progress
+- Status: done
 
 ### T-4: Regenerate the bundles and run every gate
 
@@ -83,4 +83,4 @@ Two things the build cannot settle and verify must: that Claude Code really deli
 - Verify: `bun run generate`, then `bun run check` passes and `git status` shows no other generated drift
 - Depends on: T-1, T-2, T-3
 - Parallel: no
-- Status: pending
+- Status: done

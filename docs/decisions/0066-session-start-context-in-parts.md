@@ -22,7 +22,7 @@ The owner approved this with the change's spec and plan on 2026-11-09 (`docs/cha
 - **One script, run three times.** `hooks/hooks.json` runs the session-start script once per part, with the part's name as its argument.
 - **Each part is at most 10,000 characters.** A test renders every part at every autonomy level from the real files and fails when one is longer. The failure names the part, the level and the length.
 - **A second test checks `hooks.json`.** It must list exactly one command per part, in the order above, so a part cannot be forgotten.
-- **The parts fail independently.** Each reads only its own files. Only the autonomy part reads the project's settings, so invalid settings stop that part alone, with an error that names it and the reason. The other two still arrive.
+- **The parts fail independently.** Each reads only its own files. Only the autonomy part reads the project's settings, so a settings file it cannot read (one over 1 MiB, for example) stops that part alone, with an error that names it and the reason. The other two still arrive. Invalid settings do not stop it: they fall back to the defaults and are reported, as before.
 
 ## Alternatives considered
 
