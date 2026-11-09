@@ -10,7 +10,7 @@ classification:
   uncertainty: low
   architectureDebt: []
 stages:
-  - { name: spec, level: guided, status: pending }
+  - { name: spec, level: guided, status: done }
   - { name: plan, level: trusted, status: pending }
   - { name: build, level: trusted, status: pending }
   - { name: verify, level: trusted, status: pending }
