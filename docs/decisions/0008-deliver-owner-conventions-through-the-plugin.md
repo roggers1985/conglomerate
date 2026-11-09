@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. Amended by [ADR-0044](0044-autonomy-levels.md): the autonomy level is added after the core conventions.
+Accepted. Amended by [ADR-0044](0044-autonomy-levels.md): the autonomy level is added after the core conventions. Amended by [ADR-0066](0066-session-start-context-in-parts.md): the context is delivered in three parts, each under the hook size cap.
 
 ## Context
 

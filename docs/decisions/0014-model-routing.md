@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. Amended by [ADR-0015](0015-task-agents-and-model-overrides.md): skills no longer set a model; delegation goes through task agents whose model can be overridden. Amended by [ADR-0021](0021-model-aliases-and-escalation.md): aliases follow new models only after a Claude Code update; `fable` is the escalation target.
+Accepted. Amended by [ADR-0015](0015-task-agents-and-model-overrides.md): skills no longer set a model; delegation goes through task agents whose model can be overridden. Amended by [ADR-0021](0021-model-aliases-and-escalation.md): aliases follow new models only after a Claude Code update; `fable` is the escalation target. Amended by [ADR-0066](0066-session-start-context-in-parts.md): the routing table is delivered as its own part of the session-start context, under the hook size cap.
 
 ## Context
 
