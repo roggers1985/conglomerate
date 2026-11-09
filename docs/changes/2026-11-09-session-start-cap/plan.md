@@ -63,7 +63,7 @@ Two things the build cannot settle and verify must: that Claude Code really deli
 - Verify: `bun test plugins/factory/scripts/session-start.test.ts`
 - Depends on: T-1
 - Parallel: no
-- Status: in-progress
+- Status: done
 
 ### T-3: Record the decision
 
@@ -73,7 +73,7 @@ Two things the build cannot settle and verify must: that Claude Code really deli
 - Verify: `bun run validate`, and each of ADR 0008, 0014 and 0044 links to ADR 0066 in its status line
 - Depends on: none
 - Parallel: yes
-- Status: pending
+- Status: in-progress
 
 ### T-4: Regenerate the bundles and run every gate
 
