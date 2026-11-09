@@ -63,7 +63,7 @@ Two things the build cannot settle and verify must: that Claude Code really deli
 - Verify: `bun test plugins/factory/scripts/session-start.test.ts`
 - Depends on: T-1
 - Parallel: no
-- Status: pending
+- Status: in-progress
 
 ### T-3: Record the decision
 
