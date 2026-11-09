@@ -12,7 +12,7 @@ Where the factory stands compared with the alternatives, and what's still missin
 - **Complete:** the delivery stages exist and are used (done). Using them on another project, an existing application, is the next proof.
 - **Complementary:** publish sooner as a health and conventions pack that works *next to* Superpowers, Spec Kit or OpenSpec for delivery. This would probably already pass the owner's test that it "clearly adds something".
 
-Either way, it needs the packaging criteria below. Publishing through the repository's own marketplace needs only a public repository. A listing in Anthropic's directory adds an automated and a human review. The plugin has one blocking gap there, a README in the plugin folder, and two likely holds for a reviewer (see "What Anthropic's directory checks").
+Either way, it needs the packaging criteria below. Publishing through the repository's own marketplace needs only a public repository. A listing in Anthropic's directory adds an automated and a human review. The plugin has no blocking gap there since its README was added (`plugins/factory/README.md`, 2026-10-12), and two likely holds for a reviewer (see "What Anthropic's directory checks").
 
 ## Criteria for "ready"
 
@@ -47,10 +47,10 @@ Facts from Anthropic's documentation, read on 2026-10-12: [Publish and distribut
 
 | Check | The factory today | Result |
 | ----- | ----------------- | ------ |
-| A README of at least 40 words in the plugin folder | `plugins/factory/` has none; the README is at the repository root | Blocks |
+| A README of at least 40 words in the plugin folder | `plugins/factory/README.md` has 309 words (added 2026-10-12, after this check) | Passes |
 | A `LICENSE` in the plugin folder, or `license` in `plugin.json` | Both are there | Passes |
 | `description`, `author` and `version` set | All three are; `homepage` and `repository`, which the publishing guide also asks for, are not | Passes |
-| At most 512 files, text or images only, each under 256 KiB | 94 files, text only, the largest is 123 KB | Passes |
+| At most 512 files, text or images only, each under 256 KiB | 95 files (94 on 2026-10-12, plus the plugin README), text only, the largest is 123 KB | Passes |
 | Readable source, not compiled, packed or minified code | `dist/` holds minified bundles of about 100 KB that the hooks run | Held for a reviewer |
 | Hook scripts the validator can follow, or the plugin at the root of its own repository | The plugin is in `plugins/factory/`, and its hooks run bundled JavaScript through `bun` | Held for a reviewer |
 | No package launcher, lockfile or registry settings in the plugin folder | None of them are there | Passes |
@@ -111,7 +111,7 @@ Since 2026-09-30: no project in the comparison was archived, and none was added.
 
 - **The delivery stages are young:** used on three changes, all in this repository, which is small and has no users, database or UI. How they hold up in an existing application is still unknown, and the arbiter has never had to rule.
 - **Reach:** Claude Code only; a local install that needs Bun. The leaders run on 14 to 40 hosts and install with one command.
-- **Packaging:** no releases, changelog, walkthrough or community channel, and no README in the plugin folder, which Anthropic's directory requires.
+- **Packaging:** no releases, changelog, walkthrough or community channel, and a plugin README (added 2026-10-12) that doesn't yet describe everything the plugin runs, sends or fetches.
 - **An opinion, not a methodology:** the conventions are one person's taste (TigerStyle-inspired, TypeScript-first). That's a strength for some users and a narrow audience for others.
 - **No evals** yet, and the autonomy levels aren't enforced by hooks yet.
 

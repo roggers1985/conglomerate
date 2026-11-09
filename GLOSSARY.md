@@ -26,7 +26,7 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Marketplace.** A catalogue of plugins that Claude Code can install from, either a folder on disk (local) or a Git repository. *Here:* this repository is a marketplace, installed locally (ADR 0024, 0026).
 
-**Hook.** A command Claude Code runs automatically at a moment in its lifecycle: `SessionStart` (a session begins), `PreToolUse` (before a tool runs), and others. *Here:* the plugin's session-start hooks add the conventions, the model routing, and the checkup and toolbox reminders (`plugins/factory/hooks/hooks.json`). RTK's hook rewrites shell commands.
+**Hook.** A command Claude Code runs automatically at a moment in its lifecycle: `SessionStart` (a session begins), `PreToolUse` (before a tool runs), and others. *Here:* the plugin's session-start hooks add the conventions, the model routing, and the checkup, toolbox and unfinished-changes reminders (`plugins/factory/hooks/hooks.json`). RTK's hook rewrites shell commands.
 
 **Subagent.** A separate agent the main agent starts for a part of the work, with its own fresh context and its own model. It returns only its result, so the main conversation stays small. *Here:* every checkup runs in one.
 
@@ -42,7 +42,7 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 ## The factory
 
-**Software factory.** A pipeline that turns ideas into shipped software through fixed stages, each with clear inputs, outputs and checks. Some factories are plugins for an agent tool; others have their own **runtime**, an orchestrator that runs agents unattended. *Here:* a plugin, with Claude Code as its runtime and the owner in the loop (ADR 0040); the stages are planned in `TODO.md`.
+**Software factory.** A pipeline that turns ideas into shipped software through fixed stages, each with clear inputs, outputs and checks. Some factories are plugins for an agent tool; others have their own **runtime**, an orchestrator that runs agents unattended. *Here:* a plugin, with Claude Code as its runtime and the owner in the loop (ADR 0040); the stages are described below (ADR 0051 to 0056).
 
 **Triage and route.** *Here:* Stage 0 of the factory. Triage classifies a new task and proposes a *route*: a list of stages (intent, spec, plan, build, review, …) from one of three tracks (quick, standard, full), adjusted with recorded deviations, and an autonomy level per stage. A standard or full route is kept in `docs/changes/<date>-<name>/task.md` (ADR 0051).
 
@@ -79,6 +79,7 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 - **Runner:** `/factory:checkup`, which shows what's due and starts the checkups.
 - **Override:** a project's own version of a checkup, which replaces the plugin's (ADR 0023).
 - **Defaults:** each checkup skill declares a default interval and priority; the schedule only overrides them where the owner wants to (ADR 0049).
+- **Due dates:** `dueDates` in the schedule, `MM-DD` dates on which a checkup is due again whatever its interval, e.g. for figures that change on a fixed day (ADR 0065).
 - **Declined:** a checkup the owner opted out of, listed under `declined` in the schedule, so the runner doesn't suggest it again (ADR 0037).
 - **Interactive checkup:** one that runs in the main session with the owner, because it needs their answers, e.g. `monitoring` (ADR 0037).
 
@@ -104,9 +105,9 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 - `plan.md`: how;
 - `tasks.md`: in what order.
 
-*Here:* planned for the factory's first stages.
+*Here:* the factory's intake and planning stages write these files for each change (ADR 0052, 0053).
 
-**Triage.** Sorting a task by type, size and risk, to choose how much process it needs. *Here:* planned as stage 0 of the factory, choosing a quick, standard or full route.
+**Triage.** Sorting a task by type, size and risk, to choose how much process it needs. *Here:* stage 0 of the factory, choosing a quick, standard or full route (ADR 0051).
 
 **Generated file.** A file produced by a script from other files, never edited by hand. *Here:* `bun run generate` writes the catalog, the task agents, the bundles and the license files; `bun run validate` checks they're current.
 

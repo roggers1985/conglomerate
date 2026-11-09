@@ -3,8 +3,8 @@
 import path from "node:path";
 import { readDir, readText, whenMissing } from "../lib/files.ts";
 
-const GENERATED_FILES_MAX = 100; // one generated folder: 9 task agents, 4 bundles
-const GENERATED_BYTES_MAX = 5 * 1024 * 1024; // the largest is a bundle of about 100 KB
+const GENERATED_FILES_MAX = 100; // one generated folder: 9 task agents, 5 bundles
+const GENERATED_BYTES_MAX = 5 * 1024 * 1024; // the largest is a bundle of about 120 KB
 
 /** Generated files by file name, with their content. */
 export type GeneratedFiles = ReadonlyMap<string, string>;

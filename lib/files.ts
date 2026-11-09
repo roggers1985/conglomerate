@@ -7,7 +7,7 @@ import { isFileNotFound } from "./errors.ts";
 /** Maximum size of a JSON file we read: our config and manifests, and `package.json`s. The largest is a few KB. */
 export const JSON_BYTES_MAX = 1024 * 1024;
 
-/** Maximum size of a text file we read: Markdown, licenses and source files. The largest is about 20 KB. */
+/** Maximum size of a text file we read: Markdown, licenses and source files. The largest is under 50 KB. */
 export const TEXT_BYTES_MAX = 1024 * 1024;
 
 type ReadOptions = {

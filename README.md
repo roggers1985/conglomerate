@@ -12,7 +12,14 @@ Most AI coding factories focus on getting from an idea to code. This one does th
   - You can decline a checkup per project, and it won't be suggested again until you opt back in.
   - It fixes what's small and safe, and hands the rest over as a pull request with a report.
   - Urgency levels decide how insistently a due checkup is brought up.
-- **A route from idea to merged code.** Every task starts with triage, which proposes a route through fixed stages (intent, spec, plan, tasks, build, review, finish) with an autonomy level per stage, and waits for your go-ahead. Specs have numbered acceptance criteria in EARS form, every criterion is traced to a task and to the test that proves it, a different agent writes those tests than the one that writes the code, a separate agent reviews the result and breaks the code on purpose to see each test fail, and scripts check each stage's document before the next one starts. Security is on by default: every spec says who may use what it describes, and a missing authentication or authorisation check can only ship on your explicit say.
+- **A route from idea to merged code.** Every task starts with triage, which proposes a route through fixed stages (intent, spec, plan, tasks, build, review, finish) with an autonomy level per stage, and waits for your go-ahead. Along the route:
+  - specs have numbered acceptance criteria in EARS form (a fixed sentence pattern, see the [glossary](GLOSSARY.md));
+  - every criterion is traced to a task and to the test that proves it;
+  - a different agent writes those tests than the one that writes the code;
+  - a separate agent reviews the result and breaks the code on purpose to see each test fail;
+  - scripts check each stage's document before the next one starts.
+
+  Security is on by default: every spec says who may use what it describes, and a missing authentication or authorisation check can only ship on your explicit say.
 - **You choose how much it decides.** Three autonomy levels (guided, trusted, autonomous), per project or per session. Some decisions stay yours at every level: the conventions, the architecture, anything destructive.
 - **The right model for each task.** Work is routed by task type to the model and effort level that fit it: a small model for mechanical edits, a strong one for reviews and planning. The agent may override the route with a stated reason, and escalates when a task turns out bigger than expected.
 - **A toolbox you can trust.** The tools and plugins you rely on are listed with a security record (source, license, permissions). A missing one is reported at session start, and nothing is installed without your confirmation.
@@ -22,7 +29,7 @@ Most AI coding factories focus on getting from an idea to code. This one does th
   - Generated files (skill catalog, task agents, bundles, license notices) are rebuilt and compared on every push.
   - The factory runs its own checkups on this repository.
 
-**In progress:** the delivery stages themselves: triage of each task into the right route, intent and specification, planning, building with fresh subagents per task, review, and finishing a branch. See [`TODO.md`](TODO.md).
+**Still to do:** use the delivery stages on a project other than this repository, and the packaging a public release needs. See [`TODO.md`](TODO.md) and [`docs/readiness.md`](docs/readiness.md).
 
 ## Install
 
