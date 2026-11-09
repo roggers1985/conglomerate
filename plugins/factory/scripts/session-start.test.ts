@@ -15,6 +15,9 @@ const LEVELS = ["guided", "trusted", "autonomous"] as const;
 const AUTONOMY_DIR = path.resolve(import.meta.dir, "..", "conventions", "autonomy");
 const SCRIPT_PATH = path.join(import.meta.dir, "session-start.ts");
 
+// Over the 1 MiB the settings reader accepts, so the autonomy part cannot be produced.
+const OVERSIZE_SETTINGS = " ".repeat(1_100_000);
+
 const signal = (): AbortSignal => AbortSignal.timeout(10_000);
 
 describe("session-start parts", () => {
@@ -119,8 +122,17 @@ describe("session-start parts", () => {
         });
     });
 
-    it("AC-7: still produces the conventions and routing parts when the settings are invalid", async () => {
+    it("AC-4: keeps the default level guided when the settings are malformed JSON", async () => {
         await setSettings("{ not json");
+
+        const { exitCode, stdout } = await runCommand("autonomy", projectDir);
+
+        expect(exitCode).toBe(0);
+        expect(JSON.parse(stdout).hookSpecificOutput.additionalContext).toStartWith("## Autonomy: guided");
+    });
+
+    it("AC-7: still produces the conventions and routing parts when the settings cannot be read", async () => {
+        await setSettings(OVERSIZE_SETTINGS);
 
         const conventions = await runCommand("conventions", projectDir);
         const routing = await runCommand("routing", projectDir);
@@ -129,8 +141,8 @@ describe("session-start parts", () => {
         expect(routing.exitCode, "routing part exits with 0").toBe(0);
     });
 
-    it("AC-7: tells the owner that the autonomy part is missing when the settings are invalid", async () => {
-        await setSettings("{ not json");
+    it("AC-7: tells the owner that the autonomy part is missing when the settings cannot be read", async () => {
+        await setSettings(OVERSIZE_SETTINGS);
 
         const { exitCode, stdout, stderr } = await runCommand("autonomy", projectDir);
 
@@ -139,8 +151,8 @@ describe("session-start parts", () => {
         expect(stderr).toContain("autonomy");
     });
 
-    it("AC-7: rejects with an error that names the autonomy part when the settings are invalid", async () => {
-        await setSettings("{ not json");
+    it("AC-7: rejects with an error that names the autonomy part when the settings cannot be read", async () => {
+        await setSettings(OVERSIZE_SETTINGS);
 
         const rendering = renderSessionStartPart("autonomy", { projectDir, signal: signal() });
 
