@@ -19,7 +19,7 @@ Follow the protocol in `plugins/factory/checkups/protocol.md` (branch, hard rule
 
 Use the official documentation, and cite it in the report:
 
-- Models overview: https://platform.claude.com/docs/en/about-claude/models/overview
+- Models overview: https://platform.claude.com/docs/en/models/overview
 - Model deprecations: https://platform.claude.com/docs/en/about-claude/model-deprecations
 - Pricing: https://platform.claude.com/docs/en/about-claude/pricing
 - Claude Code model configuration (aliases, effort levels): https://code.claude.com/docs/en/model-config
