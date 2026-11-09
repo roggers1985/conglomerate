@@ -4,6 +4,7 @@
 
 - T-1 red run: `bun test plugins/factory/scripts/session-start.test.ts` on `d833795`: the file fails at load, 0 tests run, because the exports `renderSessionStartPart` and the others the task adds do not exist yet
 - T-1 merged (`35080da`), bundles regenerated: `bun run check` passed (532 tests, 104 doctests, validate). The test file got a lint fix from a test agent in `388e6a8` after the code agent's commit; it changes how the spawned environment is built, not what is asserted.
+- T-2 red run: `bun test plugins/factory/scripts/session-start.test.ts` on `cb8d8a4`: 3 tests failed on assertions (hooks.json has one session-start command without a part argument), 32 passed
 
 ## Rulings
 
