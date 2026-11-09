@@ -42,7 +42,11 @@ describe("session-start parts", () => {
         const command = Bun.spawn(["bun", SCRIPT_PATH, ...args], {
             stdout: "pipe",
             stderr: "pipe",
-            env: { PATH: process.env["PATH"] ?? "", HOME: projectDir, TMPDIR: projectDir },
+            env: Object.fromEntries([
+                ["PATH", process.env["PATH"] ?? ""],
+                ["HOME", projectDir],
+                ["TMPDIR", projectDir],
+            ]),
         });
         const [stdout, stderr, exitCode] = await Promise.all([
             new Response(command.stdout).text(),
