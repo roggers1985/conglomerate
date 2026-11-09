@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. Amended by [ADR-0049](0049-checkup-defaults-in-skills.md): intervals and priorities default to the skill's. Amended by [ADR-0043](0043-checkup-branches-as-pull-requests.md): checkup branches are pushed as pull requests. Amended by [ADR-0042](0042-checkups-in-worktrees.md): each checkup runs in its own worktree. Amended by [ADR-0037](0037-daily-monitoring-checkup-and-opting-out.md): interactive checkups and a `declined` list. Amended by [ADR-0030](0030-checkup-priority-levels.md): priority levels (urgent, normal, quiet). Amended by [ADR-0023](0023-complete-generic-checkups-and-project-overrides.md): 16 generic checkups; a project's own checkup overrides the plugin's.
+Accepted. Amended by [ADR-0065](0065-checkup-due-dates.md): a checkup can also be due on fixed dates. Amended by [ADR-0049](0049-checkup-defaults-in-skills.md): intervals and priorities default to the skill's. Amended by [ADR-0043](0043-checkup-branches-as-pull-requests.md): checkup branches are pushed as pull requests. Amended by [ADR-0042](0042-checkups-in-worktrees.md): each checkup runs in its own worktree. Amended by [ADR-0037](0037-daily-monitoring-checkup-and-opting-out.md): interactive checkups and a `declined` list. Amended by [ADR-0030](0030-checkup-priority-levels.md): priority levels (urgent, normal, quiet). Amended by [ADR-0023](0023-complete-generic-checkups-and-project-overrides.md): 16 generic checkups; a project's own checkup overrides the plugin's.
 
 ## Context
 

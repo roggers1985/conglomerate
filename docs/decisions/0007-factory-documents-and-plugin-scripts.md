@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. The plugin-scripts part (no dependencies, no build step) was superseded by [ADR-0020](0020-schema-parsing-shared-lib-and-bundled-plugin-scripts.md): scripts are now bundled into `dist/`.
+Accepted. The documents part (`docs/specs/` and `docs/plans/`) was superseded by [ADR-0051](0051-stage-0-triage.md): a change's documents live next to its route, in `docs/changes/<date>-<name>/`. The plugin-scripts part (no dependencies, no build step) was superseded by [ADR-0020](0020-schema-parsing-shared-lib-and-bundled-plugin-scripts.md): scripts are now bundled into `dist/`.
 
 ## Context
 

@@ -4,7 +4,7 @@ Date: 2026-09-30
 
 ## Status
 
-Accepted. Extended by [ADR-0060](0060-reading-files-a-branch-controls.md): the pull request description is assembled by `changes.js pr-body`.
+Accepted. Extended by [ADR-0060](0060-reading-files-a-branch-controls.md): the pull request description is assembled by `changes.js pull-request-description`.
 
 Extends [ADR-0055](0055-review-and-security-review.md), and completes the factory's stages (ADR 0051 to 0055).
 
