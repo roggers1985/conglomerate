@@ -53,4 +53,4 @@ None that hurts: the as-is matches the to-be. The one-way dependency is kept by 
 ## Observations
 
 - `predicates`, `concurrency` and `errors` each have one kind of consumer. At this size that doesn't matter.
-- The question whether to split `lib/` into workspaces is [ADR 0047](../decisions/0047-keep-lib-as-one-folder-without-workspaces.md) (Proposed).
+- The question whether to split `lib/` into workspaces is [ADR 0047](../decisions/0047-keep-lib-as-one-folder-without-workspaces.md) (Accepted by the owner on 2026-09-30).

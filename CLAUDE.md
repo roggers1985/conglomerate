@@ -29,6 +29,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 - `scripts/`: repository tooling (strict TypeScript, run directly by Bun)
 - `docs/decisions/`: architecture decision records
 - `docs/checkups/`: this repo's own checkup schedule (`checkups.json`) and reports (ADR 0010)
+- `docs/changes/`: one folder per change that went through the factory's stages, with its `task.md` (the route) and the stage documents (ADR 0051)
 - `docs/architecture/`: the architecture register: units, drivers, debt and the workaround log, kept by the `architecture` checkup (ADR 0045, 0046)
 - `.claude/skills/`: checkups specific to this repo, e.g. `checkup-model-routing` (ADR 0015) and `checkup-conventions`, which keeps the sources of the conventions (ADR 0039)
 
@@ -41,7 +42,7 @@ This repository is a Claude Code plugin marketplace that holds the `factory` plu
 
 ## Commands
 
-- `bun run check`: run every quality gate (typecheck, lint, test, validate). The pre-push hook runs this (ADR 0006); never bypass it with `--no-verify`.
+- `bun run check`: run every quality gate (typecheck, lint, test, doctest, validate). The pre-push hook runs this (ADR 0006); never bypass it with `--no-verify`.
 - A pre-commit hook formats staged files with Biome and re-stages them (ADR 0009). It refuses partially staged files.
 - `bun run typecheck`: type-check (Bun does not type-check when running)
 - `bun run generate`: regenerate `plugins/factory/CATALOG.md`, the task agents (`agents/tasks/`), the bundles (`dist/`) and the plugin's `LICENSE` and `THIRD-PARTY-NOTICES.md` (ADR 0027) after adding, renaming or describing a skill, changing `models.json`, or changing plugin scripts or `lib/` (validate fails otherwise). Never edit generated files by hand.
