@@ -53,7 +53,7 @@ Two things the build cannot settle and verify must: that Claude Code really deli
 - Verify: `bun test plugins/factory/scripts/session-start.test.ts`
 - Depends on: none
 - Parallel: no
-- Status: pending
+- Status: in-progress
 
 ### T-2: Run the three parts from the hook configuration
 
