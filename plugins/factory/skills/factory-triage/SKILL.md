@@ -1,13 +1,15 @@
 ---
 name: factory-triage
-description: Stage 0 of the factory. Classifies a new task (type, size, risk, reversibility, uncertainty, architecture debt), proposes a route through the factory's stages with an autonomy level per stage, and writes it down once the owner confirms, so an interrupted session can resume. Use at the start of every new task the owner gives (unless they say "no triage"), for "/factory:start", when a stage turns out bigger or riskier than planned (re-triage), or to resume an unfinished change.
+description: Stage 0 of the factory, for medium and large tasks (small, low-risk ones skip it). Classifies a new task (type, size, risk, reversibility, uncertainty, architecture debt), proposes a route through the factory's stages with an autonomy level per stage, and writes it down once the owner confirms, so an interrupted session can resume. Use at the start of a new task that is more than a small, low-risk change (and never when the owner says "no triage"), for "/factory:start", when a stage turns out bigger or riskier than planned (re-triage), or to resume an unfinished change.
 metadata:
   task: planning
 ---
 
 # Triage
 
-Every new task starts here (ADR 0051). Triage decides *how* the task goes through the factory, not *what* gets built: that's the stages' work. The owner can skip it by saying "no triage".
+Triage decides *how* a task goes through the factory, not *what* gets built: that's the stages' work (ADR 0051). The owner can skip it by saying "no triage".
+
+**Small tasks skip triage, and the pipeline** (ADR 0067): a fix, a tweak or a visual change that is small, low risk, reversible, has low uncertainty, and adds or changes no entry point. Do it, run the project's checks, and report. If it turns out bigger or riskier, stop and triage then. Everything else starts here.
 
 ## 1. Classify
 
