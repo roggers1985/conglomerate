@@ -91,6 +91,19 @@ describe("specProblems", () => {
         expect(specProblems(spec(loose), { needsProblem: false })).toEqual([`AC-1 ${notEars}`, `AC-2 ${notEars}`]);
     });
 
+    it("lets a criterion carry an indented list, and still counts only the criteria", () => {
+        const withList = `${ac1}\n  - for a CSV file\n  - for a JSON file\n- **AC-2**: THE SYSTEM SHALL log.\n    * one line per export`;
+
+        expect(specProblems(spec(withList), { needsProblem: false })).toEqual([]);
+        expect(criteriaOf(spec(withList)).map((criterion) => criterion.id)).toEqual(["AC-1", "AC-2"]);
+    });
+
+    it("still refuses an item at the criteria's own level that isn't a criterion", () => {
+        expect(specProblems(spec(`${ac1}\n  - for a CSV file\n- Exports are fast.`), { needsProblem: false })).toEqual([
+            '1 item(s) under "Acceptance criteria" aren\'t numbered as - **AC-<n>**: …',
+        ]);
+    });
+
     it("requires numbered criteria with unique ids", () => {
         const items = criteria(ac1, ac1, "- Exports are fast.");
 

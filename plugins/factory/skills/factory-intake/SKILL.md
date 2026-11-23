@@ -97,7 +97,7 @@ Every criterion is numbered (`AC-<n>`, unique) and follows one of the EARS patte
 | Unwanted behaviour | IF <condition>, THEN THE SYSTEM SHALL … |
 | Optional feature | WHERE <feature is present>, THE SYSTEM SHALL … |
 
-One behaviour per criterion; each must be testable as written. The plan and the tests refer to the ids, so an id never changes meaning: add new ones, and mark a dropped one as "(dropped)" instead of reusing it.
+A criterion may carry an indented list that spells out its cases (the gate reads only the items at the criteria's own level as criteria; the list belongs to the criterion above it). One behaviour per criterion; each must be testable as written. The plan and the tests refer to the ids, so an id never changes meaning: add new ones, and mark a dropped one as "(dropped)" instead of reusing it.
 
 ## Unclear points
 
