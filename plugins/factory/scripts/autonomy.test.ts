@@ -55,3 +55,27 @@ describe("renderAutonomyContext", () => {
         expect(section).toContain("- autonomy: must be one of guided, trusted, autonomous");
     });
 });
+
+describe("renderAutonomyContext limits", () => {
+    it("shows at most ten problems and says how many more there are", () => {
+        const errors = Array.from({ length: 25 }, (_, index) => `problem ${index}`);
+        const section = renderAutonomyContext(
+            { kind: "invalid", settings: DEFAULT_SETTINGS, errors },
+            { rules: "Rules." },
+        );
+
+        expect(section).toContain("- problem 9");
+        expect(section).not.toContain("problem 10");
+        expect(section).toContain("- and 15 more");
+    });
+
+    it("cuts a long problem at 200 characters", () => {
+        const section = renderAutonomyContext(
+            { kind: "invalid", settings: DEFAULT_SETTINGS, errors: ["x".repeat(500)] },
+            { rules: "Rules." },
+        );
+
+        expect(section).toContain(`- ${"x".repeat(200)}…`);
+        expect(section).not.toContain("x".repeat(201));
+    });
+});

@@ -34,7 +34,7 @@ Inside, the simplest architecture that fits is:
 
   From `lib` it uses `files`, `parse`, `kebab-case`, `schemas`, `interrupt` and `assert`.
 - **Data flow:**
-  - at session start, hooks run the bundles, which read the project's and the plugin's files, parse them with schemas, and print context for Claude;
+  - at session start, hooks run the bundles, which read the project's and the plugin's files, parse them with schemas, and print context for Claude. The session-start hook prints its context in three parts, each under the hook size cap of 10,000 characters (ADR 0066);
   - the `checkup` and `toolbox` skills run the same bundles for a status table;
   - the `code-documentation` skill runs `dist/doctest.js` in other projects.
 

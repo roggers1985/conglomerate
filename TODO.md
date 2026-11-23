@@ -23,6 +23,8 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 ## Factory stages
 
+- [ ] `core.md` says the autonomy level is set "at the end of these conventions". Since ADR 0066 the autonomy rules are a separate part that may arrive first. Reword to "in the autonomy section of the session context" (owner's conventions; found in the review of the session-start-cap change)
+
 Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, Kiro, and Anthropic's AI-native SDLC playbook.
 
 To do:

@@ -5,7 +5,15 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "bun \"${CLAUDE_PLUGIN_ROOT}/dist/session-start.js\""
+                        "command": "bun \"${CLAUDE_PLUGIN_ROOT}/dist/session-start.js\" conventions"
+                    },
+                    {
+                        "type": "command",
+                        "command": "bun \"${CLAUDE_PLUGIN_ROOT}/dist/session-start.js\" autonomy"
+                    },
+                    {
+                        "type": "command",
+                        "command": "bun \"${CLAUDE_PLUGIN_ROOT}/dist/session-start.js\" routing"
                     },
                     {
                         "type": "command",
