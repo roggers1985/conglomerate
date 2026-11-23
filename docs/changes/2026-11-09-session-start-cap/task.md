@@ -15,7 +15,7 @@ stages:
   - { name: build, level: trusted, status: done }
   - { name: verify, level: trusted, status: done }
   - { name: review, level: trusted, status: done }
-  - { name: finish, level: trusted, status: in-progress }
+  - { name: finish, level: trusted, status: done }
 deviations:
   - "+ verify: the fix can only be checked by starting a real session and seeing all parts arrive without \"Output too large\""
 ---
