@@ -167,8 +167,21 @@ function securityProblems(text: string | null): string[] {
     ];
 }
 
-function criteriaProblems(text: string): string[] {
+const indentOf = (line: string): number => line.length - line.trimStart().length;
+
+/**
+ * The list items of a section that start a criterion: the ones at the first item's indentation. An item indented
+ * deeper belongs to the criterion above it (a sub-list that spells out its cases), and is not a criterion itself.
+ */
+function topLevelItems(text: string): string[] {
     const items = text.split("\n").filter((line) => LIST_ITEM.test(line));
+    const first = items[0];
+
+    return first === undefined ? [] : items.filter((line) => indentOf(line) <= indentOf(first));
+}
+
+function criteriaProblems(text: string): string[] {
+    const items = topLevelItems(text);
     const criteria = items.map((line) => CRITERION.exec(line));
     const ids = criteria.flatMap((match) => (match === null ? [] : [match[1] ?? ""]));
     const duplicates = new Set(ids.filter((id, index) => ids.indexOf(id) !== index));
@@ -274,8 +287,7 @@ export function criteriaIds(spec: string): { readonly active: readonly string[];
 export function criteria(
     spec: string,
 ): readonly { readonly id: string; readonly text: string; readonly isDropped: boolean }[] {
-    return (sections(spec).get("Acceptance criteria") ?? "")
-        .split("\n")
+    return topLevelItems(sections(spec).get("Acceptance criteria") ?? "")
         .map((line) => CRITERION.exec(line))
         .filter(isNotNil)
         .map((match) => {
