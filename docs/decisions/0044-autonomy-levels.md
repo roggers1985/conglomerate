@@ -6,6 +6,8 @@ Date: 2026-09-30
 
 Accepted. Extended by [ADR-0058](0058-project-settings.md): the settings file also holds the project's limits. Extended by [ADR-0051](0051-stage-0-triage.md): triage sets a level per stage. Amended by [ADR-0045](0045-architecture-checkup-and-register.md): accepting or rejecting a change of architecture is always the owner's. Amended by [ADR-0066](0066-session-start-context-in-parts.md): the autonomy rules are delivered as their own part of the session-start context, under the hook size cap.
 
+Extended by [ADR-0069](0069-guard-hook-for-owner-only-actions.md) (proposed): a hook asks before force-pushes, edits to accepted ADRs and, at `guided`, merges.
+
 Amends [ADR-0008](0008-deliver-owner-conventions-through-the-plugin.md) (what the session-start hook adds) and [ADR-0043](0043-checkup-branches-as-pull-requests.md) (who merges checkup PRs).
 
 ## Context

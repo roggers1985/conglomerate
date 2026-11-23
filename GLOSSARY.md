@@ -26,7 +26,7 @@ Terms used in this repository, explained for a programmer who is new to AI codin
 
 **Marketplace.** A catalogue of plugins that Claude Code can install from, either a folder on disk (local) or a Git repository. *Here:* this repository is a marketplace, installed locally (ADR 0024, 0026).
 
-**Hook.** A command Claude Code runs automatically at a moment in its lifecycle: `SessionStart` (a session begins), `PreToolUse` (before a tool runs), and others. *Here:* the plugin's session-start hooks add the conventions, the model routing, and the checkup, toolbox and unfinished-changes reminders (`plugins/factory/hooks/hooks.json`). RTK's hook rewrites shell commands.
+**Hook.** A command Claude Code runs automatically at a moment in its lifecycle: `SessionStart` (a session begins), `PreToolUse` (before a tool runs), and others. *Here:* the plugin's session-start hooks add the conventions, the model routing, and the checkup, toolbox and unfinished-changes reminders (`plugins/factory/hooks/hooks.json`). The `guard` hook asks the owner before a force-push, an edit to an accepted ADR and, at `guided`, a pull request merge (ADR 0069). RTK's hook rewrites shell commands.
 
 **Subagent.** A separate agent the main agent starts for a part of the work, with its own fresh context and its own model. It returns only its result, so the main conversation stays small. *Here:* every checkup runs in one.
 

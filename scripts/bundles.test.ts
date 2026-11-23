@@ -14,6 +14,7 @@ describe("renderBundles", () => {
             "toolbox.js",
             "doctest.js",
             "changes.js",
+            "guard.js",
         ]);
         expect(files.get("session-start.js")).not.toContain("../../../lib/");
     });
@@ -21,7 +22,9 @@ describe("renderBundles", () => {
     it("records which third-party packages each bundle inlines", async () => {
         const { packages } = await renderBundles(pluginDir, { signal: AbortSignal.timeout(30_000) });
 
-        expect([...packages]).toEqual([["zod", ["changes.js", "checkups.js", "session-start.js", "toolbox.js"]]]);
+        expect([...packages]).toEqual([
+            ["zod", ["changes.js", "checkups.js", "guard.js", "session-start.js", "toolbox.js"]],
+        ]);
     });
 
     it("produces the same output on every build, so stale bundles can be detected", async () => {
