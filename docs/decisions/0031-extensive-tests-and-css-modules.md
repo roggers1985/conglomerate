@@ -4,7 +4,7 @@ Date: 2026-09-29
 
 ## Status
 
-Accepted. Extended by [ADR-0041](0041-conventions-checkup-first-round.md): web-first assertions in Playwright tests. Extended by [ADR-0059](0059-clean-test-output.md): test output is clean.
+Accepted. Extended by [ADR-0041](0041-conventions-checkup-first-round.md): web-first assertions in Playwright tests. Extended by [ADR-0059](0059-clean-test-output.md): test output is clean. Amended by [ADR-0068](0068-short-core-and-risk-based-tests.md) (proposed): tests are risk-based.
 
 ## Context
 
