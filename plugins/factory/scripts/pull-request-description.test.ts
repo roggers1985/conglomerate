@@ -57,6 +57,7 @@ function render(overrides: Partial<Parameters<typeof renderPullRequestDescriptio
     const result = renderPullRequestDescription({
         task: buildTask(),
         spec,
+        plan: null,
         verification,
         review: buildReview(),
         securityReview: buildReview({ summary: "No security issues." }),
@@ -70,6 +71,18 @@ function render(overrides: Partial<Parameters<typeof renderPullRequestDescriptio
 }
 
 describe("renderPullRequestDescription", () => {
+    it("lists the deviations recorded in plan.md after the route's own", () => {
+        const body = render({ plan: "# Plan\n\n## Approach\n\nx\n\n## Deviations\n\n- Fixed findings in one pass.\n" });
+
+        expect(body).toContain("Deviations:\n\nNone.\n\nDeviations from the plan:\n\n- Fixed findings in one pass.");
+    });
+
+    it("says nothing about the plan's deviations when plan.md has none or is missing", () => {
+        expect(render({ plan: null })).not.toContain("Deviations from the plan");
+        expect(render({ plan: "## Approach\n\nx\n" })).not.toContain("Deviations from the plan");
+        expect(render({ plan: "## Deviations\n\n\n## Notes\n\nx\n" })).not.toContain("Deviations from the plan");
+    });
+
     it("AC-2: lists the track, every stage with its status, in order", () => {
         const body = render();
 
@@ -308,6 +321,7 @@ describe("renderPullRequestDescription", () => {
         const exact = renderPullRequestDescription({
             task: buildTask(),
             spec,
+            plan: null,
             verification,
             review: buildReview({ summary: "x".repeat(1 + padding) }),
             securityReview: buildReview({ summary: "No security issues." }),
@@ -316,6 +330,7 @@ describe("renderPullRequestDescription", () => {
         const over = renderPullRequestDescription({
             task: buildTask(),
             spec,
+            plan: null,
             verification,
             review: buildReview({ summary: "x".repeat(2 + padding) }),
             securityReview: buildReview({ summary: "No security issues." }),

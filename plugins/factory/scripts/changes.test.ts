@@ -458,6 +458,30 @@ describe("changes CLI", () => {
         expect(stdout).toContain("- `empty`: has no task.md");
     });
 
+    it("reports one invalid entry, and no titles, when docs/changes is a link to another folder", async () => {
+        projectDir = await mkdtemp(path.join(tmpdir(), "changes-"));
+        const other = await mkdtemp(path.join(tmpdir(), "changes-other-"));
+
+        try {
+            await mkdir(path.join(other, "foreign"), { recursive: true });
+            await Bun.write(
+                path.join(other, "foreign", "task.md"),
+                asMarkdown(task({ title: "Another project's secret plan" })),
+            );
+            await mkdir(path.join(projectDir, "docs"), { recursive: true });
+            await symlink(other, path.join(projectDir, "docs/changes"));
+
+            const { stdout } = await run("status", projectDir);
+
+            expect(stdout).toContain("docs/changes");
+            expect(stdout).toContain("symbolic link");
+            expect(stdout).not.toContain("Another project's secret plan");
+            expect(stdout).not.toContain("foreign");
+        } finally {
+            await rm(other, { recursive: true, force: true });
+        }
+    });
+
     it("refuses a route whose spec is done while spec.md is missing", async () => {
         projectDir = await mkdtemp(path.join(tmpdir(), "changes-"));
         const stages = TRACKS.standard.map((name) => stage(name, { status: name === "spec" ? "done" : "pending" }));

@@ -514,6 +514,25 @@ async function readChange(
 
 async function readChanges(projectDir: string, { signal }: { readonly signal: AbortSignal }): Promise<Change[]> {
     const changesDir = path.join(projectDir, CHANGES_DIR);
+
+    // A committed link at docs or docs/changes would show another project's changes. realpath takes no signal.
+    signal.throwIfAborted();
+    const realChangesDir = await realpath(changesDir).catch(whenMissing(null));
+
+    signal.throwIfAborted();
+
+    if (realChangesDir !== null && realChangesDir !== path.join(await realpath(projectDir), CHANGES_DIR)) {
+        return [
+            {
+                kind: "invalid",
+                name: CHANGES_DIR,
+                errors: [
+                    `${CHANGES_DIR} leads outside the project: docs and ${CHANGES_DIR} must not be symbolic links`,
+                ],
+            },
+        ];
+    }
+
     const entries = await readDir(changesDir, { maxEntries: CHANGES_MAX, signal }).catch(whenMissing([]));
     const folders = entries
         .filter((entry) => entry.isDirectory)
@@ -742,6 +761,7 @@ async function buildPullRequestDescription(
     const rendered = renderPullRequestDescription({
         task,
         spec: documents.spec,
+        plan: documents.plan,
         verification: documents.verification,
         review: documents.review,
         securityReview: documents.securityReview,

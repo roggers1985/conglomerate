@@ -19,6 +19,7 @@ export const PULL_REQUEST_DESCRIPTION_LENGTH_MAX = 65_536;
 type PullRequestDescriptionInputs = {
     readonly task: TaskDocument;
     readonly spec: string | null;
+    readonly plan: string | null;
     readonly verification: string | null;
     readonly review: string | null;
     readonly securityReview: string | null;
@@ -44,7 +45,7 @@ const COMMENT_OPENER_BROKEN = "<!\u200D--";
 const FILE_NAME_BREAKING = /[\r\n`]/g; // would end the code span or the list item the file name sits in
 
 /**
- * Renders a change's pull request description in GitHub Markdown: the route with its deviations, the active
+ * Renders a change's pull request description in GitHub Markdown: the route with its deviations and the plan's, the active
  * acceptance criteria with their evidence, the reviews' summaries with the findings accepted instead of fixed, and the
  * decision records the change added.
  *
@@ -95,7 +96,7 @@ const FILE_NAME_BREAKING = /[\r\n`]/g; // would end the code span or the list it
  */
 export function renderPullRequestDescription(inputs: PullRequestDescriptionInputs): PullRequestDescriptionResult {
     const text = `${[
-        routeSection(inputs.task),
+        routeSection(inputs),
         criteriaSection(inputs),
         reviewSection(inputs),
         decisionsSection(inputs.decisionRecords),
@@ -112,11 +113,14 @@ export function renderPullRequestDescription(inputs: PullRequestDescriptionInput
     return { kind: "rendered", body };
 }
 
-function routeSection(task: TaskDocument): string {
+function routeSection({ task, plan }: PullRequestDescriptionInputs): string {
     const stages = task.stages.map((stage) => `${stage.name} (${stage.status})`).join(" → ");
     const deviations = task.deviations.length === 0 ? "None." : task.deviations.map((item) => `- ${item}`).join("\n");
+    // The plan records how the build or the review departed from it, in its own "Deviations" section.
+    const planDeviations = sectionText(plan ?? "", "Deviations")?.trim() ?? "";
+    const planPart = planDeviations === "" ? "" : `\n\nDeviations from the plan:\n\n${planDeviations}`;
 
-    return `## Route\n\nTrack: ${task.track}\n\n${stages}\n\nDeviations:\n\n${deviations}`;
+    return `## Route\n\nTrack: ${task.track}\n\n${stages}\n\nDeviations:\n\n${deviations}${planPart}`;
 }
 
 function criteriaSection({ spec, verification }: PullRequestDescriptionInputs): string {

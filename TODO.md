@@ -19,7 +19,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 - [ ] Autonomy levels, next steps (ADR 0044):
   - hooks that enforce what can be enforced, e.g. block `gh pr merge` at `guided`, and force-pushes and edits to accepted ADRs at every level.
 
-- [ ] `changes status` and the session-start reminder follow a committed `docs/changes` symbolic link, so titles of another project's changes could appear in the session context (never in a pull request). Compare `realpath(docs/changes)` with the project's own in `readChanges`, and report one invalid entry when they differ (security review of the pr-body change, residual risk 1)
 
 ## Factory stages
 
@@ -30,7 +29,6 @@ Inspiration from other factories: Superpowers, GitHub Spec Kit, OpenSpec, BMAD, 
 To do:
 
 - [ ] Use the stages on a first real change (in this repository or another project), and feed what it shows back into the skills and ADRs (ADR 0056)
-- [ ] The pull request description also lists the plan's deviations, not only the route's. Today it says "Deviations: None." while `plan.md` records how the build or review deviated (seen in the writing change, pull request #16)
 
 To consider:
 
