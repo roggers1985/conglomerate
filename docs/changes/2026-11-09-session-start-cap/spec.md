@@ -20,7 +20,7 @@ Together with the blank lines between them, that is 13,127 characters in one str
 
 - **AC-1**: WHEN a session starts, THE SYSTEM SHALL deliver the conventions, the autonomy rules and the model routing table to Claude in full, with none of them truncated or replaced by a preview.
 - **AC-2**: THE SYSTEM SHALL keep every string it returns as session-start context for the conventions, the autonomy rules and the model routing at most 10,000 characters long.
-- **AC-3**: THE SYSTEM SHALL keep the order of the parts as today: conventions first, then autonomy, then model routing.
+- **AC-3**: THE SYSTEM SHALL list the parts in the hook configuration in the order conventions, autonomy, model routing. Claude Code runs the hooks of one event in parallel, so the order in which the parts arrive is not ours to guarantee, and no part depends on another (amended in verify, after the live session delivered routing before autonomy).
 - **AC-4**: THE SYSTEM SHALL keep the wording of each part unchanged by this change.
 - **AC-5**: IF the project's autonomy level is `guided`, `trusted` or `autonomous`, THEN THE SYSTEM SHALL keep every string at most 10,000 characters long for that level.
 - **AC-6**: IF a change to the conventions, the autonomy rules or the model routing makes a part longer than 10,000 characters, THEN THE SYSTEM SHALL fail its automatic checks, and the failure SHALL name the part and its length.

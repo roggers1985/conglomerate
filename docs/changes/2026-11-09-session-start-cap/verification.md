@@ -14,7 +14,7 @@
 
 - AC-1: `session-start.test.ts` › "AC-1: runs one session-start command per part, each with the part as its first argument"; and the live session above, where all three parts arrived in full
 - AC-2: `session-start.test.ts` › "AC-2" tests (every part at every autonomy level is at most 10,000 characters); and the live session above
-- AC-3: `session-start.test.ts` › "AC-3: orders the parts conventions, autonomy, routing in the hook configuration" covers the configuration only. **Not met as written:** the live session delivered routing before autonomy. Needs the owner's decision (see the reply)
+- AC-3: `session-start.test.ts` › "AC-3: orders the parts conventions, autonomy, routing in the hook configuration". The live session delivered routing before autonomy, because hooks of one event run in parallel. AC-3 was amended in the spec to cover the configuration only (decided at autonomy `trusted`, with the owner's instruction to finish work in progress; the owner may reverse it)
 - AC-4: `session-start.test.ts` › "AC-4" tests (each part equals the file or rendered text it comes from)
 - AC-5: `session-start.test.ts` › "AC-2 and AC-5" tests (three levels, nine part and level pairs, as library calls and as commands)
 - AC-6: the failure message of those tests names the part, the level and the length

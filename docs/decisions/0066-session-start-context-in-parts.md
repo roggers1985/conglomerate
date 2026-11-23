@@ -21,6 +21,7 @@ The owner approved this with the change's spec and plan on 2026-11-09 (`docs/cha
 - **Three parts, in this order:** conventions (`core.md`), autonomy (the rules of the project's level) and routing (the model routing table). Their wording is unchanged.
 - **One script, run three times.** `hooks/hooks.json` runs the session-start script once per part, with the part's name as its argument.
 - **Each part is at most 10,000 characters.** A test renders every part at every autonomy level from the real files and fails when one is longer. The failure names the part, the level and the length.
+- **The order of arrival is not guaranteed.** Claude Code runs the hooks of one event in parallel; a live session delivered routing before autonomy. The parts do not depend on each other, so `hooks.json` lists them in a fixed order for readability only.
 - **A second test checks `hooks.json`.** It must list exactly one command per part, in the order above, so a part cannot be forgotten.
 - **The parts fail independently.** Each reads only its own files. Only the autonomy part reads the project's settings, so a settings file it cannot read (one over 1 MiB, for example) stops that part alone, with an error that names it and the reason. The other two still arrive. Invalid settings do not stop it: they fall back to the defaults and are reported, as before.
 
