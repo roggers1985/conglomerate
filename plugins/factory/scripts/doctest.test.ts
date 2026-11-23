@@ -117,9 +117,12 @@ describe("doctest CLI", () => {
     const script = path.join(import.meta.dir, "doctest.ts");
     let dir = "";
 
-    const run = async (source: string): Promise<{ readonly exitCode: number; readonly output: string }> => {
+    const run = async (
+        source: string,
+        fileName = "math.ts",
+    ): Promise<{ readonly exitCode: number; readonly output: string }> => {
         dir = await mkdtemp(path.join(tmpdir(), "doctest-cli-"));
-        await Bun.write(path.join(dir, "math.ts"), source);
+        await Bun.write(path.join(dir, fileName), source);
 
         const cli = Bun.spawn(["bun", script, dir], { stdout: "pipe", stderr: "pipe", cwd: dir });
         const [stdout, stderr, exitCode] = await Promise.all([
@@ -138,6 +141,16 @@ describe("doctest CLI", () => {
     it("passes when every example holds", async () => {
         const result = await run(
             `${documented("add", "expect(add(1, 2)).toBe(3);")}\nexport function add(a: number, b: number): number {\n    return a + b;\n}\n`,
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("1 pass");
+    });
+
+    it("checks the examples in .tsx files too", async () => {
+        const result = await run(
+            `${documented("add", "expect(add(1, 2)).toBe(3);")}\nexport function add(a: number, b: number): number {\n    return a + b;\n}\n`,
+            "math.tsx",
         );
 
         expect(result.exitCode).toBe(0);

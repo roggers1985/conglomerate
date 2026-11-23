@@ -22,7 +22,8 @@ The owner wants extensive documentation comments, with examples, as a convention
 - **Examples are tests.** In TypeScript this is done by `plugins/factory/scripts/doctest.ts`, a dependency-free Bun script. It:
   - fails when an export has no summary, or a function or class has no example;
   - runs every ```` ```ts ```` example as a `bun:test` test, with the module's exports and `expect` in scope;
-  - skips examples fenced as ```` ```ts no-run ````, which are for examples that truly can't run.
+  - skips examples fenced as ```` ```ts no-run ````, which are for examples that truly can't run;
+  - reads `.ts` and `.tsx` files, but not `*.test.*` or `.d.ts` files. The generated test file is `.ts`, so an example can't contain JSX: call a component as a function and check the element it returns.
 
   Existing tools (the-real-doctest, tsdoc-testify, doctest-ts, testdocs) target Jest/Vitest or Markdown and add dependencies.
 - **Other languages use their native mechanisms:** Go `Example` functions, `cargo test` doc tests, Python `doctest`.
