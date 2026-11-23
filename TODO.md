@@ -43,6 +43,58 @@ To consider:
 - [ ] Role personas such as analyst or architect (BMAD). Leaning no: the task types already cover this.
 - [ ] Copilot: its agent skills only read `.github/skills/`, `.claude/skills/` or `.agents/skills/` in the project, not skills inside a plugin; making the factory's skills available to Copilot needs its own decision (claude-code-platform)
 
+## Less ceremony: scale process with risk
+
+Why: the stages, agents and always-on text cost many tokens on every task, also small ones. Idea: a short always-on core, and process that scales with size and risk. Triage decides how much process to run, and the default is little. Each item below changes a convention or an accepted ADR, so each needs the owner's decision first (a new ADR that amends the old one). None of them is agreed yet.
+
+Proposed tiers:
+
+- Small (a fix, a tweak, a visual change): no triage and no pipeline. Do it, run the checks, report.
+- Medium (a feature): one short document with spec and plan, one review at the end.
+- Large or risky (money, auth, migrations, architecture): the full pipeline, including the separate test and code agents.
+
+To decide:
+
+- [ ] Define the three tiers and let triage pick one. Triage itself only runs for medium and large tasks (ADR 0051)
+- [ ] Measure first: how many tokens does the session-start payload cost per session (conventions, model table, settings table, about 40 skill descriptions)? That sets how much the next items can save
+- [ ] Shrink the always-on core to about 30 lines. Keep: the code-style core, parse at the boundary, the optionality rules, secure by default, fail fast, required `AbortSignal`, push back with reasons, always a recommended option, the always-the-owner's list, no untracked debt, the license policy. Everything else moves to skills loaded on demand
+- [ ] Use the separate test agent, code agent and arbiter in their own worktrees only for the large or risky tier. Medium tasks get one agent that writes tests and code (ADR 0063)
+- [ ] One review at the end for medium changes. Several rounds only for the large tier (`reviewRounds`, ADR 0058)
+- [ ] Ask for EARS criteria with evidence per criterion in `verification.md` only where the spec must be exact (ADR 0054, 0055)
+- [ ] Replace "make tests extensive" in the always-on rules with risk-based testing: real state and money (cart, checkout, forms), accessibility per page, key-flow end-to-end tests. No tests for stubs and no per-prop matrices. Gallery and visual checks as screenshots, not long functional specs (`code-testing`, ADR 0059)
+- [ ] Require a doc comment with a runnable example only on the public API of a library, not on every internal export (ADR 0016)
+- [ ] Write an ADR only for a decision that is hard to reverse. There are about 60 now
+- [ ] Collapse the model routing table from nine task types to three tiers (cheap, default, strong), or drop the table and let the session choose (ADR 0021)
+- [ ] Keep about four checkups on a schedule (security, outdated packages, docs drift, test coverage). Run the others by hand, and leave their skills out of the session-start list (ADR 0010, 0023)
+- [ ] Simplify the autonomy levels: one setting, or a short "ask before" list, instead of three levels with a level per stage (ADR 0044)
+- [ ] Add a project-level way to relax the factory for one repository, so a UI-phase project like tuygo can say "no tests for stubs, no per-prop matrices" without forking the plugin
+
+## Non-programmers in a repository
+
+Why: non-programmers will work in a project (first tuygo), and the owner cannot take risks with money, data, auth and deploys. Waiting for the owner on every technical or permission question would also block them. Idea: they get full autonomy on decisions, inside tight permissions, and the owner's gate moves from the middle of the work to merge time. None of this is agreed yet. Each item that changes a convention or an accepted ADR needs the owner's decision first.
+
+Prerequisites (the guardrails come before anyone is let in):
+
+- [ ] Git guardrails in the project: no direct pushes to `main`, the owner approves every merge, and a `CODEOWNERS` file that requires the owner's review for sensitive paths and for any `package.json` or lockfile change
+- [ ] Permission rules that deny edits outside the frontend paths, and deny edits to `.claude/factory.json` and `.claude/settings*`, so a session cannot raise its own level or change its own audience. Cover those files in `CODEOWNERS` as well
+- [ ] No production credentials, secrets or paid-service access in a non-programmer's environment. They work against a sandbox with fake data
+
+The audience setting:
+
+- [ ] Add an `audience` setting next to the autonomy level in `.claude/factory.json` (for example `"non-programmer"`; the schema is strict, ADR 0058). It is a role, not a fourth level: the level says how much is decided without asking, the audience says who is at the keyboard and what they can answer. A new ADR amends ADR 0044
+- [ ] A short skill, loaded only when `audience` is set, for the non-programmer behaviour:
+  - only UX questions, in plain language, about what people see and do, never about how it is built;
+  - technical decisions go to a strong subagent (`code-complex`) and are written to a decision log with the reason, so the owner can review them later;
+  - output, commit messages and pull request descriptions in plain language
+- [ ] The owner-only list stops blocking the work. For an item on it (a new dependency, anything about auth, money or personal data, an API change), the session writes a handoff file, takes the safe side for now, marks it "needs owner review" and carries on with the rest. The owner decides at the pull request, which lists the open items in plain words
+- [ ] The most dangerous actions are not asked about at all: force-push, deleting data, production, secrets, paid services and making anything public are blocked by permission rules, and the session only notes them in the handoff file. Check that the hooks from the autonomy TODO (block `gh pr merge`, force-pushes and edits to accepted ADRs) cover this
+
+With the Go API (see the tuygo repository's plan):
+
+- [ ] A session in the frontend repository cannot change the API. A needed API change becomes a request in the handoff file or an issue, never an edit
+- [ ] Agree how the frontend repository gets the API's contract (an OpenAPI spec and generated types), so non-programmers work against a sandbox API and never against real data
+- [ ] Check that the skills cover Go: there are cancellation, API design and safety sections, but nothing yet on Go testing or project layout
+
 ## Before going public
 
 - The license is decided: MIT (ADR 0027).

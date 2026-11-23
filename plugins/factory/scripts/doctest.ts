@@ -263,7 +263,7 @@ export function renderDoctestFile(
 }
 
 const isSourceFile = (fileName: string): boolean =>
-    fileName.endsWith(".ts") && !fileName.endsWith(".test.ts") && !fileName.endsWith(".d.ts");
+    /\.tsx?$/.test(fileName) && !/\.test\.tsx?$/.test(fileName) && !fileName.endsWith(".d.ts");
 
 async function sourceFiles(target: string, { signal }: { readonly signal: AbortSignal }): Promise<string[]> {
     // Bun.file takes no signal: check before starting instead.
