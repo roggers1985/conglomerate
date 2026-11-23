@@ -4,6 +4,8 @@ Date: 2026-10-01
 
 ## Status
 
+Amended by [ADR-0070](0070-audience-non-programmer.md) (proposed): the settings file also holds the `audience`.
+
 Accepted
 
 Extends [ADR-0044](0044-autonomy-levels.md) (the settings file) and [ADR-0054](0054-build-verify-and-spike.md), [ADR-0055](0055-review-and-security-review.md) (their limits become settings).

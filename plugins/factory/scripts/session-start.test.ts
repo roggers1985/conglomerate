@@ -129,6 +129,16 @@ describe("session-start parts", () => {
         });
     }
 
+    it("names the audience in the autonomy part for a non-programmer, within the cap", async () => {
+        await setSettings(JSON.stringify({ autonomy: "autonomous", audience: "non-programmer" }));
+
+        const text = await renderSessionStartPart("autonomy", { projectDir, signal: signal() });
+
+        expect(text).toContain("## Audience: non-programmer");
+        expect(text).toContain("factory-non-programmer");
+        expect(text.length).toBeLessThanOrEqual(SESSION_START_CONTEXT_CHARACTERS_MAX);
+    });
+
     it("AC-4: prints the conventions part from the command as the hook's JSON", async () => {
         const { exitCode, stdout, stderr } = await runCommand("conventions", projectDir);
         const conventions = (await Bun.file(CORE_CONVENTIONS_PATH).text()).trim();
