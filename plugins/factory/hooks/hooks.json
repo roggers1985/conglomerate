@@ -1,5 +1,17 @@
 {
     "hooks": {
+        "PreToolUse": [
+            {
+                "matcher": "Bash|Edit|Write|MultiEdit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "bun \"${CLAUDE_PLUGIN_ROOT}/dist/guard.js\"",
+                        "timeout": 10
+                    }
+                ]
+            }
+        ],
         "SessionStart": [
             {
                 "hooks": [

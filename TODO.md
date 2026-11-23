@@ -14,12 +14,6 @@ Remove an item once it is done and committed; the ADRs and git history keep the 
 
 - [ ] Later, when other work allows: move to Bun workspaces (the owner's intention; ADR 0047 keeps `lib/` as one folder for now). Follow ADR 0047's migration path, and let the `architecture` checkup reassess first: it may advise grouping `lib/` by feature (option 3) or enforcing the dependency direction (option 2, once the second plugin arrives) as the first step, or staying.
 
-## Working with the owner
-
-- [ ] Autonomy levels, next steps (ADR 0044):
-  - hooks that enforce what can be enforced, e.g. block `gh pr merge` at `guided`, and force-pushes and edits to accepted ADRs at every level.
-
-
 ## Factory stages
 
 - [ ] `core.md` says the autonomy level is set "at the end of these conventions". Since ADR 0066 the autonomy rules are a separate part that may arrive first. Reword to "in the autonomy section of the session context" (owner's conventions; found in the review of the session-start-cap change)
