@@ -10,8 +10,9 @@ const hookInput = (toolName: string, toolInput: object): object =>
         ["tool_input", toolInput],
     ]);
 
-const GUIDED = { level: "guided" } as const;
-const AUTONOMOUS = { level: "autonomous" } as const;
+const GUIDED = { level: "guided", audience: "owner" } as const;
+const AUTONOMOUS = { level: "autonomous", audience: "owner" } as const;
+const NON_PROGRAMMER = { level: "autonomous", audience: "non-programmer" } as const;
 
 describe("decideCommand", () => {
     for (const command of [
@@ -46,7 +47,7 @@ describe("decideCommand", () => {
     it("asks before merging a pull request at guided, and only there", () => {
         expect(decideCommand("gh pr merge 12 --merge", GUIDED).kind).toBe("ask");
         expect(decideCommand("cd x && gh pr merge 12", GUIDED).kind).toBe("ask");
-        expect(decideCommand("gh pr merge 12", { level: "trusted" }).kind).toBe("allow");
+        expect(decideCommand("gh pr merge 12", { level: "trusted", audience: "owner" }).kind).toBe("allow");
         expect(decideCommand("gh pr merge 12", AUTONOMOUS).kind).toBe("allow");
         expect(decideCommand("gh pr view 12", GUIDED).kind).toBe("allow");
     });
@@ -68,23 +69,87 @@ describe("decideEdit", () => {
     const accepted = "# 1. X\n\n## Status\n\nAccepted. Extended by ADR 2.\n\n## Context\n";
 
     it("asks before editing an accepted ADR, by relative or absolute path", () => {
-        expect(decideEdit("docs/decisions/0001-x.md", { currentContent: accepted }).kind).toBe("ask");
-        expect(decideEdit("/repo/docs/decisions/0001-x.md", { currentContent: accepted }).kind).toBe("ask");
+        expect(decideEdit("docs/decisions/0001-x.md", { currentContent: accepted, audience: "owner" }).kind).toBe(
+            "ask",
+        );
+        expect(decideEdit("/repo/docs/decisions/0001-x.md", { currentContent: accepted, audience: "owner" }).kind).toBe(
+            "ask",
+        );
     });
 
     it("lets a proposed or superseded ADR be edited", () => {
-        expect(decideEdit("docs/decisions/0001-x.md", { currentContent: "## Status\n\nProposed\n" }).kind).toBe(
-            "allow",
-        );
-        expect(decideEdit("docs/decisions/0001-x.md", { currentContent: "## Status\n\nSuperseded by 2\n" }).kind).toBe(
-            "allow",
-        );
+        expect(
+            decideEdit("docs/decisions/0001-x.md", { currentContent: "## Status\n\nProposed\n", audience: "owner" })
+                .kind,
+        ).toBe("allow");
+        expect(
+            decideEdit("docs/decisions/0001-x.md", {
+                currentContent: "## Status\n\nSuperseded by 2\n",
+                audience: "owner",
+            }).kind,
+        ).toBe("allow");
     });
 
     it("lets a new ADR be written, and other files be edited", () => {
-        expect(decideEdit("docs/decisions/0069-new.md", { currentContent: null }).kind).toBe("allow");
-        expect(decideEdit("docs/decisions/README.md", { currentContent: accepted }).kind).toBe("allow");
-        expect(decideEdit("src/decisions/0001-x.md", { currentContent: accepted }).kind).toBe("allow");
+        expect(decideEdit("docs/decisions/0069-new.md", { currentContent: null, audience: "owner" }).kind).toBe(
+            "allow",
+        );
+        expect(decideEdit("docs/decisions/README.md", { currentContent: accepted, audience: "owner" }).kind).toBe(
+            "allow",
+        );
+        expect(decideEdit("src/decisions/0001-x.md", { currentContent: accepted, audience: "owner" }).kind).toBe(
+            "allow",
+        );
+    });
+});
+
+describe("for a non-programmer", () => {
+    it("denies what asks the owner, because the owner is not there to ask", () => {
+        for (const command of ["git push --force", "git push -f origin x", "gh pr merge 3", "git push origin main"]) {
+            expect(decideCommand(command, NON_PROGRAMMER).kind, command).toBe("deny");
+        }
+    });
+
+    it("denies a push to main or master in any form, and lets a branch be pushed", () => {
+        for (const command of [
+            "git push origin main",
+            "git push origin HEAD:main",
+            "git push origin master",
+            "git push main",
+        ]) {
+            expect(decideCommand(command, NON_PROGRAMMER).kind, command).toBe("deny");
+        }
+
+        for (const command of ["git push -u origin change/menu", "git push", "git push origin mainline"]) {
+            expect(decideCommand(command, NON_PROGRAMMER).kind, command).toBe("allow");
+        }
+    });
+
+    it("lets the owner push to main", () => {
+        expect(decideCommand("git push origin main", AUTONOMOUS).kind).toBe("allow");
+    });
+
+    it("denies the strongest of several commands", () => {
+        expect(decideCommand("git push --force; git push origin main", GUIDED).kind).toBe("ask");
+        expect(decideCommand("git push --force && gh pr merge 1", NON_PROGRAMMER).kind).toBe("deny");
+    });
+
+    it("denies an edit of the settings and of an accepted ADR, and nothing else", () => {
+        const audience = "non-programmer";
+        const accepted = "## Status\n\nAccepted\n";
+
+        for (const file of [".claude/factory.json", "/repo/.claude/settings.json", ".claude/settings.local.json"]) {
+            expect(decideEdit(file, { currentContent: "{}", audience }).kind, file).toBe("deny");
+            expect(decideEdit(file, { currentContent: "{}", audience: "owner" }).kind, file).toBe("allow");
+        }
+
+        expect(decideEdit("docs/decisions/0001-x.md", { currentContent: accepted, audience }).kind).toBe("deny");
+        expect(decideEdit("src/menu.tsx", { currentContent: "x", audience }).kind).toBe("allow");
+        expect(decideEdit("docs/decisions/0002-new.md", { currentContent: null, audience }).kind).toBe("allow");
+    });
+
+    it("prints a deny for the hook", () => {
+        expect(guardOutput({ kind: "deny", reason: "No." })?.hookSpecificOutput.permissionDecision).toBe("deny");
     });
 });
 
@@ -105,9 +170,9 @@ describe("guard command", () => {
     const script = path.join(import.meta.dir, "guard.ts");
     let dir = "";
 
-    const run = async (input: unknown) => {
+    const run = async (input: unknown, settings: object = { autonomy: "guided" }) => {
         dir = await mkdtemp(path.join(tmpdir(), "guard-"));
-        await Bun.write(path.join(dir, ".claude/factory.json"), JSON.stringify({ autonomy: "guided" }));
+        await Bun.write(path.join(dir, ".claude/factory.json"), JSON.stringify(settings));
         await Bun.write(path.join(dir, "docs/decisions/0001-x.md"), "# 1. X\n\n## Status\n\nAccepted\n");
 
         const command = Bun.spawn(["bun", script], {
@@ -141,6 +206,23 @@ describe("guard command", () => {
         const result = await run(hookInput("Edit", Object.fromEntries([["file_path", "docs/decisions/0001-x.md"]])));
 
         expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe("ask");
+    });
+
+    it("denies a push to main when the project's audience is a non-programmer", async () => {
+        const result = await run(hookInput("Bash", { command: "git push origin main" }), {
+            autonomy: "autonomous",
+            audience: "non-programmer",
+        });
+
+        expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe("deny");
+    });
+
+    it("denies an edit of the project's settings when the audience is a non-programmer", async () => {
+        const result = await run(hookInput("Write", Object.fromEntries([["file_path", ".claude/factory.json"]])), {
+            audience: "non-programmer",
+        });
+
+        expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe("deny");
     });
 
     it("says nothing about an ordinary command", async () => {

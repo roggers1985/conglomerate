@@ -1,6 +1,8 @@
 // PreToolUse hook: asks the owner before the actions that are always the owner's (ADR 0069): a force-push, an edit to
 // an accepted ADR, and, at the `guided` level, merging a pull request. The conventions only tell Claude not to do
-// these; this makes Claude Code ask, so it holds even when the instruction is forgotten.
+// these; this makes Claude Code ask, so it holds even when the instruction is forgotten. In a project whose audience
+// is a non-programmer there is no owner at the keyboard to ask, so these are denied, and so are pushes to the main
+// branch and edits to the project's settings (ADR 0070).
 
 import path from "node:path";
 import { z } from "zod";
@@ -8,17 +10,23 @@ import { readText, whenMissing } from "../../../lib/files.ts";
 import { interruptSignal } from "../../../lib/interrupt.ts";
 import { parse } from "../../../lib/parse.ts";
 import { resolveProjectDir } from "./project-dir.ts";
-import type { AutonomyLevel } from "./settings.ts";
+import type { Audience, AutonomyLevel } from "./settings.ts";
 import { readFactorySettings } from "./settings.ts";
 
-/** The outcome of the guard: carry on, or ask the owner first, with the reason shown in the prompt. */
-export type GuardDecision = { readonly kind: "allow" } | { readonly kind: "ask"; readonly reason: string };
+/** The outcome of the guard: carry on, ask the owner first, or refuse (for a non-programmer), with the reason shown. */
+export type GuardDecision = { readonly kind: "allow" } | { readonly kind: "ask" | "deny"; readonly reason: string };
+
+/** Who the guard protects: the project's autonomy level, and who is at its keyboard. */
+export type GuardContext = { readonly level: AutonomyLevel; readonly audience: Audience };
 
 const ALLOW: GuardDecision = { kind: "allow" };
 
 const COMMAND_CHARACTERS_MAX = 100_000; // a longer command is refused unread, so a huge input never reaches the matching
 const ADR_BYTES_MAX = 262_144; // an ADR is a page or two; this is far above any real one
 const STDIN_CHARACTERS_MAX = 1_000_000;
+
+const SETTINGS_PATH = /(^|\/)\.claude\/(factory\.json|settings[^/]*)$/;
+const MAIN_BRANCHES: ReadonlySet<string> = new Set(["main", "master"]);
 
 const SEGMENT_SEPARATORS = /&&|\|\||[;|&\n]/;
 const FORCE_FLAG = /^(--force(-with-lease|-if-includes)?(=.*)?|-[A-Za-z]*f[A-Za-z]*)$/;
@@ -32,47 +40,75 @@ const wordsOf = (segment: string): string[] =>
         .filter((word) => word !== "");
 
 /**
- * Decides whether a shell command needs the owner's approval first.
+ * Decides whether a shell command needs the owner's approval first, or is refused for a non-programmer.
  *
  * @remarks
  * Looks at each command in a pipeline or a chain (`;`, `&&`, `||`, `|`). A `git push` with a force flag or a refspec
  * that starts with `+` always asks. `gh pr merge` asks at the `guided` level only. A command it cannot read, because it
- * is longer than {@link COMMAND_CHARACTERS_MAX} characters, asks too: failing closed.
+ * is longer than {@link COMMAND_CHARACTERS_MAX} characters, asks too: failing closed. For a `non-programmer` audience
+ * there is no owner to ask, so a force-push, any `gh pr merge` and any push to `main` or `master` are denied.
  *
  * @param command - The shell command Claude is about to run.
- * @param options.level - The project's autonomy level.
- * @returns `ask` with the reason, or `allow`.
+ * @param context - The project's autonomy level and audience.
+ * @returns `ask` or `deny` with the reason, or `allow`.
  *
  * @example
  * ```ts
- * expect(decideCommand("git push --force origin main", { level: "autonomous" }).kind).toBe("ask");
- * expect(decideCommand("git push origin main", { level: "autonomous" }).kind).toBe("allow");
- * expect(decideCommand("gh pr merge 5", { level: "guided" }).kind).toBe("ask");
- * expect(decideCommand("gh pr merge 5", { level: "trusted" }).kind).toBe("allow");
+ * const owner = { level: "autonomous", audience: "owner" } as const;
+ *
+ * expect(decideCommand("git push --force origin main", owner).kind).toBe("ask");
+ * expect(decideCommand("git push origin main", owner).kind).toBe("allow");
+ * expect(decideCommand("gh pr merge 5", { ...owner, level: "guided" }).kind).toBe("ask");
+ * expect(decideCommand("gh pr merge 5", { ...owner, level: "trusted" }).kind).toBe("allow");
+ * expect(decideCommand("git push origin main", { ...owner, audience: "non-programmer" }).kind).toBe("deny");
  * ```
  */
-export function decideCommand(command: string, { level }: { readonly level: AutonomyLevel }): GuardDecision {
+export function decideCommand(command: string, context: GuardContext): GuardDecision {
     if (command.length > COMMAND_CHARACTERS_MAX) {
         return { kind: "ask", reason: "The command is too long to check, so the owner decides" };
     }
 
-    const decisions = command.split(SEGMENT_SEPARATORS).map((segment) => decideSegment(wordsOf(segment), level));
+    const decisions = command.split(SEGMENT_SEPARATORS).map((segment) => decideSegment(wordsOf(segment), context));
 
-    return decisions.find((decision) => decision.kind === "ask") ?? ALLOW;
+    return (
+        decisions.find((decision) => decision.kind === "deny") ??
+        decisions.find((decision) => decision.kind === "ask") ??
+        ALLOW
+    );
 }
 
-function decideSegment(words: readonly string[], level: AutonomyLevel): GuardDecision {
+function decideSegment(words: readonly string[], { level, audience }: GuardContext): GuardDecision {
     const [program, ...rest] = words;
+    const isNonProgrammer = audience === "non-programmer";
+    const kind = isNonProgrammer ? "deny" : "ask";
+    const who = isNonProgrammer ? "the owner's, and the owner is not at the keyboard" : "always the owner's";
 
     if (program === "git" && rest.includes("push") && isForcePush(rest)) {
-        return { kind: "ask", reason: "A force-push can destroy work on the remote, so it is always the owner's" };
+        return { kind, reason: `A force-push can destroy work on the remote, so it is ${who}` };
     }
 
-    if (program === "gh" && rest[0] === "pr" && rest[1] === "merge" && level === "guided") {
-        return { kind: "ask", reason: "At the guided level the owner merges pull requests" };
+    if (program === "git" && rest.includes("push") && isNonProgrammer && pushesToMain(rest)) {
+        return { kind, reason: "A push to the main branch is the owner's: push your branch and open a pull request" };
+    }
+
+    if (program === "gh" && rest[0] === "pr" && rest[1] === "merge" && (level === "guided" || isNonProgrammer)) {
+        return {
+            kind,
+            reason: isNonProgrammer
+                ? "The owner merges every pull request"
+                : "At the guided level the owner merges pull requests",
+        };
     }
 
     return ALLOW;
+}
+
+function pushesToMain(args: readonly string[]): boolean {
+    const afterPush = args.slice(args.indexOf("push") + 1);
+
+    return afterPush.some(
+        (arg) => MAIN_BRANCHES.has(arg) || [...MAIN_BRANCHES].some((branch) => arg.endsWith(`:${branch}`)),
+    );
 }
 
 function isForcePush(args: readonly string[]): boolean {
@@ -85,35 +121,48 @@ function isForcePush(args: readonly string[]): boolean {
 
 /**
  * Decides whether an edit of a file needs the owner's approval first: an ADR that is accepted is only changed by the
- * owner, or with the owner's approval.
+ * owner, or with the owner's approval. For a non-programmer the project's own settings (`.claude/factory.json` and
+ * `.claude/settings*`) are refused too, so a session can't change its own level or audience.
  *
  * @param filePath - The file Claude is about to write or edit, relative to the project or absolute.
  * @param options.currentContent - The file's content now; `null` when the file does not exist yet.
- * @returns `ask` for an ADR under `docs/decisions/` whose status is Accepted, otherwise `allow`.
+ * @param options.audience - Who is at the keyboard.
+ * @returns `ask` (`deny` for a non-programmer) for an accepted ADR under `docs/decisions/` and, for a non-programmer,
+ *   the settings files; otherwise `allow`.
  *
  * @example
  * ```ts
  * const accepted = "# 1. Use Bun\n\n## Status\n\nAccepted\n";
+ * const owner = { audience: "owner" } as const;
  *
- * expect(decideEdit("docs/decisions/0001-use-bun.md", { currentContent: accepted }).kind).toBe("ask");
- * expect(decideEdit("docs/decisions/0001-use-bun.md", { currentContent: "## Status\n\nProposed\n" }).kind).toBe("allow");
- * expect(decideEdit("docs/decisions/0002-new.md", { currentContent: null }).kind).toBe("allow");
- * expect(decideEdit("src/app.ts", { currentContent: accepted }).kind).toBe("allow");
+ * expect(decideEdit("docs/decisions/0001-use-bun.md", { currentContent: accepted, ...owner }).kind).toBe("ask");
+ * expect(decideEdit("docs/decisions/0002-new.md", { currentContent: null, ...owner }).kind).toBe("allow");
+ * expect(decideEdit("src/app.ts", { currentContent: accepted, ...owner }).kind).toBe("allow");
+ * expect(decideEdit(".claude/factory.json", { currentContent: "{}", audience: "non-programmer" }).kind).toBe("deny");
  * ```
  */
 export function decideEdit(
     filePath: string,
-    { currentContent }: { readonly currentContent: string | null },
+    { currentContent, audience }: { readonly currentContent: string | null; readonly audience: Audience },
 ): GuardDecision {
-    const isAdr = ADR_PATH.test(filePath.split(path.sep).join("/"));
+    const normalized = filePath.split(path.sep).join("/");
+    const isNonProgrammer = audience === "non-programmer";
 
-    if (!isAdr || currentContent === null) {
+    if (isNonProgrammer && SETTINGS_PATH.test(normalized)) {
+        return {
+            kind: "deny",
+            reason: "The project's settings are the owner's: a session can't change its own level or audience",
+        };
+    }
+
+    if (!ADR_PATH.test(normalized) || currentContent === null || !ACCEPTED_STATUS.test(currentContent)) {
         return ALLOW;
     }
 
-    return ACCEPTED_STATUS.test(currentContent)
-        ? { kind: "ask", reason: "This ADR is accepted: changing an accepted ADR is always the owner's" }
-        : ALLOW;
+    return {
+        kind: isNonProgrammer ? "deny" : "ask",
+        reason: "This ADR is accepted: changing an accepted ADR is always the owner's",
+    };
 }
 
 /**
@@ -126,6 +175,7 @@ export function decideEdit(
  * ```ts
  * expect(guardOutput({ kind: "allow" })).toBeNull();
  * expect(guardOutput({ kind: "ask", reason: "No." })?.hookSpecificOutput.permissionDecision).toBe("ask");
+ * expect(guardOutput({ kind: "deny", reason: "No." })?.hookSpecificOutput.permissionDecision).toBe("deny");
  * ```
  */
 export function guardOutput(decision: GuardDecision) {
@@ -136,7 +186,7 @@ export function guardOutput(decision: GuardDecision) {
     return {
         hookSpecificOutput: {
             hookEventName: "PreToolUse",
-            permissionDecision: "ask",
+            permissionDecision: decision.kind,
             permissionDecisionReason: decision.reason,
         },
     } as const;
@@ -191,12 +241,11 @@ async function main(): Promise<void> {
     const command = textField(toolInput.value, "command");
     const filePath = textField(toolInput.value, "file_path");
 
+    const { autonomy: level, audience } = (await readFactorySettings(projectDir, { signal })).settings;
     const decision =
         toolName === "Bash" && command !== undefined
-            ? decideCommand(command, {
-                  level: (await readFactorySettings(projectDir, { signal })).settings.autonomy,
-              })
-            : await decideFile(filePath, projectDir, { signal });
+            ? decideCommand(command, { level, audience })
+            : await decideFile(filePath, projectDir, { audience, signal });
     const output = guardOutput(decision);
 
     if (output !== null) {
@@ -207,16 +256,17 @@ async function main(): Promise<void> {
 async function decideFile(
     filePath: string | undefined,
     projectDir: string,
-    { signal }: { readonly signal: AbortSignal },
+    { audience, signal }: { readonly audience: Audience; readonly signal: AbortSignal },
 ): Promise<GuardDecision> {
     if (filePath === undefined) {
         return ALLOW;
     }
 
     const absolute = path.resolve(projectDir, filePath);
+    const normalized = absolute.split(path.sep).join("/");
 
-    if (!ADR_PATH.test(absolute.split(path.sep).join("/"))) {
-        return ALLOW;
+    if (!ADR_PATH.test(normalized)) {
+        return decideEdit(absolute, { currentContent: null, audience });
     }
 
     // A decision record that can't be read (too large, a link) is not let through unchecked.
@@ -227,7 +277,7 @@ async function decideFile(
             symbolicLinks: "refuse",
         }).catch(whenMissing(null));
 
-        return decideEdit(absolute, { currentContent });
+        return decideEdit(absolute, { currentContent, audience });
     } catch (error) {
         signal.throwIfAborted();
 

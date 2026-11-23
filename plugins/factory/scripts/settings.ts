@@ -13,6 +13,18 @@ export const AUTONOMY_LEVELS = ["guided", "trusted", "autonomous"] as const;
 /** One autonomy level. */
 export type AutonomyLevel = (typeof AUTONOMY_LEVELS)[number];
 
+/**
+ * Who is at the keyboard of a project (ADR 0070): the `owner`, who knows the code, or a `non-programmer`, who decides
+ * what people see and do but not how it is built. It is a role, not a fourth autonomy level.
+ */
+export const AUDIENCES = ["owner", "non-programmer"] as const;
+
+/** One audience. */
+export type Audience = (typeof AUDIENCES)[number];
+
+/** The audience when a project sets none. */
+export const DEFAULT_AUDIENCE: Audience = "owner";
+
 /** The level when a project sets none: the owner decides, Claude proposes. */
 export const DEFAULT_AUTONOMY_LEVEL: AutonomyLevel = "guided";
 
@@ -54,6 +66,10 @@ const FactorySettingsSchema = z
     .strictObject({
         $schema: z.string().max(500).optional(),
         autonomy: z.enum(AUTONOMY_LEVELS).optional().describe("How much Claude decides without asking (ADR 0044)"),
+        audience: z
+            .enum(AUDIENCES)
+            .optional()
+            .describe("Who is at the keyboard: the owner, or a non-programmer who gets plain language (ADR 0070)"),
         limits: z
             .strictObject({
                 reviewRounds: limitSchema("reviewRounds").optional(),
@@ -80,9 +96,10 @@ const FactorySettingsSchema = z
 /** A project's settings, complete: what it sets itself, with the defaults filled in. */
 export type FactorySettings = {
     readonly autonomy: AutonomyLevel;
+    readonly audience: Audience;
     readonly limits: Limits;
     /** The values the project sets itself, so the session context can tell them from the defaults. */
-    readonly own: ReadonlySet<"autonomy" | LimitName>;
+    readonly own: ReadonlySet<"autonomy" | "audience" | LimitName>;
 };
 
 /** A project's settings: from its file, the defaults when it has none, or the defaults with the errors of an invalid file. */
@@ -93,6 +110,7 @@ export type ProjectSettings =
 /** The settings when a project sets nothing. */
 export const DEFAULT_SETTINGS: FactorySettings = {
     autonomy: DEFAULT_AUTONOMY_LEVEL,
+    audience: DEFAULT_AUDIENCE,
     limits: {
         reviewRounds: LIMITS.reviewRounds.default,
         parallelTasks: LIMITS.parallelTasks.default,
@@ -125,7 +143,7 @@ export function parseFactorySettings(value: unknown): Parsed<FactorySettings> {
         return parsed;
     }
 
-    const { autonomy, limits = {} } = parsed.value;
+    const { autonomy, audience, limits = {} } = parsed.value;
     const ownLimits = LIMIT_NAMES.filter((name) => limits[name] !== undefined);
     const resolved = Object.fromEntries(
         LIMIT_NAMES.map((name) => [name, limits[name] ?? DEFAULT_SETTINGS.limits[name]]),
@@ -135,8 +153,13 @@ export function parseFactorySettings(value: unknown): Parsed<FactorySettings> {
         kind: "valid",
         value: {
             autonomy: autonomy ?? DEFAULT_SETTINGS.autonomy,
+            audience: audience ?? DEFAULT_SETTINGS.audience,
             limits: { ...DEFAULT_SETTINGS.limits, ...resolved },
-            own: new Set([...(autonomy === undefined ? [] : (["autonomy"] as const)), ...ownLimits]),
+            own: new Set([
+                ...(autonomy === undefined ? [] : (["autonomy"] as const)),
+                ...(audience === undefined ? [] : (["audience"] as const)),
+                ...ownLimits,
+            ]),
         },
     };
 }
@@ -219,6 +242,19 @@ async function readSettingsJson(
     }
 }
 
+function audienceLines(audience: Audience): string[] {
+    if (audience === DEFAULT_AUDIENCE) {
+        return [];
+    }
+
+    return [
+        "",
+        `## Audience: ${audience}`,
+        "",
+        `A ${audience} is at the keyboard (ADR 0070). Load the \`factory-non-programmer\` skill and follow it for everything you say and do.`,
+    ];
+}
+
 /**
  * Renders the tuning values for the session context, so every skill uses the same numbers.
  *
@@ -228,6 +264,8 @@ async function readSettingsJson(
  * @example
  * ```ts
  * expect(renderSettingsContext(DEFAULT_SETTINGS)).toContain("| `reviewRounds` | 3 (default) |");
+ * expect(renderSettingsContext(DEFAULT_SETTINGS)).not.toContain("Audience");
+ * expect(renderSettingsContext({ ...DEFAULT_SETTINGS, audience: "non-programmer" })).toContain("## Audience: non-programmer");
  * ```
  */
 export function renderSettingsContext(settings: FactorySettings): string {
@@ -245,6 +283,7 @@ export function renderSettingsContext(settings: FactorySettings): string {
         "| Setting | Value | Limits |",
         "| --- | --- | --- |",
         ...rows,
+        ...audienceLines(settings.audience),
     ].join("\n");
 }
 

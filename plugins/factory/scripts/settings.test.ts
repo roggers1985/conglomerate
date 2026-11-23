@@ -32,6 +32,20 @@ describe("parseFactorySettings", () => {
         }
     });
 
+    it("accepts the audiences, defaults to the owner, and refuses an unknown one", () => {
+        expect(settingsOf({})?.audience).toBe("owner");
+        expect(settingsOf({ audience: "non-programmer" })?.audience).toBe("non-programmer");
+        expect(settingsOf({ audience: "non-programmer" })?.own.has("audience")).toBe(true);
+        expect(settingsOf({ audience: "visitor" })).toBeNull();
+    });
+
+    it("says who is at the keyboard in the session context only for a non-programmer", () => {
+        expect(renderSettingsContext(DEFAULT_SETTINGS)).not.toContain("Audience");
+        expect(renderSettingsContext({ ...DEFAULT_SETTINGS, audience: "non-programmer" })).toContain(
+            "## Audience: non-programmer",
+        );
+    });
+
     it("takes the limits a project sets, and the defaults for the rest", () => {
         const settings = settingsOf({ limits: { reviewRounds: 5 } });
 

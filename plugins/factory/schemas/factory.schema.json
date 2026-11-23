@@ -15,6 +15,14 @@
                 "autonomous"
             ]
         },
+        "audience": {
+            "description": "Who is at the keyboard: the owner, or a non-programmer who gets plain language (ADR 0070)",
+            "type": "string",
+            "enum": [
+                "owner",
+                "non-programmer"
+            ]
+        },
         "limits": {
             "type": "object",
             "properties": {

@@ -8,6 +8,8 @@ Accepted. Extended by [ADR-0058](0058-project-settings.md): the settings file al
 
 Extended by [ADR-0069](0069-guard-hook-for-owner-only-actions.md) (proposed): a hook asks before force-pushes, edits to accepted ADRs and, at `guided`, merges.
 
+Amended by [ADR-0070](0070-audience-non-programmer.md) (proposed): an `audience` setting says who is at the keyboard.
+
 Amends [ADR-0008](0008-deliver-owner-conventions-through-the-plugin.md) (what the session-start hook adds) and [ADR-0043](0043-checkup-branches-as-pull-requests.md) (who merges checkup PRs).
 
 ## Context

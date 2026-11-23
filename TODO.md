@@ -60,28 +60,12 @@ To decide:
 
 ## Non-programmers in a repository
 
-Why: non-programmers will work in a project (first tuygo), and the owner cannot take risks with money, data, auth and deploys. Waiting for the owner on every technical or permission question would also block them. Idea: they get full autonomy on decisions, inside tight permissions, and the owner's gate moves from the middle of the work to merge time. None of this is agreed yet. Each item that changes a convention or an accepted ADR needs the owner's decision first.
+Done in the plugin (ADR 0069, 0070, proposed): the `audience` setting, the `factory-non-programmer` skill, and a guard that denies what would ask the owner. What is left belongs to each project and its host, and has to be set up before a non-programmer starts (first tuygo):
 
-Prerequisites (the guardrails come before anyone is let in):
-
-- [ ] Git guardrails in the project: no direct pushes to `main`, the owner approves every merge, and a `CODEOWNERS` file that requires the owner's review for sensitive paths and for any `package.json` or lockfile change
-- [ ] Permission rules that deny edits outside the frontend paths, and deny edits to `.claude/factory.json` and `.claude/settings*`, so a session cannot raise its own level or change its own audience. Cover those files in `CODEOWNERS` as well
-- [ ] No production credentials, secrets or paid-service access in a non-programmer's environment. They work against a sandbox with fake data
-
-The audience setting:
-
-- [ ] Add an `audience` setting next to the autonomy level in `.claude/factory.json` (for example `"non-programmer"`; the schema is strict, ADR 0058). It is a role, not a fourth level: the level says how much is decided without asking, the audience says who is at the keyboard and what they can answer. A new ADR amends ADR 0044
-- [ ] A short skill, loaded only when `audience` is set, for the non-programmer behaviour:
-  - only UX questions, in plain language, about what people see and do, never about how it is built;
-  - technical decisions go to a strong subagent (`code-complex`) and are written to a decision log with the reason, so the owner can review them later;
-  - output, commit messages and pull request descriptions in plain language
-- [ ] The owner-only list stops blocking the work. For an item on it (a new dependency, anything about auth, money or personal data, an API change), the session writes a handoff file, takes the safe side for now, marks it "needs owner review" and carries on with the rest. The owner decides at the pull request, which lists the open items in plain words
-- [ ] The most dangerous actions are not asked about at all: force-push, deleting data, production, secrets, paid services and making anything public are blocked by permission rules, and the session only notes them in the handoff file. Check that the hooks from the autonomy TODO (block `gh pr merge`, force-pushes and edits to accepted ADRs) cover this
-
-With the Go API (see the tuygo repository's plan):
-
-- [ ] A session in the frontend repository cannot change the API. A needed API change becomes a request in the handoff file or an issue, never an edit
-- [ ] Agree how the frontend repository gets the API's contract (an OpenAPI spec and generated types), so non-programmers work against a sandbox API and never against real data
+- [ ] Git guardrails in the project: branch protection on `main`, the owner approves every merge, and a `CODEOWNERS` file that requires the owner's review for sensitive paths, `package.json`, lockfiles, `.claude/factory.json` and `.claude/settings*`
+- [ ] Permission rules in the project's settings that deny edits outside the frontend paths
+- [ ] No production credentials, secrets or paid-service access in a non-programmer's environment: a sandbox with fake data
+- [ ] Agree how the frontend repository gets the API's contract (an OpenAPI spec and generated types), so non-programmers work against a sandbox API and never against real data (see the tuygo repository's plan)
 - [ ] Check that the skills cover Go: there are cancellation, API design and safety sections, but nothing yet on Go testing or project layout
 
 ## Before going public

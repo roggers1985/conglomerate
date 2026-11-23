@@ -60,6 +60,7 @@ _No skills yet._
 | `factory-build` | The factory's build, verify and spike stages. | `code` (sonnet, medium) |
 | `factory-finish` | The factory's docs and finish stages. | `code` (sonnet, medium) |
 | `factory-intake` | The factory's intake stages. | `planning` (opus, high) |
+| `factory-non-programmer` | How to work when a non-programmer is at the keyboard (the project's `audience` setting is `non-programmer`, ADR 0070). | `code` (sonnet, medium) |
 | `factory-planning` | The factory's planning stages. | `planning` (opus, high) |
 | `factory-review` | The factory's review and security-review stages. | `review` (opus, high) |
 | `factory-triage` | Stage 0 of the factory, for medium and large tasks (small, low-risk ones skip it). | `planning` (opus, high) |
