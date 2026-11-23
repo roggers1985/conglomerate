@@ -84,3 +84,7 @@ Two things the build cannot settle and verify must: that Claude Code really deli
 - Depends on: T-1, T-2, T-3
 - Parallel: no
 - Status: done
+
+## Deviations
+
+- Review findings 1 to 4 were fixed by the coordinating session in one pass, not through the test agent and code agent in separate worktrees. They were small, and the review's mutation checks show each new test fails on the break it targets.

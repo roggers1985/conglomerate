@@ -38,4 +38,5 @@ The owner approved this with the change's spec and plan on 2026-11-09 (`docs/cha
 
 - Every session, and every subagent that inherits its context, gets the full context of about 13 KB (about 3,300 tokens) instead of a 2 KB preview. That is the intended behaviour, but it is more context than before.
 - `core.md` is 9,783 characters, only 217 under the cap. The next sizeable edit fails the test. What to cut is then the owner's decision.
-- If the cap turns out to apply to the sum of all hook output at session start, and not to each string, the split does not help. The content must then shrink, which changes the owner's conventions and needs a new decision.
+- The cap applies to each string, not to the sum of all hook output. The live session of 2026-11-09 delivered 13 KB in total, and Claude Code's hooks reference says it measures each string on its own, even when several hooks run for one event.
+- The autonomy part includes the problems of an invalid settings file. They are limited to ten, 200 characters each, so a hostile settings file cannot push the part over the cap.

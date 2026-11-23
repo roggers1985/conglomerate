@@ -13,6 +13,7 @@ import {
     SESSION_START_CONTEXT_CHARACTERS_MAX,
     SESSION_START_PARTS,
 } from "./session-start.ts";
+import { readFactorySettings, renderSettingsContext } from "./settings.ts";
 
 const LEVELS = ["guided", "trusted", "autonomous"] as const;
 const AUTONOMY_DIR = path.resolve(import.meta.dir, "..", "conventions", "autonomy");
@@ -60,9 +61,16 @@ describe("session-start parts", () => {
         return { exitCode, stdout, stderr };
     };
 
-    it("AC-2: names the three parts in the order conventions, autonomy, routing", () => {
-        expect(SESSION_START_PARTS).toEqual(["conventions", "autonomy", "routing"]);
-        expect(SESSION_START_CONTEXT_CHARACTERS_MAX).toBe(10_000);
+    it("AC-2: keeps the autonomy part within the cap when the settings have thousands of unknown keys", async () => {
+        const unknown = Object.fromEntries(Array.from({ length: 2_000 }, (_, index) => [`unknown_key_${index}`, 1]));
+
+        await setSettings(JSON.stringify({ autonomy: "trusted", ...unknown }));
+
+        const text = await renderSessionStartPart("autonomy", { projectDir, signal: signal() });
+
+        expect(text.length).toBeLessThanOrEqual(SESSION_START_CONTEXT_CHARACTERS_MAX);
+        expect(text).toContain("unknown_key_0");
+        expect(text).toContain("…");
     });
 
     for (const level of LEVELS) {
@@ -112,8 +120,12 @@ describe("session-start parts", () => {
             const text = await renderSessionStartPart("autonomy", { projectDir, signal: signal() });
             const rules = await Bun.file(path.join(AUTONOMY_DIR, `${level}.md`)).text();
 
+            const project = await readFactorySettings(projectDir, { signal: signal() });
+
             expect(text).toStartWith(`## Autonomy: ${level}`);
             expect(text).toContain(rules.trim());
+            expect(text).toEndWith(`\n\n${renderSettingsContext(project.settings)}`);
+            expect(text).toContain("## Factory settings");
         });
     }
 
@@ -156,6 +168,7 @@ describe("session-start parts", () => {
         expect(exitCode).not.toBe(0);
         expect(stdout).toBe("");
         expect(stderr).toContain("autonomy");
+        expect(stderr).toContain("over the limit of 1048576 bytes");
     });
 
     it("AC-7: rejects with an error that names the autonomy part when the settings cannot be read", async () => {

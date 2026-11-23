@@ -36,6 +36,21 @@ const SOURCES: Readonly<Record<ProjectSettings["kind"], string>> = {
     invalid: `the default, because \`${FACTORY_SETTINGS_PATH}\` is invalid`,
 };
 
+// The errors come from a file the project's branch controls, so their number and length are bounded.
+const ERRORS_MAX = 10;
+const ERROR_CHARACTERS_MAX = 200;
+
+function renderErrors(errors: readonly string[]): string[] {
+    const shown = errors
+        .slice(0, ERRORS_MAX)
+        .map((error) =>
+            error.length > ERROR_CHARACTERS_MAX ? `- ${error.slice(0, ERROR_CHARACTERS_MAX)}…` : `- ${error}`,
+        );
+    const hidden = errors.length - shown.length;
+
+    return hidden > 0 ? [...shown, `- and ${hidden} more`] : shown;
+}
+
 /**
  * Renders the autonomy section of the session context: the level, where it comes from, and its rules.
  *
@@ -56,7 +71,7 @@ const SOURCES: Readonly<Record<ProjectSettings["kind"], string>> = {
  */
 export function renderAutonomyContext(project: ProjectSettings, { rules }: { readonly rules: string }): string {
     const level = project.settings.autonomy;
-    const errors = project.kind === "invalid" ? ["", ...project.errors.map((error) => `- ${error}`)] : [];
+    const errors = project.kind === "invalid" ? ["", ...renderErrors(project.errors)] : [];
     const source = project.kind === "project" && !project.settings.own.has("autonomy") ? "default" : project.kind;
 
     return [

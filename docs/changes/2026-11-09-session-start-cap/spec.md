@@ -24,7 +24,7 @@ Together with the blank lines between them, that is 13,127 characters in one str
 - **AC-4**: THE SYSTEM SHALL keep the wording of each part unchanged by this change.
 - **AC-5**: IF the project's autonomy level is `guided`, `trusted` or `autonomous`, THEN THE SYSTEM SHALL keep every string at most 10,000 characters long for that level.
 - **AC-6**: IF a change to the conventions, the autonomy rules or the model routing makes a part longer than 10,000 characters, THEN THE SYSTEM SHALL fail its automatic checks, and the failure SHALL name the part and its length.
-- **AC-7**: IF one part cannot be produced (for example the project's settings are invalid), THEN THE SYSTEM SHALL still deliver the other parts and SHALL tell the owner which part is missing and why.
+- **AC-7**: IF one part cannot be produced (for example the project's settings file is over 1 MiB; an invalid file falls back to the defaults and is reported, so it does not stop the part), THEN THE SYSTEM SHALL still deliver the other parts and SHALL tell the owner which part is missing and why.
 
 ## Edge cases
 

@@ -23,3 +23,7 @@
 ## Rulings
 
 - T-1, the AC-7 tests on malformed settings (`403c0ea`): the test is wrong. An invalid `.claude/factory.json` falls back to the defaults and reports its errors, so the autonomy part still succeeds; only a settings file over 1 MiB makes it fail. The test agent corrected the tests in `d833795`. The spec's example for AC-7 ("the project's settings are invalid") names the wrong trigger; the criterion itself is unchanged. To bring to the owner at review.
+
+## After the review
+
+- `main` merged into the branch; fixes for review findings 1 to 4 added with tests. `bun run check` on the clean tree: 537 tests, 104 doctests, validate all pass.

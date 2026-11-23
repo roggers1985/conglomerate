@@ -23,7 +23,7 @@ export type SessionStartOutput = {
 export const CORE_CONVENTIONS_PATH = path.resolve(import.meta.dir, "..", "conventions", "core.md");
 
 /**
- * The parts of the session-start context, in the order the hook configuration prints them. Each part is a separate
+ * The parts of the session-start context, in the order the hook configuration lists them. Each part is a separate
  * run of the script, because Claude Code truncates a hook's context above 10,000 characters.
  *
  * @example
@@ -68,7 +68,7 @@ async function renderPartText(part: SessionStartPart, projectDir: string, signal
  * @param options.projectDir - The project folder, whose `.claude/factory.json` sets the autonomy level.
  * @param options.signal - Cancels the reading.
  * @returns The trimmed text of the part.
- * @throws Error naming the part, with the reason as its cause, when the part cannot be produced.
+ * @throws Error naming the part, with the reason as its cause, when the part cannot be produced or is empty.
  *
  * @example
  * ```ts
@@ -85,7 +85,11 @@ export async function renderSessionStartPart(
     { projectDir, signal }: { readonly projectDir: string; readonly signal: AbortSignal },
 ): Promise<string> {
     try {
-        return (await renderPartText(part, projectDir, signal)).trim();
+        const text = (await renderPartText(part, projectDir, signal)).trim();
+
+        assert(text.length > 0, "the part is empty");
+
+        return text;
     } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
 
