@@ -22,7 +22,7 @@ The build turns the task list (`tasks.md`, or the Tasks section of `plan.md`) in
 
 ## Each task
 
-A task is built by two agents in turn. A **test agent** writes its tests from the spec and commits them failing. A different **code agent** then makes them pass, without touching the tests. Two agents, so the code can't shape the tests and one reading of the spec doesn't end up in both. The exceptions are under "Special cases" below.
+**On the full track, and on any route whose risk is high,** a task is built by two agents in turn (ADR 0063, narrowed by ADR 0067). On the quick and standard tracks, one agent writes the tests and the code: see "Special cases". A **test agent** writes its tests from the spec and commits them failing. A different **code agent** then makes them pass, without touching the tests. Two agents, so the code can't shape the tests and one reading of the spec doesn't end up in both. The exceptions are under "Special cases" below.
 
 1. **Pick the next task:** the first `pending` one whose dependencies are all `done`. Set it to `in-progress` in the task list.
 2. **Choose its agents** by what the task needs (model routing, `models.json`):
@@ -69,9 +69,9 @@ A task is built by two agents in turn. A **test agent** writes its tests from th
 There is at most one arbitration per task. A second dispute goes to the owner, at every autonomy level. Record each ruling under `## Rulings` in `verification.md`.
 
 **Special cases:**
-- **On the quick track** one agent writes the tests and the code. The review checks the tests. Dispatch it in its own worktree, and tell it:
+- **On the quick and standard tracks, when the risk is not high,** one agent writes the tests and the code (ADR 0067). The review checks the tests. Dispatch it in its own worktree, and tell it:
   - to create its branch from the change's branch: `git switch -c change/<name>--T-<n> change/<name>`;
-  - to read `CLAUDE.md` and the conventions, and the task and its criteria as you give them (the quick track has no change folder);
+  - to read `CLAUDE.md` and the conventions, and the task and its criteria as you give them (the quick track has no change folder; on the standard track it also reads `spec.md` and `plan.md`);
   - to write the tests first, naming each criterion in the test's name as in step 3, to run them and see them fail, and only then to make them pass;
   - for a migration, to write the behaviour test first instead, run it on the old code and see it *pass*, and commit it before changing the code under test. Only then does it make the change. Its reply names that run: the command, the commit and the result (see "Before the first task");
   - the rest of step 5: follow the conventions and stay inside the task's files, run the **Verify** command and the fast checks before committing, reply with the commands and their results, don't regenerate, and the worktree rules.

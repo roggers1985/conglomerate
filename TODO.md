@@ -55,11 +55,8 @@ Proposed tiers:
 
 To decide:
 
-- [ ] Define the three tiers and let triage pick one. Triage itself only runs for medium and large tasks (ADR 0051)
-- [ ] Measure first: how many tokens does the session-start payload cost per session (conventions, model table, settings table, about 40 skill descriptions)? That sets how much the next items can save
+- [ ] Measured 2026-11-23 (ADR 0067): about 12 KB of conventions, autonomy rules and routing plus about 17 KB of skill descriptions, roughly 7,000 tokens per session. The skill descriptions are over half of it: shrinking the core saves about 6 KB, leaving out rarely used skills from the list saves more
 - [ ] Shrink the always-on core to about 30 lines. Keep: the code-style core, parse at the boundary, the optionality rules, secure by default, fail fast, required `AbortSignal`, push back with reasons, always a recommended option, the always-the-owner's list, no untracked debt, the license policy. Everything else moves to skills loaded on demand
-- [ ] Use the separate test agent, code agent and arbiter in their own worktrees only for the large or risky tier. Medium tasks get one agent that writes tests and code (ADR 0063)
-- [ ] One review at the end for medium changes. Several rounds only for the large tier (`reviewRounds`, ADR 0058)
 - [ ] Ask for EARS criteria with evidence per criterion in `verification.md` only where the spec must be exact (ADR 0054, 0055)
 - [ ] Replace "make tests extensive" in the always-on rules with risk-based testing: real state and money (cart, checkout, forms), accessibility per page, key-flow end-to-end tests. No tests for stubs and no per-prop matrices. Gallery and visual checks as screenshots, not long functional specs (`code-testing`, ADR 0059)
 - [ ] Require a doc comment with a runnable example only on the public API of a library, not on every internal export (ADR 0016)

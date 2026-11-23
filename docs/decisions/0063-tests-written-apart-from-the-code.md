@@ -6,7 +6,7 @@ Date: 2026-10-10
 
 Accepted
 
-Amends [ADR-0054](0054-build-verify-and-spike.md): a task with testable behaviour is built by a test agent and a code agent, with an arbiter for a disputed test. Amends [ADR-0055](0055-review-and-security-review.md): the review breaks the code to see each criterion's test fail. Extends the task format of [ADR-0053](0053-planning-plan-tasks-and-the-convention-gate.md) with a `Tests` field. Leaves [ADR-0016](0016-documentation-with-tested-examples.md) unchanged: the rule on comments doesn't apply to the documentation of a declaration. Follows [ADR-0015](0015-task-agents-and-model-overrides.md): the new roles use the existing task agents.
+Amends [ADR-0054](0054-build-verify-and-spike.md): a task with testable behaviour is built by a test agent and a code agent, with an arbiter for a disputed test. Amends [ADR-0055](0055-review-and-security-review.md): the review breaks the code to see each criterion's test fail. Extends the task format of [ADR-0053](0053-planning-plan-tasks-and-the-convention-gate.md) with a `Tests` field. Leaves [ADR-0016](0016-documentation-with-tested-examples.md) unchanged: the rule on comments doesn't apply to the documentation of a declaration. Narrowed by [ADR-0067](0067-process-scales-with-size-and-risk.md) (proposed): the split applies on the full track or at high risk. Follows [ADR-0015](0015-task-agents-and-model-overrides.md): the new roles use the existing task agents.
 
 ## Context
 

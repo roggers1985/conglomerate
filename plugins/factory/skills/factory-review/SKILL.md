@@ -25,7 +25,7 @@ When the reviewer is interrupted (a usage limit, an error), resume that same age
 2. **Nothing beyond the spec:** behaviour the spec doesn't ask for, including anything under "Out of scope", is a finding.
 3. **The plan:** the change follows it. Deviations are named and justified; an unjustified one is a finding.
 4. **The conventions and ADRs,** in substance: the plan's convention gate said the change follows them, and this is where that's checked. Readability, bounds and fail fast, parsing at the boundary, cancellation, API design, documentation with tested examples, the testing conventions.
-5. **The tests:** they test behaviour, not implementation; they cover the edge cases and limits of the spec; nothing is skipped or focused. On the quick track one agent wrote both the tests and the code, so check that the code didn't shape the tests: they follow the spec's words, not the code's structure. An expectation that only restates the implementation is a finding.
+5. **The tests:** they test behaviour, not implementation; they cover the edge cases and limits of the spec; nothing is skipped or focused. On the quick and standard tracks (unless the risk is high) one agent wrote both the tests and the code, so check that the code didn't shape the tests: they follow the spec's words, not the code's structure. An expectation that only restates the implementation is a finding.
 6. **Bugs and risks** the tests don't catch: races, unchecked errors, time zones, off-by-one.
 7. **The behaviour test, when the route has a migration plan:**
    - it ran on the old code: `verification.md` records the command, the commit and the result. On the quick track there is no change folder: the record is in the build's reply and the pull request's description;
@@ -110,7 +110,7 @@ The reviewer writes every finding as `open`. Then, in the main session:
 - **Accept** a finding instead of fixing it only with a reason, as `accepted: <reason>`. At `guided`, only the owner accepts. At `trusted` and `autonomous`, you may accept medium and low findings, and list them for the owner.
 - **A high finding** is fixed, or accepted by the owner (`accepted by owner: <reason>`), at every autonomy level.
 
-**At most `reviewRounds` review rounds** (the "Factory settings" section of the session context; 3 by default, ADR 0058). A round is: the reviewer reports, the findings are fixed, the reviewer checks the fixes. When findings are still open after the last round, stop: put them to the owner with what was tried, instead of another round. A reviewer and a fixer that keep disagreeing need a decision, not more attempts.
+**At most `reviewRounds` review rounds on the full track** (the "Factory settings" section of the session context; 3 by default, ADR 0058), **and one on the quick and standard tracks** (ADR 0067), unless the risk is high. A round is: the reviewer reports, the findings are fixed, the reviewer checks the fixes. When findings are still open after the last round, stop: put them to the owner with what was tried, instead of another round. A reviewer and a fixer that keep disagreeing need a decision, not more attempts.
 
 When every finding is closed, set the stage to `done`, and run `bun "${CLAUDE_PLUGIN_ROOT}/dist/changes.js" check docs/changes/<name>/task.md`. It refuses a done review that:
 - is missing its summary or findings;
