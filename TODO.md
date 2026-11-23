@@ -56,9 +56,7 @@ Proposed tiers:
 To decide:
 
 - [ ] Measured 2026-11-23 (ADR 0067): about 12 KB of conventions, autonomy rules and routing plus about 17 KB of skill descriptions, roughly 7,000 tokens per session. The skill descriptions are over half of it: shrinking the core saves about 6 KB, leaving out rarely used skills from the list saves more
-- [ ] Shrink the always-on core to about 30 lines. Keep: the code-style core, parse at the boundary, the optionality rules, secure by default, fail fast, required `AbortSignal`, push back with reasons, always a recommended option, the always-the-owner's list, no untracked debt, the license policy. Everything else moves to skills loaded on demand
 - [ ] Ask for EARS criteria with evidence per criterion in `verification.md` only where the spec must be exact (ADR 0054, 0055)
-- [ ] Replace "make tests extensive" in the always-on rules with risk-based testing: real state and money (cart, checkout, forms), accessibility per page, key-flow end-to-end tests. No tests for stubs and no per-prop matrices. Gallery and visual checks as screenshots, not long functional specs (`code-testing`, ADR 0059)
 - [ ] Require a doc comment with a runnable example only on the public API of a library, not on every internal export (ADR 0016)
 - [ ] Write an ADR only for a decision that is hard to reverse. There are about 60 now
 - [ ] Collapse the model routing table from nine task types to three tiers (cheap, default, strong), or drop the table and let the session choose (ADR 0021)

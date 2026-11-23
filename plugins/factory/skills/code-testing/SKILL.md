@@ -5,7 +5,7 @@ description: The owner's testing conventions. Covers what to test at which level
 
 # Testing conventions
 
-Every feature ships with tests, even when not explicitly asked. Tests are extensive, and they test *behaviour*: what a user or caller can observe, never how the code does it internally.
+Every feature ships with tests, even when not explicitly asked. Test where the risk is (ADR 0068): real state and money (a cart, a checkout, a form), the edge cases found systematically, accessibility per page, and the key flows end to end. Don't write tests for stubs and placeholders, or a matrix of every prop. Gallery and visual checks are screenshots, not long functional specs. Tests check *behaviour*: what a user or caller can observe, never how the code does it internally.
 
 ## Which tests at which level
 
